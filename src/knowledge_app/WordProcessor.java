@@ -105,7 +105,8 @@ public class WordProcessor {
 				subWords = lcWord.split(curComplexWordTemplate.getDelimiter(), 2);
 				word1Wordforms = parseEnding (subWords[0],postfix,1,curComplexWordTemplate);
 				if (word1Wordforms!=null)
-					word2Wordforms = parseEnding (subWords[1],postfix,2,curComplexWordTemplate);
+					if(!word1Wordforms.isEmpty())
+						word2Wordforms = parseEnding (subWords[1],postfix,2,curComplexWordTemplate);
 				if (word2Wordforms!=null){
 					word2WordformsIterator=word2Wordforms.iterator();
 					while(word2WordformsIterator.hasNext()){

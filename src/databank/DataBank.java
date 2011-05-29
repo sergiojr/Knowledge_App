@@ -227,6 +227,8 @@ public class DataBank {
 	}
 
 	public void flushWordforms() {
+		if (delayedSaveWordforms==null)
+			return;
 		Iterator<WordForm> iterator = delayedSaveWordforms.iterator();
 		WordForm wordform;
 		HashSet<Word> updatedWordSet = new HashSet<Word>();
@@ -1278,6 +1280,8 @@ public class DataBank {
 
 	public Word getWord(String baseForm, int type, int rule_no, boolean complex, int word1ID,
 			int word2ID, boolean save) {
+		String query;
+
 		if (wordsByBase == null)
 			wordsByBase = new HashMap<String, HashSet<Word>>();
 		HashSet<Word> wordSet = wordsByBase.get(baseForm);
@@ -1294,10 +1298,16 @@ public class DataBank {
 
 		word = null;
 
-		String query = MessageFormat
-				.format("select * from words left join complex_word on words.id = complex_word.word_id "
-						+ "where word=''{0}'' AND type={1,number,#} AND rule_no={2,number,#} AND complex = {3} and word1 = {4,number,#} AND word2 = {5,number,#};",
-						baseForm, type, rule_no, complex, word1ID, word2ID);
+		if (complex)
+			query = MessageFormat
+					.format("select id,rating from words left join complex_word on words.id = complex_word.word_id "
+							+ "where word=''{0}'' AND type={1,number,#} AND rule_no={2,number,#} AND "
+							+ "complex = {3} and word1 = {4,number,#} AND word2 = {5,number,#};",
+							baseForm, type, rule_no, complex, word1ID, word2ID);
+		else
+			query = MessageFormat
+					.format("select id,rating from words where word=''{0}'' AND type={1,number,#} AND rule_no={2,number,#}",
+							baseForm, type, rule_no);
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();

@@ -24,7 +24,7 @@ public class Knowledge_App {
 		System.out.print("Parsing Text...");
 		parseSources();
 		endTime = System.currentTimeMillis();
-		System.out.println("Complete in " + (endTime - curTime) / 1000 + " seconds.");
+		System.out.println("Complete in " + minutes(endTime - curTime) + " minutes.");
 		curTime = endTime;
 
 		System.out.print("Parse Sentences...");
@@ -140,11 +140,11 @@ public class Knowledge_App {
 					curInput = curInput + Character.toString(newchar);
 				}
 			}
-			databank.flushWordforms();
 			if (!sentence.sentence.isEmpty()) {
 				if(save)
 					sentence.save(databank);
 			}
+			databank.flushWordforms();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
