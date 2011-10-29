@@ -6,6 +6,7 @@ import java.util.Iterator;
 
 import databank.DataBank;
 import databank.Numeral;
+import databank.Word;
 
 public class Sentence {
 	// rating_tolerance - max allowed difference between (100-rating) and (100-maxraring) for
@@ -54,10 +55,29 @@ public class Sentence {
 		Iterator<SentencePart> predicateIterator;
 		SentencePart predicate;
 		ArrayList<SentencePart> sentenceParts;
+
+		ArrayList<SentencePart> conjunctions;
+		Iterator<SentencePart> conjunctionIterator;
+		SentencePart conjunction;
+
+		ArrayList<SentencePart> subject2List;
+		Iterator<SentencePart> subject2Iterator;
+		SentencePart subject2;
+
 		boolean success = false;
+		boolean conjunctionFound = false;
 		char[] canNotParseMarks;
 		if (databank == null)
 			return;
+
+		parseNumerals();
+		parseNegative();
+		parseConjunctions();
+		parseAttributes();
+		// parseGenetiveSubstantives();
+		parseComplexPredicate();
+		parseAdverbs();
+		parseVerbControlledSubstantives();
 
 		// get best wordform to fill maxrating
 		try {
@@ -65,13 +85,7 @@ public class Sentence {
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-
-		parseNumerals();		
-		parseNegative();
-		parseConjunctions();
-		parseAttributes();
-//		parseGenetiveSubstantives();
-		parseComplexPredicate();
+		
 		
 		try {
 			canNotParseMarks = databank.getPunctuationMarksNotReady().toCharArray();
@@ -84,16 +98,18 @@ public class Sentence {
 			e.printStackTrace();
 		}
 
+		conjunctions = databank.getConjunctions(id);
+
 		// получить потенциальные сказуемые, отсортированные по рейтингу
-		predicateList = databank.getPredicateList(id,0,0,0,0, rating_tolerance);
+		predicateList = databank.getPredicateList(id, 0, 0, 0, 0, rating_tolerance);
 		predicateIterator = predicateList.iterator();
 
-		// получить для каждого сказуемого, потенциальные подлежащие,
-		// отсортированные по рейтингу
 		while ((predicateIterator.hasNext()) & !success) {
-			predicate = predicateIterator.next();		
+			predicate = predicateIterator.next();
+			// получить для каждого сказуемого, потенциальные подлежащие,
+			// отсортированные по рейтингу
 			subjectList = databank.getSubjectList(id, predicate.wordPos, predicate.person,
-					predicate.gender, predicate.sing_pl,rating_tolerance);
+					predicate.gender, predicate.sing_pl, rating_tolerance);
 			subjectIterator = subjectList.iterator();
 			// выбрать первую пару
 			if (subjectIterator.hasNext()) {
@@ -101,6 +117,51 @@ public class Sentence {
 				sentenceParts = new ArrayList<SentencePart>();
 				sentenceParts.add(subject);
 				sentenceParts.add(predicate);
+
+				// поиск подлежащего из двух слов, связанных союзом И
+				if (!conjunctions.isEmpty()) {
+					while (subjectIterator.hasNext()) {
+						subject2 = subjectIterator.next();
+						conjunctionIterator = conjunctions.iterator();
+						conjunctionFound = false;
+						while (conjunctionIterator.hasNext()) {
+							conjunction = conjunctionIterator.next();
+							// варианты взаимного расположения
+							// подлежащее1 И подлежащее2 сказуемое
+							if ((subject.wordPos < conjunction.wordPos)
+									& (subject2.wordPos > conjunction.wordPos)
+									& (subject2.wordPos < predicate.wordPos)) {
+								conjunctionFound = true;
+								break;
+							}
+							// подлежащее2 И подлежащее1 сказемое
+							if ((subject2.wordPos < conjunction.wordPos)
+									& (subject.wordPos > conjunction.wordPos)
+									& (subject.wordPos < predicate.wordPos)) {
+								conjunctionFound = true;
+								break;
+							}
+							// сказуемое подлежащее1 И подлежащее2
+							if ((subject.wordPos < conjunction.wordPos)
+									& (subject2.wordPos > conjunction.wordPos)
+									& (subject.wordPos > predicate.wordPos)) {
+								conjunctionFound = true;
+								break;
+							}
+							// сказуемое подлежащее2 И подлежащее1
+							if ((subject2.wordPos < conjunction.wordPos)
+									& (subject.wordPos > conjunction.wordPos)
+									& (subject2.wordPos > predicate.wordPos)) {
+								conjunctionFound = true;
+								break;
+							}
+						}
+						if (conjunctionFound) {
+							sentenceParts.add(subject2);
+							break;
+						}
+					}
+				}
 				databank.saveSentenceParts(sentenceParts);
 				success = true;
 			}
@@ -115,35 +176,36 @@ public class Sentence {
 		ArrayList<SentencePart> substantiveList;
 		Iterator<SentencePart> substantiveIterator;
 		SentencePart substantive;
-		
-		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();		
-		
+
+		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();
+
 		int wcase;
 		int sing_pl;
-		
-		//получить список числительных
+
+		// получить список числительных
 		numeralList = databank.getNumeralList(id);
 		numeralIterator = numeralList.iterator();
-		
-		//для каждого числительного найти существительное, следующее за ним
-		while(numeralIterator.hasNext()){
+
+		// для каждого числительного найти существительное, следующее за ним
+		while (numeralIterator.hasNext()) {
 			numeralPart = numeralIterator.next();
 			numeral = databank.getNumeralByWordID(numeralPart.word_id);
 			wcase = numeralPart.wcase;
 			sing_pl = numeralPart.sing_pl;
-			if (databank.isNumeralBaseForm(numeralPart.word_id,numeralPart.rule_id)){
+			if (databank.isNumeralBaseForm(numeralPart.word_id, numeralPart.rule_id)) {
 				wcase = numeral.getBaseWcase();
 				sing_pl = numeral.getBaseSingPl();
 			}
-			substantiveList = databank.getSubstantiveList(id, numeralPart.wordPos+1, wcase, 0, numeralPart.gender, sing_pl);
+			substantiveList = databank.getSubstantiveList(id, numeralPart.wordPos + 1,
+					String.valueOf(wcase), 0, numeralPart.gender, sing_pl);
 			substantiveIterator = substantiveList.iterator();
-			if(substantiveIterator.hasNext()){
+			if (substantiveIterator.hasNext()) {
 				substantive = substantiveIterator.next();
 				substantive.dep_word_pos = numeralPart.wordPos;
 				sentenceParts.add(substantive);
 			}
 		}
-		databank.saveSentenceParts(sentenceParts);		
+		databank.saveSentenceParts(sentenceParts);
 	}
 
 	private void parseGenetiveSubstantives() {
@@ -153,19 +215,19 @@ public class Sentence {
 		ArrayList<SentencePart> mainSubstantiveList;
 		Iterator<SentencePart> mainSubstantiveIterator;
 		SentencePart mainSubstantive;
-		
-		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();		
 
-		//получить существительные в родительном падеже
-		genetiveSubstantiveList = databank.getSubstantiveList(id, 0, 2, 0, 0, 0);
-		genetiveSubstantiveIterator=genetiveSubstantiveList.iterator();
-		
-		//для каждого существительного в родительном падеже получить предшествующее существительное
-		while(genetiveSubstantiveIterator.hasNext()){
-			genetiveSubstantive=genetiveSubstantiveIterator.next();
-			if (genetiveSubstantive.wordPos>1) {
+		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();
+
+		// получить существительные в родительном падеже
+		genetiveSubstantiveList = databank.getSubstantiveList(id, 0, "2", 0, 0, 0);
+		genetiveSubstantiveIterator = genetiveSubstantiveList.iterator();
+
+		// для каждого существительного в родительном падеже получить предшествующее существительное
+		while (genetiveSubstantiveIterator.hasNext()) {
+			genetiveSubstantive = genetiveSubstantiveIterator.next();
+			if (genetiveSubstantive.wordPos > 1) {
 				mainSubstantiveList = databank.getSubstantiveList(id,
-						genetiveSubstantive.wordPos - 1, 0, 0, 0, 0);
+						genetiveSubstantive.wordPos - 1, ">0", 0, 0, 0);
 				mainSubstantiveIterator = mainSubstantiveList.iterator();
 				if (mainSubstantiveIterator.hasNext()) {
 					mainSubstantive = mainSubstantiveIterator.next();
@@ -174,7 +236,7 @@ public class Sentence {
 				}
 			}
 		}
-		databank.saveSentenceParts(sentenceParts);		
+		databank.saveSentenceParts(sentenceParts);
 	}
 
 	private void parseComplexPredicate() {
@@ -184,28 +246,102 @@ public class Sentence {
 		ArrayList<SentencePart> infinitiveList;
 		Iterator<SentencePart> infinitiveIterator;
 		SentencePart infinitive;
-		
-		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();		
 
-		//получить глаголы в действительной форме
-		verbList = databank.getVerbList(id,1,0);
-		verbIterator=verbList.iterator();
-		
-		//для каждого глагола в действительной форме получить глаголы в инфинитиве
-		while(verbIterator.hasNext()){
-			verb=verbIterator.next();
-			infinitiveList=databank.getVerbList(id, 0, verb.wordPos+1);
-			infinitiveIterator=infinitiveList.iterator();
-			if(infinitiveIterator.hasNext()){
-				infinitive=infinitiveIterator.next();
-				infinitive.dep_word_pos=verb.wordPos;
+		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();
+
+		// получить глаголы в действительной форме
+		verbList = databank.getVerbList(id, 1, 0);
+		verbIterator = verbList.iterator();
+
+		// для каждого глагола в действительной форме получить глаголы в инфинитиве
+		while (verbIterator.hasNext()) {
+			verb = verbIterator.next();
+			infinitiveList = databank.getVerbList(id, 0, verb.wordPos + 1);
+			infinitiveIterator = infinitiveList.iterator();
+			if (infinitiveIterator.hasNext()) {
+				infinitive = infinitiveIterator.next();
+				infinitive.dep_word_pos = verb.wordPos;
 				sentenceParts.add(infinitive);
 			}
 		}
 		databank.saveSentenceParts(sentenceParts);
 	}
 
-	private void parseAttributes(){
+	private void parseAdverbs() {
+		ArrayList<SentencePart> verbList;
+		Iterator<SentencePart> verbIterator;
+		SentencePart verb;
+		ArrayList<SentencePart> adverbList;
+		Iterator<SentencePart> adverbsIterator;
+		SentencePart adverb;
+
+		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();
+
+		// получить глаголы в действительной форме
+		verbList = databank.getVerbList(id, 1, 0);
+		verbIterator = verbList.iterator();
+
+		// для каждого глагола в действительной форме получить наречия
+		while (verbIterator.hasNext()) {
+			verb = verbIterator.next();
+			adverbList = databank.getAdverbList(id, 1, verb.wordPos + 1);
+			adverbsIterator = adverbList.iterator();
+			if (adverbsIterator.hasNext()) {
+				adverb = adverbsIterator.next();
+				adverb.dep_word_pos = verb.wordPos;
+				sentenceParts.add(adverb);
+			}
+		}
+		databank.saveSentenceParts(sentenceParts);
+	}
+
+	private void parseVerbControlledSubstantives() {
+		int curWordPos;
+		ArrayList<SentencePart> verbList;
+		Iterator<SentencePart> verbIterator;
+		SentencePart verb;
+		ArrayList<SentencePart> nextWordformList;
+		Iterator<SentencePart> nextWordformIterator;
+		SentencePart nextWordform;
+		ArrayList<SentencePart> substantiveList;
+		Iterator<SentencePart> substantiveIterator;
+		SentencePart substantive;
+
+		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();
+
+		// получить глаголы в действительной форме
+		verbList = databank.getVerbList(id, 1, 0);
+		verbIterator = verbList.iterator();
+
+		while (verbIterator.hasNext()) {
+			verb = verbIterator.next();
+			// для каждого глагола в действительной форме получить существительные не в именительном
+			// падеже
+			curWordPos = verb.wordPos;
+			nextWordformList = databank.getNextWordforms(id, curWordPos);
+			nextWordformIterator = nextWordformList.iterator();
+			if (nextWordformIterator.hasNext()) {
+				nextWordform = nextWordformIterator.next();
+				// если следующее слово предлог, то пропускаем
+				if (nextWordform.type == WordProcessor.preposition)
+					curWordPos += 1;
+				curWordPos=databank.getNextIndependentWordPos(id, curWordPos);
+			}
+
+			substantiveList = databank.getSubstantiveList(id, curWordPos, ">1", 0, 0, 0);
+			substantiveIterator = substantiveList.iterator();
+			if (substantiveIterator.hasNext()) {
+				substantive = substantiveIterator.next();
+				if (substantive.dep_word_pos == 0) {
+					substantive.dep_word_pos = verb.wordPos;
+					sentenceParts.add(substantive);
+				}
+			}
+		}
+		databank.saveSentenceParts(sentenceParts);
+	}
+
+	private void parseAttributes() {
 		ArrayList<SentencePart> adjectiveList;
 		Iterator<SentencePart> adjectiveIterator;
 		SentencePart adjective;
@@ -214,27 +350,28 @@ public class Sentence {
 		SentencePart substantive;
 		ArrayList<SentencePart> linkedAdjectiveList;
 		Iterator<SentencePart> linkedAdjectiveIterator;
-		SentencePart linkedAdjective;	
+		SentencePart linkedAdjective;
+		SentencePart conjunction;
 
 		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();
 
 		boolean found;
 		int curWordPos;
-		
+
 		// find possible substantives
 		// possible substantive: wordform that has an substantive as a word
 		// with maximal rating
-		substantiveList = databank.getSubstantiveList(id, 0, 0, 0, 0, 0);
+		substantiveList = databank.getSubstantiveList(id, 0, ">0", 0, 0, 0);
 		substantiveIterator = substantiveList.iterator();
-		
+
 		// find possible adjectives that have common form with substantive
 		// possible adjective: wordform that has an adjective as a word with
 		// maximal rating
 		while (substantiveIterator.hasNext()) {
 			substantive = substantiveIterator.next();
-			if (substantive.wordPos>1) {
+			if (substantive.wordPos > 1) {
 				adjectiveList = databank.getAdjectiveList(id, substantive.wordPos - 1,
-						substantive.wcase, substantive.gender, substantive.sing_pl);
+						String.valueOf(substantive.wcase), substantive.gender, substantive.sing_pl);
 				adjectiveIterator = adjectiveList.iterator();
 				if (adjectiveIterator.hasNext()) {
 					adjective = adjectiveIterator.next();
@@ -247,24 +384,29 @@ public class Sentence {
 							WordProcessor.adjective, 0, adjective.wcase, adjective.person,
 							adjective.gender, adjective.sing_pl);
 					linkedAdjectiveIterator = linkedAdjectiveList.iterator();
-					if(linkedAdjectiveIterator.hasNext())
+					if (linkedAdjectiveIterator.hasNext())
 						while (linkedAdjectiveIterator.hasNext()) {
 							linkedAdjective = linkedAdjectiveIterator.next();
 							linkedAdjective.dep_word_pos = substantive.wordPos;
 							transferPrepositionId(linkedAdjective.preposition_id, substantive,
 									sentenceParts);
 							sentenceParts.add(linkedAdjective);
+							conjunction = databank.getConjunction(id, adjective.wordPos,
+									linkedAdjective.wordPos);
+							conjunction.dep_word_pos = substantive.wordPos;
+							sentenceParts.add(conjunction);
 						}
-					else{
-						found=true;
-						curWordPos=adjective.wordPos-1;
-						while(found&&(curWordPos>0)){
-							found=false;
+					else {
+						found = true;
+						curWordPos = adjective.wordPos - 1;
+						while (found && (curWordPos > 0)) {
+							found = false;
 							linkedAdjectiveList = databank.getAdjectiveList(id, curWordPos,
-									substantive.wcase, substantive.gender, substantive.sing_pl);
+									String.valueOf(substantive.wcase), substantive.gender,
+									substantive.sing_pl);
 							linkedAdjectiveIterator = linkedAdjectiveList.iterator();
 							if (linkedAdjectiveIterator.hasNext()) {
-								found=true;
+								found = true;
 								linkedAdjective = linkedAdjectiveIterator.next();
 								linkedAdjective.dep_word_pos = substantive.wordPos;
 								transferPrepositionId(linkedAdjective.preposition_id, substantive,
@@ -273,28 +415,28 @@ public class Sentence {
 							}
 							curWordPos--;
 						}
-						
+
 					}
 				}
 			}
 		}
 		databank.saveSentenceParts(sentenceParts);
-	}	
-	
+	}
+
 	private void transferPrepositionId(int prepositionId, SentencePart substantive,
 			ArrayList<SentencePart> sentenceParts) {
 		Iterator<SentencePart> sentencePartIterator;
 		SentencePart sentencePart;
 		if (prepositionId > 0) {
 			substantive.preposition_id = prepositionId;
-			sentencePartIterator=sentenceParts.iterator();
-			while(sentencePartIterator.hasNext()){
-				sentencePart=sentencePartIterator.next();
-				if(sentencePart.dep_word_pos==substantive.wordPos)
-					sentencePart.preposition_id=prepositionId;
+			sentencePartIterator = sentenceParts.iterator();
+			while (sentencePartIterator.hasNext()) {
+				sentencePart = sentencePartIterator.next();
+				if (sentencePart.dep_word_pos == substantive.wordPos)
+					sentencePart.preposition_id = prepositionId;
 			}
-			if(!sentenceParts.contains(substantive))
-				sentenceParts.add(substantive);			
+			if (!sentenceParts.contains(substantive))
+				sentenceParts.add(substantive);
 		}
 	}
 
@@ -326,48 +468,48 @@ public class Sentence {
 					if ((prevWordform.type == nextWordform.type)
 							& (prevWordform.wcase == nextWordform.wcase)
 							& (prevWordform.subtype == nextWordform.subtype))
-						databank.saveSentenceWordLink(prevWordform, nextWordform);
+						databank.saveSentenceWordLink(prevWordform, conjunction, nextWordform);
 				}
 			}
 		}
 	}
 
 	private void parseNegative() {
-		boolean found=false;
-		boolean empty=true;
+		boolean found = false;
+		boolean empty = true;
 		int curWordPos;
 		ArrayList<SentencePart> negatives;
 		Iterator<SentencePart> negativeIterator;
 		SentencePart negative;
 		ArrayList<SentencePart> nextWordforms;
 		Iterator<SentencePart> nextWordformIterator;
-		SentencePart nextWordform=null;
-		
+		SentencePart nextWordform = null;
+
 		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();
-		
-		//find wordPos of negative
+
+		// find wordPos of negative
 		negatives = databank.getNegatives(id);
-		negativeIterator=negatives.iterator();
-		while(negativeIterator.hasNext()){
-			found=false;
-			empty=false;
-			negative= negativeIterator.next();
-			curWordPos=negative.wordPos;
-			while (!found&&!empty) {
-				empty=true;
+		negativeIterator = negatives.iterator();
+		while (negativeIterator.hasNext()) {
+			found = false;
+			empty = false;
+			negative = negativeIterator.next();
+			curWordPos = negative.wordPos;
+			while (!found && !empty) {
+				empty = true;
 				nextWordforms = databank.getNextWordforms(id, curWordPos);
 				nextWordformIterator = nextWordforms.iterator();
 				while (!found && (nextWordformIterator.hasNext())) {
-					empty=false;
+					empty = false;
 					nextWordform = nextWordformIterator.next();
 					found = (nextWordform.type != WordProcessor.preposition);
 				}
-				curWordPos++;				
+				curWordPos++;
 			}
-			if (!empty&&found&&(nextWordform!=null)){
-				negative.dep_word_pos=nextWordform.wordPos;
+			if (!empty && found && (nextWordform != null)) {
+				negative.dep_word_pos = nextWordform.wordPos;
 				sentenceParts.add(negative);
-			}			
+			}
 		}
 		databank.saveSentenceParts(sentenceParts);
 	}
