@@ -2,7 +2,7 @@ package knowledge_app;
 
 public class SentencePart {
 public SentencePart(int sentenceID, int wordPos, int part, int type, int subtype, int wcase,
-			int gender, int person, int sing_pl, int word_id, int rule_id,int dep_word_pos,int preposition_id) {
+			int gender, int person, int sing_pl, int word_id, int rule_id,int dep_word_pos,int preposition_id,String word_type_filter) {
 		this.sentenceID = sentenceID;
 		this.wordPos = wordPos;
 		this.part = part;
@@ -16,6 +16,7 @@ public SentencePart(int sentenceID, int wordPos, int part, int type, int subtype
 		this.rule_id=rule_id;
 		this.dep_word_pos=dep_word_pos;
 		this.preposition_id=preposition_id;
+		this.word_type_filter=word_type_filter;
 	}
 public int sentenceID;
 public int wordPos;
@@ -32,4 +33,5 @@ public int word_id;
 public int rule_id;
 public int dep_word_pos;
 public int preposition_id;
+public String word_type_filter;
 }

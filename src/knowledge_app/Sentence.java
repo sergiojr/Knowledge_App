@@ -70,6 +70,7 @@ public class Sentence {
 		if (databank == null)
 			return;
 
+		parsePrepositions();
 		parseNumerals();
 		parseNegative();
 		parseConjunctions();
@@ -79,14 +80,13 @@ public class Sentence {
 		parseAdverbs();
 		parseVerbControlledSubstantives();
 
-		// get best wordform to fill maxrating
+		// get best wordform
 		try {
 			databank.FillBestMatch(id);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		
-		
+
 		try {
 			canNotParseMarks = databank.getPunctuationMarksNotReady().toCharArray();
 			for (int i = 0; i < canNotParseMarks.length; i++)
@@ -168,6 +168,54 @@ public class Sentence {
 		}
 	}
 
+	private void parsePrepositions() {
+		ArrayList<SentencePart> prepositionList;
+		Iterator<SentencePart> prepositionIterator;
+		SentencePart preposition;
+		ArrayList<SentencePart> prepAlternativeList;
+		Iterator<SentencePart> prepAlternativeIterator;
+		SentencePart prepAlternative;
+		ArrayList<SentencePart> substantiveList;
+		Iterator<SentencePart> substantiveIterator;
+		SentencePart substantive;
+
+		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();
+
+		// получить список предлогов
+		prepositionList = databank.getPrepositionList(id);
+		prepositionIterator = prepositionList.iterator();
+
+		// для каждого предлога ищем следующие за ним прилагательные или существительные
+		while (prepositionIterator.hasNext()) {
+			preposition = prepositionIterator.next();
+			// собираем существительные или прилагательные на позиции за предлогом не в именительном
+			// падеже
+			substantiveList = databank.getSubstantiveList(id, preposition.wordPos + 1, ">1", "", 0,
+					0);
+			if (!substantiveList.isEmpty()) {
+				substantiveIterator = substantiveList.iterator();
+				if (substantiveIterator.hasNext()) {
+					substantive = substantiveIterator.next();
+					substantive.preposition_id = preposition.word_id;
+					sentenceParts.add(substantive);
+					preposition.word_type_filter = String.valueOf(preposition.type);
+					sentenceParts.add(preposition);
+				}
+			} else {
+				// проверяем, есть ли другие подходящие словоформы кроме предлога
+				prepAlternativeList = databank.getSentencePartList(id, preposition.wordPos, "", "",
+						0, 0, "<>" + String.valueOf(WordProcessor.preposition), "", 0);
+				prepAlternativeIterator = prepAlternativeList.iterator();
+				if (prepAlternativeIterator.hasNext()) {
+					prepAlternative = prepAlternativeIterator.next();
+					prepAlternative.word_type_filter = String.valueOf(prepAlternative.type);
+					sentenceParts.add(prepAlternative);
+				}
+			}
+		}
+		databank.saveSentenceParts(sentenceParts);
+	}
+
 	private void parseNumerals() {
 		ArrayList<SentencePart> numeralList;
 		Iterator<SentencePart> numeralIterator;
@@ -183,7 +231,8 @@ public class Sentence {
 		int sing_pl;
 
 		// получить список числительных
-		numeralList = databank.getNumeralList(id);
+		numeralList = databank.getSentencePartList(id, 0, ">0", ">0", 0, 0,
+				String.valueOf(WordProcessor.numeral), "", 0);
 		numeralIterator = numeralList.iterator();
 
 		// для каждого числительного найти существительное, следующее за ним
@@ -197,7 +246,7 @@ public class Sentence {
 				sing_pl = numeral.getBaseSingPl();
 			}
 			substantiveList = databank.getSubstantiveList(id, numeralPart.wordPos + 1,
-					String.valueOf(wcase), 0, numeralPart.gender, sing_pl);
+					String.valueOf(wcase), ">0", numeralPart.gender, sing_pl);
 			substantiveIterator = substantiveList.iterator();
 			if (substantiveIterator.hasNext()) {
 				substantive = substantiveIterator.next();
@@ -219,7 +268,7 @@ public class Sentence {
 		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();
 
 		// получить существительные в родительном падеже
-		genetiveSubstantiveList = databank.getSubstantiveList(id, 0, "2", 0, 0, 0);
+		genetiveSubstantiveList = databank.getSubstantiveList(id, 0, "2", ">0", 0, 0);
 		genetiveSubstantiveIterator = genetiveSubstantiveList.iterator();
 
 		// для каждого существительного в родительном падеже получить предшествующее существительное
@@ -227,7 +276,7 @@ public class Sentence {
 			genetiveSubstantive = genetiveSubstantiveIterator.next();
 			if (genetiveSubstantive.wordPos > 1) {
 				mainSubstantiveList = databank.getSubstantiveList(id,
-						genetiveSubstantive.wordPos - 1, ">0", 0, 0, 0);
+						genetiveSubstantive.wordPos - 1, ">0", ">0", 0, 0);
 				mainSubstantiveIterator = mainSubstantiveList.iterator();
 				if (mainSubstantiveIterator.hasNext()) {
 					mainSubstantive = mainSubstantiveIterator.next();
@@ -250,18 +299,21 @@ public class Sentence {
 		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();
 
 		// получить глаголы в действительной форме
-		verbList = databank.getVerbList(id, 1, 0);
+		verbList = databank.getVerbList(id, "1", 0);
 		verbIterator = verbList.iterator();
 
 		// для каждого глагола в действительной форме получить глаголы в инфинитиве
 		while (verbIterator.hasNext()) {
 			verb = verbIterator.next();
-			infinitiveList = databank.getVerbList(id, 0, verb.wordPos + 1);
+			infinitiveList = databank.getVerbList(id, "0", verb.wordPos + 1);
 			infinitiveIterator = infinitiveList.iterator();
 			if (infinitiveIterator.hasNext()) {
 				infinitive = infinitiveIterator.next();
 				infinitive.dep_word_pos = verb.wordPos;
+				infinitive.word_type_filter = String.valueOf(infinitive.type);
 				sentenceParts.add(infinitive);
+				verb.word_type_filter = String.valueOf(verb.type);
+				sentenceParts.add(verb);
 			}
 		}
 		databank.saveSentenceParts(sentenceParts);
@@ -278,7 +330,7 @@ public class Sentence {
 		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();
 
 		// получить глаголы в действительной форме
-		verbList = databank.getVerbList(id, 1, 0);
+		verbList = databank.getVerbList(id, "1", 0);
 		verbIterator = verbList.iterator();
 
 		// для каждого глагола в действительной форме получить наречия
@@ -289,7 +341,10 @@ public class Sentence {
 			if (adverbsIterator.hasNext()) {
 				adverb = adverbsIterator.next();
 				adverb.dep_word_pos = verb.wordPos;
+				adverb.word_type_filter = String.valueOf(adverb.type);
 				sentenceParts.add(adverb);
+				verb.word_type_filter = String.valueOf(verb.type);
+				sentenceParts.add(verb);
 			}
 		}
 		databank.saveSentenceParts(sentenceParts);
@@ -297,6 +352,7 @@ public class Sentence {
 
 	private void parseVerbControlledSubstantives() {
 		int curWordPos;
+		boolean hasPreposition;
 		ArrayList<SentencePart> verbList;
 		Iterator<SentencePart> verbIterator;
 		SentencePart verb;
@@ -306,15 +362,20 @@ public class Sentence {
 		ArrayList<SentencePart> substantiveList;
 		Iterator<SentencePart> substantiveIterator;
 		SentencePart substantive;
+		String personFilter;
 
 		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();
 
 		// получить глаголы в действительной форме
-		verbList = databank.getVerbList(id, 1, 0);
+		verbList = databank.getVerbList(id, "1", 0);
 		verbIterator = verbList.iterator();
 
 		while (verbIterator.hasNext()) {
 			verb = verbIterator.next();
+			if (verb.person == 0)
+				personFilter = ">0";
+			else
+				personFilter = String.valueOf(verb.person);
 			// для каждого глагола в действительной форме получить существительные не в именительном
 			// падеже
 			curWordPos = verb.wordPos;
@@ -323,19 +384,28 @@ public class Sentence {
 			if (nextWordformIterator.hasNext()) {
 				nextWordform = nextWordformIterator.next();
 				// если следующее слово предлог, то пропускаем
-				if (nextWordform.type == WordProcessor.preposition)
+				hasPreposition = (nextWordform.type == WordProcessor.preposition);
+				if (hasPreposition)
 					curWordPos += 1;
-				curWordPos=databank.getNextIndependentWordPos(id, curWordPos);
-			}
-
-			substantiveList = databank.getSubstantiveList(id, curWordPos, ">1", 0, 0, 0);
-			substantiveIterator = substantiveList.iterator();
-			if (substantiveIterator.hasNext()) {
-				substantive = substantiveIterator.next();
-				if (substantive.dep_word_pos == 0) {
-					substantive.dep_word_pos = verb.wordPos;
-					sentenceParts.add(substantive);
-				}
+				curWordPos = databank.getNextIndependentWordPos(id, curWordPos);
+				if (curWordPos > 0)
+					if (hasPreposition
+							| (databank.getSubstantiveList(id, curWordPos, "1", personFilter,
+									verb.gender, verb.sing_pl).isEmpty())) {
+						substantiveList = databank.getSubstantiveList(id, curWordPos, ">1", ">0",
+								0, 0);
+						substantiveIterator = substantiveList.iterator();
+						if (substantiveIterator.hasNext()) {
+							substantive = substantiveIterator.next();
+							if (substantive.dep_word_pos == 0) {
+								substantive.dep_word_pos = verb.wordPos;
+								substantive.word_type_filter = String.valueOf(substantive.type);
+								sentenceParts.add(substantive);
+								verb.word_type_filter = String.valueOf(verb.type);
+								sentenceParts.add(verb);
+							}
+						}
+					}
 			}
 		}
 		databank.saveSentenceParts(sentenceParts);
@@ -361,7 +431,7 @@ public class Sentence {
 		// find possible substantives
 		// possible substantive: wordform that has an substantive as a word
 		// with maximal rating
-		substantiveList = databank.getSubstantiveList(id, 0, ">0", 0, 0, 0);
+		substantiveList = databank.getSubstantiveList(id, 0, ">0", ">0", 0, 0);
 		substantiveIterator = substantiveList.iterator();
 
 		// find possible adjectives that have common form with substantive
@@ -377,7 +447,10 @@ public class Sentence {
 					adjective = adjectiveIterator.next();
 					// mark, that adjective is dependent on substantive
 					adjective.dep_word_pos = substantive.wordPos;
+					adjective.word_type_filter = String.valueOf(adjective.type);
+					substantive.word_type_filter = String.valueOf(substantive.type);
 					transferPrepositionId(adjective.preposition_id, substantive, sentenceParts);
+					sentenceParts.add(substantive);
 					sentenceParts.add(adjective);
 					// mark any linked adjective
 					linkedAdjectiveList = databank.getLinkedWordList(id, adjective.wordPos,
@@ -388,6 +461,7 @@ public class Sentence {
 						while (linkedAdjectiveIterator.hasNext()) {
 							linkedAdjective = linkedAdjectiveIterator.next();
 							linkedAdjective.dep_word_pos = substantive.wordPos;
+							linkedAdjective.word_type_filter = String.valueOf(linkedAdjective.type);
 							transferPrepositionId(linkedAdjective.preposition_id, substantive,
 									sentenceParts);
 							sentenceParts.add(linkedAdjective);
@@ -409,6 +483,8 @@ public class Sentence {
 								found = true;
 								linkedAdjective = linkedAdjectiveIterator.next();
 								linkedAdjective.dep_word_pos = substantive.wordPos;
+								linkedAdjective.word_type_filter = String
+										.valueOf(linkedAdjective.type);
 								transferPrepositionId(linkedAdjective.preposition_id, substantive,
 										sentenceParts);
 								sentenceParts.add(linkedAdjective);
