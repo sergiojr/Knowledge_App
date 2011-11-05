@@ -370,9 +370,9 @@ public class DataBank {
 			if (postfix.type > 0)
 				query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
 						"type"), postfix.type));
-			if (postfix.tense > 0)
-				query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-						"tense"), postfix.tense));
+			// if (postfix.tense > 0)
+			// query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
+			// "tense"), postfix.tense));
 		}
 
 		rs = stat.executeQuery(query.validate().toString());
@@ -786,8 +786,7 @@ public class DataBank {
 				+ "order by word_pos", sentence_id);
 		ResultSet rs = stat.executeQuery(query);
 		PreparedStatement prep = conn.prepareStatement("UPDATE sentence_word "
-				+ "SET word_id=?, rule_id=?, postfix_id=? "
-				+ "WHERE sentence_id=? and word_pos=?");
+				+ "SET word_id=?, rule_id=?, postfix_id=? " + "WHERE sentence_id=? and word_pos=?");
 		while (rs.next()) {
 			queryBestWordform = new SelectQuery();
 			queryBestWordform.addAllColumns();
@@ -975,8 +974,7 @@ public class DataBank {
 			if (sing_pl > 0)
 				query.addCondition(new InCondition(new CustomSql("sing_pl"), 0, sing_pl));
 			query.addCondition(new CustomCondition(new CustomSql("type=2")));
-			query.addCondition(new CustomCondition(new CustomSql("tense>0")));
-			query.addCondition(new CustomCondition(new CustomSql("tense<10")));
+			query.addCondition(new CustomCondition(new CustomSql("subtype=1")));
 			query.addCondition(new CustomCondition(new CustomSql("preposition_id=0")));
 			query.addCondition(new CustomCondition(ratingToleranceCondition));
 			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
@@ -1003,8 +1001,10 @@ public class DataBank {
 
 	public ArrayList<SentencePart> getSentencePartList(int sentence_id, int wordPos,
 			String wcaseFilter, String personFilter, int gender, int sing_pl, String typeFilter,
-			String subtypeFilter, int tense) {
+			String subtypeFilter) {
 		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();
+		if (wordPos<0)
+			return sentenceParts;
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
@@ -1021,10 +1021,6 @@ public class DataBank {
 
 			applyFilter(query, "type", typeFilter);
 			applyFilter(query, "subtype", subtypeFilter);
-
-			if (tense > 0)
-				query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-						"tense"), tense));
 
 			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
 					"sentence_id"), sentence_id));
@@ -1049,30 +1045,6 @@ public class DataBank {
 			e.printStackTrace();
 		}
 		return sentenceParts;
-	}
-
-	public ArrayList<SentencePart> getVerbList(int sentence_id, String subtypeFilter, int wordPos) {
-		return getSentencePartList(sentence_id, wordPos, "", "", 0, 0, "2", subtypeFilter, 0);
-	}
-
-	public ArrayList<SentencePart> getAdverbList(int sentence_id, int tense, int wordPos) {
-		return getSentencePartList(sentence_id, wordPos, "", "", 0, 0, "3", "", tense);
-	}
-
-	public ArrayList<SentencePart> getAdjectiveList(int sentence_id, int wordPos,
-			String wcaseFilter, int gender, int sing_pl) {
-		return getSentencePartList(sentence_id, wordPos, wcaseFilter, "0", gender, sing_pl, "", "",
-				0);
-	}
-
-	public ArrayList<SentencePart> getPrepositionList(int sentence_id) {
-		return getSentencePartList(sentence_id, 0, "", "", 0,0, String.valueOf(WordProcessor.preposition), "", 0);
-	}
-
-	public ArrayList<SentencePart> getSubstantiveList(int sentence_id, int wordPos,
-			String wcaseFilter, String personFilter, int gender, int sing_pl) {
-		return getSentencePartList(sentence_id, wordPos, wcaseFilter, personFilter, gender,
-				sing_pl, "", "", 0);
 	}
 
 	private void applyFilter(SelectQuery query, String fieldName, String filter) {
@@ -1103,7 +1075,7 @@ public class DataBank {
 				new CustomSql(fieldName), Integer.valueOf(part)));
 	}
 
-	private boolean checkFilter(int value, String filter) {
+	public boolean checkFilter(int value, String filter) {
 		if (filter == null)
 			return true;
 		if (filter.isEmpty())
@@ -1152,10 +1124,9 @@ public class DataBank {
 			linkedWordPositionIterator = linkedWordPosition.iterator();
 			while (linkedWordPositionIterator.hasNext()) {
 				tempWordPos = linkedWordPositionIterator.next();
-				linkedWords
-						.addAll(getSentencePartList(sentence_id, tempWordPos.intValue(),
-								String.valueOf(wcase), String.valueOf(person), gender, sing_pl,
-								String.valueOf(type), "", 0));
+				linkedWords.addAll(getSentencePartList(sentence_id, tempWordPos.intValue(),
+						String.valueOf(wcase), String.valueOf(person), gender, sing_pl,
+						String.valueOf(type), ""));
 			}
 			stat.close();
 		} catch (SQLException e) {
@@ -1204,9 +1175,8 @@ public class DataBank {
 		return negatives;
 	}
 
-	public ArrayList<SentencePart> getPreviousWordforms(int id, int wordPos) {
-		ArrayList<SentencePart> wordforms = new ArrayList<SentencePart>();
-		int prevWordPos = 0;
+	public int getPrevIndependentWordPos(int id, int wordPos) {
+		int prevWordPos = -1;
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
@@ -1218,60 +1188,15 @@ public class DataBank {
 			if (rs.next())
 				prevWordPos = rs.getInt("word_pos");
 			rs.close();
-			if (prevWordPos > 0) {
-				String query = MessageFormat
-						.format("SELECT * from sentence_wordform_detailed "
-								+ "where sentence_id={0,number,#} and word_pos={1,number,#} and dep_word_pos=0 "
-								+ "and rating=maxrating", id, prevWordPos);
-				rs = stat.executeQuery(query);
-				while (rs.next()) {
-					wordforms.add(new SentencePart(id, rs.getInt("word_pos"), SentencePart.subject,
-							rs.getInt("type"), rs.getInt("subtype"), rs.getInt("wcase"), rs
-									.getInt("gender"), rs.getInt("person"), rs.getInt("sing_pl"),
-							rs.getInt("word_id"), rs.getInt("rule_id"), rs.getInt("dep_word_pos"),
-							rs.getInt("preposition_id"), rs.getString("word_type_filter")));
-				}
-				rs.close();
-			}
 			stat.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		return wordforms;
-	}
-
-	public ArrayList<SentencePart> getNextWordforms(int id, int wordPos) {
-		ArrayList<SentencePart> wordforms = new ArrayList<SentencePart>();
-		ResultSet rs;
-		int nextWordPos = 0;
-		try {
-			establishConnection();
-			Statement stat = conn.createStatement();
-			nextWordPos = getNextIndependentWordPos(id, wordPos);
-			if (nextWordPos > 0) {
-				String query = MessageFormat
-						.format("SELECT * from sentence_wordform_detailed "
-								+ "where sentence_id={0,number,#} and word_pos={1,number,#} and dep_word_pos=0 "
-								+ "and rating=maxrating", id, nextWordPos);
-				rs = stat.executeQuery(query);
-				while (rs.next()) {
-					wordforms.add(new SentencePart(id, rs.getInt("word_pos"), SentencePart.subject,
-							rs.getInt("type"), rs.getInt("subtype"), rs.getInt("wcase"), rs
-									.getInt("gender"), rs.getInt("person"), rs.getInt("sing_pl"),
-							rs.getInt("word_id"), rs.getInt("rule_id"), rs.getInt("dep_word_pos"),
-							rs.getInt("preposition_id"), rs.getString("word_type_filter")));
-				}
-				rs.close();
-			}
-			stat.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return wordforms;
+		return prevWordPos;
 	}
 
 	public int getNextIndependentWordPos(int id, int wordPos) {
-		int nextWordPos = 0;
+		int nextWordPos = -1;
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
@@ -1283,12 +1208,13 @@ public class DataBank {
 			if (rs.next())
 				nextWordPos = rs.getInt("word_pos");
 			rs.close();
+			stat.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
 		return nextWordPos;
 	}
-
+	
 	public void saveSentenceParts(ArrayList<SentencePart> sentenceParts) {
 		Iterator<SentencePart> iterator;
 		iterator = sentenceParts.iterator();
