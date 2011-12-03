@@ -20,6 +20,8 @@ import knowledge_app.WordForm;
 import knowledge_app.WordProcessor;
 
 import com.healthmarketscience.sqlbuilder.BinaryCondition;
+import com.healthmarketscience.sqlbuilder.BinaryCondition.Op;
+import com.healthmarketscience.sqlbuilder.ComboCondition;
 import com.healthmarketscience.sqlbuilder.CustomCondition;
 import com.healthmarketscience.sqlbuilder.CustomSql;
 import com.healthmarketscience.sqlbuilder.InCondition;
@@ -366,6 +368,7 @@ public class DataBank {
 		query.addCustomFromTable(new CustomSql("fixed_words"));
 		query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql("word"),
 				wordform));
+
 		if (postfix != null) {
 			if (postfix.type > 0)
 				query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
@@ -417,9 +420,9 @@ public class DataBank {
 			if (complexWordTemplate.word1_type > 0)
 				query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
 						"type"), complexWordTemplate.word1_type));
-			if (complexWordTemplate.word1_tense > 0)
+			if (complexWordTemplate.word1_subtype > 0)
 				query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-						"tense"), complexWordTemplate.word1_tense));
+						"subtype"), complexWordTemplate.word1_subtype));
 			if (complexWordTemplate.word1_wcase > 0)
 				query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
 						"wcase"), complexWordTemplate.word1_wcase));
@@ -432,9 +435,9 @@ public class DataBank {
 			if (complexWordTemplate.word2_type > 0)
 				query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
 						"type"), complexWordTemplate.word2_type));
-			if (complexWordTemplate.word2_tense > 0)
+			if (complexWordTemplate.word2_subtype > 0)
 				query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-						"tense"), complexWordTemplate.word2_tense));
+						"subtype"), complexWordTemplate.word2_subtype));
 			if (complexWordTemplate.word2_wcase > 0)
 				query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
 						"wcase"), complexWordTemplate.word2_wcase));
@@ -899,52 +902,42 @@ public class DataBank {
 		return endingRule;
 	}
 
-	public ArrayList<SentencePart> getSubjectList(int id, int predicatePos, int person, int gender,
-			int sing_pl, double rating_tolerance) {
-		if (person == 0)
-			person = 4;
+	public ArrayList<SentencePart> getSubjectList(int sentence_id, String subsentenceFilter,
+			int predicatePos, String personFilter, int gender, int sing_pl, double rating_tolerance) {
 		ArrayList<SentencePart> subjects = new ArrayList<SentencePart>();
-		String ratingToleranceCondition = MessageFormat.format(
-				"(100-rating)<=(100-maxrating)*{0,number,#.##}", rating_tolerance);
+		String ratingToleranceCondition = MessageFormat
+				.format("(100-rating)<=(100-maxrating)*{0,number,#.##} and rating*{0,number,#.##}>maxrating",
+						rating_tolerance);
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
 			SelectQuery query = new SelectQuery();
 			query.addAllColumns();
 			query.addCustomFromTable(new CustomSql("sentence_wordform_detailed"));
-			query.addCondition(new CustomCondition(new CustomSql("wcase=1")));
-			switch (person) {
-			case 0:
-			case 1:
-			case 2:
-			case 3:
-				query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-						"person"), person));
-				break;
-			case 4:
-				query.addCondition(new CustomCondition(new CustomSql("person>0")));
-				break;
-			}
+			applyFilter(query, "wcase", "1");
+			applyFilter(query, "person", personFilter);
 			if (gender > 0)
 				query.addCondition(new InCondition(new CustomSql("gender"), 0, gender));
 			if (sing_pl > 0)
 				query.addCondition(new InCondition(new CustomSql("sing_pl"), 0, sing_pl));
+			applyFilter(query, "subsentence_id", subsentenceFilter);
 			query.addCondition(new CustomCondition(new CustomSql("preposition_id=0")));
 			query.addCondition(new CustomCondition(new CustomSql("dep_word_pos=0")));
 			query.addCondition(new CustomCondition(ratingToleranceCondition));
 			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-					"sentence_id"), id));
+					"sentence_id"), sentence_id));
 			query.addCondition(new BinaryCondition(BinaryCondition.Op.NOT_EQUAL_TO, new CustomSql(
 					"word_pos"), predicatePos));
 			query.addCustomOrdering(new CustomSql("rating"), OrderObject.Dir.DESCENDING);
 			ResultSet rs = stat.executeQuery(query.validate().toString());
 
 			while (rs.next()) {
-				subjects.add(new SentencePart(id, rs.getInt("word_pos"), SentencePart.subject, rs
-						.getInt("type"), rs.getInt("subtype"), rs.getInt("wcase"), rs
-						.getInt("gender"), rs.getInt("person"), rs.getInt("sing_pl"), rs
-						.getInt("word_id"), rs.getInt("rule_id"), rs.getInt("dep_word_pos"), rs
-						.getInt("preposition_id"), rs.getString("word_type_filter")));
+				subjects.add(new SentencePart(sentence_id, rs.getInt("subsentence_id"), rs
+						.getInt("word_pos"), SentencePart.subject, rs.getInt("type"), rs
+						.getInt("subtype"), rs.getInt("wcase"), rs.getInt("gender"), rs
+						.getInt("person"), rs.getInt("sing_pl"), rs.getInt("word_id"), rs
+						.getInt("rule_id"), rs.getInt("dep_word_pos"), rs.getInt("preposition_id"),
+						rs.getString("word_type_filter"),rs.getInt("rating"),rs.getInt("maxrating")));
 
 			}
 			rs.close();
@@ -955,10 +948,11 @@ public class DataBank {
 		return subjects;
 	}
 
-	public ArrayList<SentencePart> getPredicateList(int id, int subjectPos, int person, int gender,
-			int sing_pl, double rating_tolerance) {
-		String ratingToleranceCondition = MessageFormat.format(
-				"(100-rating)<=(100-maxrating)*{0,number,#.##}", rating_tolerance);
+	public ArrayList<SentencePart> getPredicateList(int id, String subsentenceFilter,
+			int subjectPos, int person, int gender, int sing_pl, double rating_tolerance) {
+		String ratingToleranceCondition = MessageFormat
+				.format("(100-rating)<=(100-maxrating)*{0,number,#.##} and rating*{0,number,#.##}>maxrating",
+						rating_tolerance);
 		ArrayList<SentencePart> predicates = new ArrayList<SentencePart>();
 		try {
 			establishConnection();
@@ -979,17 +973,19 @@ public class DataBank {
 			query.addCondition(new CustomCondition(ratingToleranceCondition));
 			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
 					"sentence_id"), id));
+			applyFilter(query, "subsentence_id", subsentenceFilter);
 			query.addCondition(new BinaryCondition(BinaryCondition.Op.NOT_EQUAL_TO, new CustomSql(
 					"word_pos"), subjectPos));
 			query.addCustomOrdering(new CustomSql("rating"), OrderObject.Dir.DESCENDING);
 			ResultSet rs = stat.executeQuery(query.validate().toString());
 			while (rs.next()) {
-				predicates.add(new SentencePart(rs.getInt("sentence_id"), rs.getInt("word_pos"),
-						SentencePart.predicate, rs.getInt("type"), rs.getInt("subtype"), rs
-								.getInt("wcase"), rs.getInt("gender"), rs.getInt("person"), rs
-								.getInt("sing_pl"), rs.getInt("word_id"), rs.getInt("rule_id"), rs
-								.getInt("dep_word_pos"), rs.getInt("preposition_id"), rs
-								.getString("word_type_filter")));
+				predicates.add(new SentencePart(rs.getInt("sentence_id"), rs
+						.getInt("subsentence_id"), rs.getInt("word_pos"), SentencePart.predicate,
+						rs.getInt("type"), rs.getInt("subtype"), rs.getInt("wcase"), rs
+								.getInt("gender"), rs.getInt("person"), rs.getInt("sing_pl"), rs
+								.getInt("word_id"), rs.getInt("rule_id"),
+						rs.getInt("dep_word_pos"), rs.getInt("preposition_id"), rs
+								.getString("word_type_filter"),rs.getInt("rating"),rs.getInt("maxrating")));
 			}
 			rs.close();
 			stat.close();
@@ -1003,7 +999,7 @@ public class DataBank {
 			String wcaseFilter, String personFilter, int gender, int sing_pl, String typeFilter,
 			String subtypeFilter) {
 		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();
-		if (wordPos<0)
+		if (wordPos < 0)
 			return sentenceParts;
 		try {
 			establishConnection();
@@ -1032,11 +1028,12 @@ public class DataBank {
 			ResultSet rs = stat.executeQuery(query.validate().toString());
 			while (rs.next()) {
 				if (checkFilter(rs.getInt("type"), rs.getString("word_type_filter")))
-					sentenceParts.add(new SentencePart(sentence_id, rs.getInt("word_pos"), 0, rs
-							.getInt("type"), rs.getInt("subtype"), rs.getInt("wcase"), rs
-							.getInt("gender"), rs.getInt("person"), rs.getInt("sing_pl"), rs
-							.getInt("word_id"), rs.getInt("rule_id"), rs.getInt("dep_word_pos"), rs
-							.getInt("preposition_id"), rs.getString("word_type_filter")));
+					sentenceParts.add(new SentencePart(sentence_id, rs.getInt("subsentence_id"), rs
+							.getInt("word_pos"), 0, rs.getInt("type"), rs.getInt("subtype"), rs
+							.getInt("wcase"), rs.getInt("gender"), rs.getInt("person"), rs
+							.getInt("sing_pl"), rs.getInt("word_id"), rs.getInt("rule_id"), rs
+							.getInt("dep_word_pos"), rs.getInt("preposition_id"), rs
+							.getString("word_type_filter"),rs.getInt("rating"),rs.getInt("maxrating")));
 
 			}
 			rs.close();
@@ -1052,27 +1049,33 @@ public class DataBank {
 			return;
 		if (filter.isEmpty())
 			return;
+		ComboCondition cc=new ComboCondition(ComboCondition.Op.OR);
+		String[] splitFilter=filter.split("\\|");
+		for(int i=0;i<splitFilter.length;i++){
+			cc.addCondition(getBinaryFilter(fieldName, splitFilter[i]));
+		}
+		query.addCondition(cc);
+	}
+
+	private BinaryCondition getBinaryFilter(String fieldName, String filter) {
+		BinaryCondition bc=null;
+		Op bcOp;
 		String part = filter;
 		if (filter.startsWith("<>")) {
 			part = filter.substring(2);
-			query.addCondition(new BinaryCondition(BinaryCondition.Op.NOT_EQUAL_TO, new CustomSql(
-					fieldName), Integer.valueOf(part)));
-			return;
-		}
-		if (filter.startsWith("<")) {
+			bcOp = BinaryCondition.Op.NOT_EQUAL_TO;
+		} else if (filter.startsWith("<")) {
 			part = filter.substring(1);
-			query.addCondition(new BinaryCondition(BinaryCondition.Op.LESS_THAN, new CustomSql(
-					fieldName), Integer.valueOf(part)));
-			return;
-		}
-		if (filter.startsWith(">")) {
+			bcOp = BinaryCondition.Op.LESS_THAN;
+		} else if (filter.startsWith(">")) {
 			part = filter.substring(1);
-			query.addCondition(new BinaryCondition(BinaryCondition.Op.GREATER_THAN, new CustomSql(
-					fieldName), Integer.valueOf(part)));
-			return;
-		}
-		query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO,
-				new CustomSql(fieldName), Integer.valueOf(part)));
+			bcOp = BinaryCondition.Op.GREATER_THAN;
+		} else
+			bcOp = BinaryCondition.Op.EQUAL_TO;
+		if (bcOp != null)
+			bc=new BinaryCondition(bcOp, new CustomSql(fieldName), Integer
+					.valueOf(part));
+		return bc;
 	}
 
 	public boolean checkFilter(int value, String filter) {
@@ -1124,9 +1127,21 @@ public class DataBank {
 			linkedWordPositionIterator = linkedWordPosition.iterator();
 			while (linkedWordPositionIterator.hasNext()) {
 				tempWordPos = linkedWordPositionIterator.next();
-				linkedWords.addAll(getSentencePartList(sentence_id, tempWordPos.intValue(),
-						String.valueOf(wcase), String.valueOf(person), gender, sing_pl,
-						String.valueOf(type), ""));
+				// существительные и местоимения существительные
+				if ((wcase > 0) & (person > 0))
+					linkedWords.addAll(getSentencePartList(sentence_id, tempWordPos.intValue(),
+							String.valueOf(wcase), ">0", 0, 0, "", ""));
+				// прилагательные и местоимения прилагательные
+				if ((wcase > 0) & (person == 0))
+					linkedWords
+							.addAll(getSentencePartList(sentence_id, tempWordPos.intValue(),
+									String.valueOf(wcase), String.valueOf(person), gender, sing_pl,
+									"", ""));
+				// прочие
+				if (wcase == 0)
+					linkedWords.addAll(getSentencePartList(sentence_id, tempWordPos.intValue(),
+							String.valueOf(wcase), String.valueOf(person), gender, sing_pl,
+							String.valueOf(type), ""));
 			}
 			stat.close();
 		} catch (SQLException e) {
@@ -1135,9 +1150,8 @@ public class DataBank {
 		return linkedWords;
 	}
 
-	public ArrayList<SentencePart> getConjunctions(int sentence_id) {
-		String conjunction = "и";
-		String query = MessageFormat.format("select word_pos from sentence_word "
+	public ArrayList<SentencePart> getConjunctions(int sentence_id, String conjunction) {
+		String query = MessageFormat.format("select subsentence_id,word_pos from sentence_word "
 				+ "where sentence_id={0,number,#} and word=''{1}''", sentence_id, conjunction);
 		ArrayList<SentencePart> conjunctions = new ArrayList<SentencePart>();
 		try {
@@ -1145,8 +1159,8 @@ public class DataBank {
 			Statement stat = conn.createStatement();
 			ResultSet rs = stat.executeQuery(query);
 			while (rs.next())
-				conjunctions.add(new SentencePart(sentence_id, rs.getInt("word_pos"), 0, 0, 0, 0,
-						0, 0, 0, 0, 0, 0, 0, ""));
+				conjunctions.add(new SentencePart(sentence_id, rs.getInt("subsentence_id"), rs
+						.getInt("word_pos"), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "",0,0));
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -1164,11 +1178,12 @@ public class DataBank {
 			Statement stat = conn.createStatement();
 			ResultSet rs = stat.executeQuery(query);
 			while (rs.next())
-				negatives.add(new SentencePart(sentence_id, rs.getInt("word_pos"), 0, rs
-						.getInt("type"), rs.getInt("subtype"), rs.getInt("wcase"), rs
-						.getInt("gender"), rs.getInt("person"), rs.getInt("sing_pl"), rs
-						.getInt("word_id"), rs.getInt("rule_id"), rs.getInt("dep_word_pos"), rs
-						.getInt("preposition_id"), rs.getString("word_type_filter")));
+				negatives.add(new SentencePart(sentence_id, rs.getInt("subsentence_id"), rs
+						.getInt("word_pos"), 0, rs.getInt("type"), rs.getInt("subtype"), rs
+						.getInt("wcase"), rs.getInt("gender"), rs.getInt("person"), rs
+						.getInt("sing_pl"), rs.getInt("word_id"), rs.getInt("rule_id"), rs
+						.getInt("dep_word_pos"), rs.getInt("preposition_id"), rs
+						.getString("word_type_filter"),rs.getInt("rating"),rs.getInt("maxrating")));
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -1214,7 +1229,7 @@ public class DataBank {
 		}
 		return nextWordPos;
 	}
-	
+
 	public void saveSentenceParts(ArrayList<SentencePart> sentenceParts) {
 		Iterator<SentencePart> iterator;
 		iterator = sentenceParts.iterator();
@@ -1328,9 +1343,10 @@ public class DataBank {
 							+ "complex = {3} and word1 = {4,number,#} AND word2 = {5,number,#};",
 							baseForm, type, rule_no, complex, word1ID, word2ID);
 		else
-			query = MessageFormat
-					.format("select id,rating from words where word=''{0}'' AND type={1,number,#} AND rule_no={2,number,#}",
-							baseForm, type, rule_no);
+			query = MessageFormat.format(
+					"select id,rating from words where word=''{0}'' AND type={1,number,#} "
+							+ "AND rule_no={2,number,#} AND complex={3}", baseForm, type, rule_no,
+					complex);
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
@@ -1485,11 +1501,7 @@ public class DataBank {
 	}
 
 	public SentencePart getConjunction(int sentence_id, int wordPos, int wordPos2) {
-		boolean found = false;
-		ArrayList<SentencePart> conjunctions;
-		Iterator<SentencePart> conjunctionsIterator;
 		SentencePart conjunction = null;
-		conjunctions = getConjunctions(sentence_id);
 		int conjunctionWordPos = 0;
 		try {
 			establishConnection();
@@ -1511,21 +1523,13 @@ public class DataBank {
 				if (rs.next())
 					conjunctionWordPos = rs.getInt("conjunction_word_pos");
 			}
+			if (conjunctionWordPos != 0)
+				conjunction = new SentencePart(sentence_id, 0, conjunctionWordPos, 0, 0, 0, 0, 0,
+						0, 0, 0, 0, 0, 0, "",0,0);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		if (conjunctionWordPos != 0) {
-			conjunctionsIterator = conjunctions.iterator();
-			while (conjunctionsIterator.hasNext() & !found) {
-				conjunction = conjunctionsIterator.next();
-				if (conjunction.wordPos == conjunctionWordPos)
-					found = true;
-			}
-		}
-		if (found)
-			return conjunction;
-		else
-			return null;
+		return conjunction;
 	}
 
 	public boolean checkSimilarWordforms(int wordID, int transformedWordID) {
@@ -1655,9 +1659,9 @@ public class DataBank {
 				ResultSet rs = stat.executeQuery(query);
 				while (rs.next()) {
 					complexWordTemplates.add(new ComplexWordTemplate(rs.getInt("id"), rs
-							.getInt("word1_type"), rs.getInt("word1_tense"), rs
+							.getInt("word1_type"), rs.getInt("word1_subtype"), rs
 							.getInt("word1_wcase"), rs.getInt("word1_sing_pl"), rs
-							.getInt("word2_type"), rs.getInt("word2_tense"), rs
+							.getInt("word2_type"), rs.getInt("word2_subtype"), rs
 							.getInt("word2_wcase"), rs.getInt("word2_sing_pl"), rs
 							.getString("delimiter")));
 				}
@@ -1666,5 +1670,63 @@ public class DataBank {
 			}
 		}
 		return complexWordTemplates;
+	}
+
+	public ArrayList<ArrayList<Integer>> divideSentence(int sentence_id) {
+		ArrayList<ArrayList<Integer>> division = new ArrayList<ArrayList<Integer>>();
+		ArrayList<Integer> curSubsentence = new ArrayList<Integer>();
+		SelectQuery query;
+		int subsentence_id;
+		int depWordPos;
+		boolean punctuation;
+		char[] canNotParseMarks;
+		String word;
+		try {
+			canNotParseMarks = getPunctuationMarksNotReady().toCharArray();
+			query = new SelectQuery();
+			query.addAllColumns();
+			query.addCustomFromTable(new CustomSql("sentence_word"));
+			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
+					"sentence_id"), sentence_id));
+			query.addCustomOrderings(new CustomSql("sentence_id, word_pos"));
+			establishConnection();
+			PreparedStatement sent_word_update = conn.prepareStatement("update sentence_word "
+					+ "set subsentence_id=? where sentence_id= ? and word_pos=?");
+			Statement stat = conn.createStatement();
+			ResultSet rs = stat.executeQuery(query.validate().toString());
+			subsentence_id = 1;
+			while (rs.next()) {
+				punctuation = rs.getBoolean("punctuation");
+				if (punctuation) {
+					depWordPos = rs.getInt("dep_word_pos");
+					word = rs.getString("word");
+					for (int i = 0; i < canNotParseMarks.length; i++)
+						if (word.indexOf(canNotParseMarks[i]) >= 0)
+							return null;
+					curSubsentence.add(new Integer(subsentence_id));
+					if (depWordPos == 0) {
+						division.add(curSubsentence);
+						curSubsentence = new ArrayList<Integer>();
+					}
+					subsentence_id++;
+				} else {
+					sent_word_update.setInt(1, subsentence_id);
+					sent_word_update.setInt(2, sentence_id);
+					sent_word_update.setInt(3, rs.getInt("word_pos"));
+					sent_word_update.addBatch();
+				}
+			}
+			rs.close();
+			stat.close();
+			conn.setAutoCommit(false);
+			sent_word_update.executeBatch();
+			conn.setAutoCommit(true);
+			sent_word_update.close();
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		setSentenceType(sentence_id, 1);
+		return division;
 	}
 }

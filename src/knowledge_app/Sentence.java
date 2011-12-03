@@ -6,7 +6,6 @@ import java.util.Iterator;
 
 import databank.DataBank;
 import databank.Numeral;
-import databank.Word;
 
 public class Sentence {
 	// rating_tolerance - max allowed difference between (100-rating) and (100-maxraring) for
@@ -36,6 +35,7 @@ public class Sentence {
 	ArrayList<WordForm> subjectList;
 	int id;
 	int type;
+	ArrayList<ArrayList<Integer>> division;
 	DataBank databank;
 
 	public void save(DataBank databank) {
@@ -48,25 +48,10 @@ public class Sentence {
 	}
 
 	public void parse() {
-		ArrayList<SentencePart> subjectList;
-		Iterator<SentencePart> subjectIterator;
-		SentencePart subject;
-		ArrayList<SentencePart> predicateList;
-		Iterator<SentencePart> predicateIterator;
-		SentencePart predicate;
 		ArrayList<SentencePart> sentenceParts;
-
 		ArrayList<SentencePart> conjunctions;
-		Iterator<SentencePart> conjunctionIterator;
-		SentencePart conjunction;
-
-		ArrayList<SentencePart> subject2List;
-		Iterator<SentencePart> subject2Iterator;
-		SentencePart subject2;
-
-		boolean success = false;
-		boolean conjunctionFound = false;
-		char[] canNotParseMarks;
+		Iterator<ArrayList<Integer>> subsentenceIterator;
+		ArrayList<Integer> curSubsentence;
 		if (databank == null)
 			return;
 
@@ -89,34 +74,178 @@ public class Sentence {
 			e.printStackTrace();
 		}
 
-		try {
-			canNotParseMarks = databank.getPunctuationMarksNotReady().toCharArray();
-			for (int i = 0; i < canNotParseMarks.length; i++)
-				if (sentence.indexOf(canNotParseMarks[i]) >= 0)
-					return;
-			databank.setSentenceType(id, 1);
-
-		} catch (SQLException e) {
-			e.printStackTrace();
+		division = databank.divideSentence(id);
+		if (division == null)
+			return;
+		
+		conjunctions = databank.getConjunctions(id, "и");
+		
+		subsentenceIterator=division.iterator();
+		while(subsentenceIterator.hasNext()){
+			curSubsentence=subsentenceIterator.next();
+			sentenceParts = gather(parseSubsentence(conjunctions, curSubsentence));
+			if (!sentenceParts.isEmpty())
+				databank.saveSentenceParts(sentenceParts);
 		}
+	}
 
-		conjunctions = databank.getConjunctions(id);
+	private ArrayList<ArrayList<SentencePart>> parseSubsentence(ArrayList<SentencePart> conjunctions,
+			ArrayList<Integer> curSubsentence) {
+		String subsentenceFilter;
+		ArrayList<Integer> subsentencePart;
+		ArrayList<ArrayList<SentencePart>> curSentenceParts;
+		ArrayList<ArrayList<SentencePart>> sentenceParts=null;
+		int size = curSubsentence.size();
+		int curRating;
+		int maxRating=-100*size;
+		int[] subsentenceDivisionMask = new int[size]; //new array of zeroes
+		Iterator<ArrayList<Integer>> iterator;
+		ArrayList<ArrayList<Integer>> subsentenceDivision = new ArrayList<ArrayList<Integer>>();
+		do{
+			curSentenceParts = new ArrayList<ArrayList<SentencePart>>();
+			subsentenceDivision = makeSubsentenceDivision(curSubsentence,subsentenceDivisionMask);
+			iterator = subsentenceDivision.iterator();
+			while(iterator.hasNext()){
+				subsentencePart = iterator.next();
+				subsentenceFilter = makeSubsentenceFilter(subsentencePart);				
+				curSentenceParts.add(findSubjectPredicate(conjunctions, subsentenceFilter));
+			}
+			curRating = calculateSubsenteneRating(curSentenceParts);
+			if (curRating>maxRating){
+				sentenceParts = curSentenceParts;
+				maxRating=curRating;
+			}
+			subsentenceDivisionMask=getNextSubsentenceDivisionMask(subsentenceDivisionMask);
+		}while (subsentenceDivisionMask!=null);
+		return sentenceParts;
+	}
 
+	private int calculateSubsenteneRating(ArrayList<ArrayList<SentencePart>> curSentenceParts) {
+		int result=0;
+		for (ArrayList<SentencePart> subsentence:curSentenceParts){
+			//bonus rating for each subsentence
+			if(subsentence.size()>0)
+				result+=10; 
+			int maxSubjectRating=0;
+			int maxPredicateRating=0;
+			int rating=0;
+			SentencePart subject = null;
+			SentencePart predicate = null;
+			for (SentencePart sentencePart: subsentence){
+				if ((sentencePart.part==SentencePart.subject)&(sentencePart.rating>maxSubjectRating)){
+					maxSubjectRating=sentencePart.rating;
+					subject=sentencePart;
+				}
+				if ((sentencePart.part==SentencePart.predicate)&(sentencePart.rating>maxPredicateRating)){
+					maxPredicateRating=sentencePart.rating;
+					predicate=sentencePart;
+				}
+			}
+			if (subject!=null){
+				rating+=subject.rating-subject.maxrating;
+			}
+			if (predicate!=null){
+				rating+=predicate.rating-predicate.maxrating;
+			}
+			result+=rating;
+		}
+		return result;
+	}
+
+	private ArrayList<ArrayList<Integer>> makeSubsentenceDivision(
+			ArrayList<Integer> curSubsentence, int[] mask) {
+		ArrayList<ArrayList<Integer>> result = new ArrayList<ArrayList<Integer>>();
+		ArrayList<Integer> subsentence;
+		int size = mask.length;
+		for(int i=0;i<size;i++){
+			subsentence=new ArrayList<Integer>();
+			for(int j=0;j<size;j++){
+				if(mask[j]==i)
+					subsentence.add(curSubsentence.get(j));
+			}
+			if (!subsentence.isEmpty())
+				result.add(subsentence);
+		}
+		return result;
+	}
+
+	private int[] getNextSubsentenceDivisionMask(
+			int[] mask) {
+		boolean success=false;
+		int size = mask.length;
+		int i;
+		i=size-1;
+		while((i>0)&(!success)){
+			while((mask[i]<size)&(!success)){
+				mask[i]++;
+				if (mask[i]<size)
+					success=isMaskSensible(mask);
+			}
+			if (mask[i]==size){
+				mask[i]=0;
+				i--;
+				success=false;
+			}
+		}
+		if (success)
+			return mask;
+		else
+			return null;
+	}
+
+	private boolean isMaskSensible(int[] mask) {
+		boolean valid=false;
+		int size=mask.length;
+		int[] checkField=new int[size];
+		for(int i=0;i<size;i++)
+			checkField[i]=0;
+		for (int place:mask){
+			checkField[place]=1;
+		}
+		for (int i=0; i<size;i++){
+			if (checkField[i]==0)
+				valid=true;
+			if ((checkField[i]==1)&valid){
+				valid=false;
+				break;
+			}
+		}
+		return valid;
+	}
+
+	private ArrayList<SentencePart> findSubjectPredicate(ArrayList<SentencePart> conjunctions, String subsentenceFilter) {
+		ArrayList<SentencePart> subjectList;
+		Iterator<SentencePart> subjectIterator;
+		SentencePart subject;
+		ArrayList<SentencePart> predicateList;
+		Iterator<SentencePart> predicateIterator;
+		SentencePart predicate;
+		ArrayList<SentencePart> sentenceParts;
+		Iterator<SentencePart> conjunctionIterator;
+		SentencePart conjunction;
+		SentencePart subject2;
+		boolean success=false;
+		boolean conjunctionFound;
+		String personFilter;
+		sentenceParts = new ArrayList<SentencePart>();
 		// получить потенциальные сказуемые, отсортированные по рейтингу
-		predicateList = databank.getPredicateList(id, 0, 0, 0, 0, rating_tolerance);
+		predicateList = databank.getPredicateList(id, subsentenceFilter, 0, 0, 0, 0, rating_tolerance);
 		predicateIterator = predicateList.iterator();
-
 		while ((predicateIterator.hasNext()) & !success) {
 			predicate = predicateIterator.next();
 			// получить для каждого сказуемого, потенциальные подлежащие,
 			// отсортированные по рейтингу
-			subjectList = databank.getSubjectList(id, predicate.wordPos, predicate.person,
-					predicate.gender, predicate.sing_pl, rating_tolerance);
+			if (predicate.person>0)
+				personFilter=String.valueOf(predicate.person);
+			else
+				personFilter=">0";
+			subjectList = databank.getSubjectList(id, subsentenceFilter,
+					predicate.wordPos, personFilter, predicate.gender, predicate.sing_pl,
+					rating_tolerance);
 			subjectIterator = subjectList.iterator();
 			// выбрать первую пару
 			if (subjectIterator.hasNext()) {
 				subject = subjectIterator.next();
-				sentenceParts = new ArrayList<SentencePart>();
 				sentenceParts.add(subject);
 				sentenceParts.add(predicate);
 
@@ -164,10 +293,10 @@ public class Sentence {
 						}
 					}
 				}
-				databank.saveSentenceParts(sentenceParts);
 				success = true;
 			}
 		}
+		return sentenceParts;
 	}
 
 	private void parsePrepositions() {
@@ -277,7 +406,8 @@ public class Sentence {
 		while (genetiveSubstantiveIterator.hasNext()) {
 			genetiveSubstantive = genetiveSubstantiveIterator.next();
 			if (genetiveSubstantive.wordPos > 1) {
-				mainSubstantiveList = getSubstantiveList(id, genetiveSubstantive.wordPos - 1, ">0",
+				mainSubstantiveList = getSubstantiveList(id,
+						databank.getPrevIndependentWordPos(id, genetiveSubstantive.wordPos), ">0",
 						">0", 0, 0);
 				mainSubstantiveIterator = mainSubstantiveList.iterator();
 				if (mainSubstantiveIterator.hasNext()) {
@@ -307,8 +437,8 @@ public class Sentence {
 		// для каждого глагола в действительной форме получить глаголы в инфинитиве
 		while (verbIterator.hasNext()) {
 			verb = verbIterator.next();
-			infinitiveList = copySentenceParts(verbList, databank.getNextIndependentWordPos(id, verb.wordPos),
-					"0");
+			infinitiveList = copySentenceParts(verbList,
+					databank.getNextIndependentWordPos(id, verb.wordPos), "0");
 			infinitiveIterator = infinitiveList.iterator();
 			if (infinitiveIterator.hasNext()) {
 				infinitive = infinitiveIterator.next();
@@ -321,21 +451,6 @@ public class Sentence {
 			}
 		}
 		databank.saveSentenceParts(sentenceParts);
-	}
-
-	private ArrayList<SentencePart> copySentenceParts(ArrayList<SentencePart> sentencePartList,
-			int wordPos, String subtypeFilter) {
-		Iterator<SentencePart> iterator;
-		SentencePart sentencePart;
-		ArrayList<SentencePart> newSentencePartList = new ArrayList<SentencePart>();
-		
-		iterator=sentencePartList.iterator();
-		while(iterator.hasNext()){
-			sentencePart=iterator.next();
-			if((sentencePart.wordPos==wordPos)&(databank.checkFilter(sentencePart.subtype,subtypeFilter)))
-				newSentencePartList.add(sentencePart);
-		}
-		return newSentencePartList;
 	}
 
 	private void parseAdverbs() {
@@ -557,9 +672,9 @@ public class Sentence {
 				0, dependentWord.wcase, dependentWord.person, dependentWord.gender,
 				dependentWord.sing_pl);
 		linkedWordIterator = linkedWordList.iterator();
-		if (linkedWordIterator.hasNext())
-			while (linkedWordIterator.hasNext()) {
-				linkedWord = linkedWordIterator.next();
+		while (linkedWordIterator.hasNext()) {
+			linkedWord = linkedWordIterator.next();
+			if (!existsSentencePart(sentenceParts, linkedWord)) {
 				linkedWord.dep_word_pos = wordPos;
 				linkedWord.word_type_filter = String.valueOf(linkedWord.type);
 				sentenceParts.add(linkedWord);
@@ -567,7 +682,9 @@ public class Sentence {
 						.getConjunction(id, dependentWord.wordPos, linkedWord.wordPos);
 				conjunction.dep_word_pos = wordPos;
 				sentenceParts.add(conjunction);
+				markLinkedWords(linkedWord, wordPos, sentenceParts);
 			}
+		}
 	}
 
 	private void transferPrepositionId(SentencePart mainSentencePart,
@@ -592,7 +709,8 @@ public class Sentence {
 			sentencePartIterator = sentenceParts.iterator();
 			while (sentencePartIterator.hasNext()) {
 				dependentSentencePart = sentencePartIterator.next();
-				if ((dependentSentencePart.dep_word_pos == mainSentencePart.wordPos) & (dependentSentencePart.wcase > 0))
+				if ((dependentSentencePart.dep_word_pos == mainSentencePart.wordPos)
+						& (dependentSentencePart.wcase > 0))
 					dependentSentencePart.preposition_id = prepositionId;
 			}
 		}
@@ -609,7 +727,9 @@ public class Sentence {
 		Iterator<SentencePart> nextWordformIterator;
 		SentencePart nextWordform;
 		// find wordPos with conjunction
-		conjunctions = databank.getConjunctions(id);
+		conjunctions = databank.getConjunctions(id, "и");
+		conjunctions.addAll(databank.getConjunctions(id, "или"));
+		conjunctions.addAll(databank.getConjunctions(id, ","));
 		conjunctionIterator = conjunctions.iterator();
 		while (conjunctionIterator.hasNext()) {
 			conjunction = conjunctionIterator.next();
@@ -705,5 +825,59 @@ public class Sentence {
 	public ArrayList<SentencePart> getNextWordforms(int sentence_id, int wordPos) {
 		return databank.getSentencePartList(sentence_id,
 				databank.getNextIndependentWordPos(sentence_id, wordPos), "", "", 0, 0, "", "");
+	}
+
+	private ArrayList<SentencePart> copySentenceParts(ArrayList<SentencePart> sentencePartList,
+			int wordPos, String subtypeFilter) {
+		Iterator<SentencePart> iterator;
+		SentencePart sentencePart;
+		ArrayList<SentencePart> newSentencePartList = new ArrayList<SentencePart>();
+
+		iterator = sentencePartList.iterator();
+		while (iterator.hasNext()) {
+			sentencePart = iterator.next();
+			if ((sentencePart.wordPos == wordPos)
+					& (databank.checkFilter(sentencePart.subtype, subtypeFilter)))
+				newSentencePartList.add(sentencePart);
+		}
+		return newSentencePartList;
+	}
+
+	private boolean existsSentencePart(ArrayList<SentencePart> sentenceParts,
+			SentencePart sentencePart) {
+		Iterator<SentencePart> iterator = sentenceParts.iterator();
+		SentencePart tempSentencePart;
+		while (iterator.hasNext()) {
+			tempSentencePart = iterator.next();
+			if (tempSentencePart.wordPos == sentencePart.wordPos)
+				return true;
+		}
+		return false;
+	}
+
+	private String makeSubsentenceFilter(ArrayList<Integer> curSubsentence) {
+		Iterator<Integer> iterator;
+		Integer curSubsentenceID;
+		String subsentenceFilter;
+		subsentenceFilter="-1";
+		iterator=curSubsentence.iterator();
+		if(iterator.hasNext()){
+			curSubsentenceID=iterator.next();
+			subsentenceFilter=curSubsentenceID.toString();
+			while(iterator.hasNext()){
+				curSubsentenceID=iterator.next();
+				subsentenceFilter=subsentenceFilter+'|'+curSubsentenceID.toString();
+			}
+		}
+		return subsentenceFilter;
+	}
+
+	private ArrayList<SentencePart> gather(ArrayList<ArrayList<SentencePart>> arraylist){
+		ArrayList<SentencePart> result=new ArrayList<SentencePart>();
+		Iterator<ArrayList<SentencePart>> iterator;
+		iterator=arraylist.iterator();
+		while(iterator.hasNext())
+			result.addAll(iterator.next());
+		return result;
 	}
 }
