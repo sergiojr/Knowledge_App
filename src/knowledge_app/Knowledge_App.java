@@ -140,6 +140,13 @@ public class Knowledge_App {
 					curInput = curInput + Character.toString(newchar);
 				}
 			}
+			curInput = curInput.trim();
+			// add current block to sentence
+			if (!curInput.isEmpty()) {
+				sentence.sentence = sentence.sentence + " " + curInput;
+				sentence.wordList.add(new WordProcessor(curInput, isPunctuation,
+						isName, databank));
+			}
 			if (!sentence.sentence.isEmpty()) {
 				if(save)
 					sentence.save(databank);
