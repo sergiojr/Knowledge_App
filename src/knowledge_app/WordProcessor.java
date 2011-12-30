@@ -71,7 +71,7 @@ public class WordProcessor {
 			databank.putWorformsByWordformstring(lcWord, wordforms);
 		}
 		if (wordforms.isEmpty()) {
-			emptyword = databank.getWord(lcWord, 0, 0, false, 0, 0, true);
+			emptyword = databank.getWord(lcWord, 0, 0, 0, false, 0, 0, true);
 			wordforms.add(emptyword.createWordform(lcWord, 0, 0));
 		}
 	}
@@ -121,7 +121,8 @@ public class WordProcessor {
 							word = databank.getWord(
 									word1.getWord() + curComplexWordTemplate.getDelimiter()
 											+ word2.getWord(), word2Wordform.endingRule.type,
-									word2Wordform.endingRule.rule_no, true, word1.getId(),
+									word2Wordform.endingRule.rule_no,
+									word2Wordform.endingRule.rule_variance, true, word1.getId(),
 									word2.getId(), true);
 							wordforms.add(word.createWordform(lcWord + postfix.getPostfix(),
 									word2Wordform.endingRule.rule_id, postfix.getId()));
@@ -195,7 +196,7 @@ public class WordProcessor {
 					modbase = basesIterator.next();
 					if (checkBase(modbase, endingrule.type)) {
 						word = databank.getWord(modbase, endingrule.type, endingrule.rule_no,
-								false, 0, 0, true);
+								endingrule.rule_variance, false, 0, 0, true);
 						wordforms.add(word.createWordform(base + ending + postfix.getPostfix(),
 								endingrule.rule_id, postfix.getId()));
 					}

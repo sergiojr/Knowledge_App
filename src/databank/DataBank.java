@@ -37,6 +37,7 @@ public class DataBank {
 	private HashMap<Integer, Word> wordsById;
 	private HashMap<String, HashSet<Word>> wordsByBase;
 	private HashMap<Integer, Integer> ruleDiversity;
+	private HashMap<Integer, HashSet<Integer>> ruleVarianceByRuleNo;
 	private HashMap<Integer, EndingRule> zeroEndingruleByRuleNo;
 	private HashSet<Transformation> transformations;
 	private HashMap<Integer, HashSet<Transformation>> transformationsById;
@@ -143,9 +144,11 @@ public class DataBank {
 			word.id = getMaxWordID() + 1;
 			establishConnection();
 			Statement stat = conn.createStatement();
-			query = MessageFormat.format("insert into words "
-					+ "values ({0,number,#},''{1}'',{2,number,#}, {3,number,#},{4,number,#},{5})",
-					word.id, word.word, word.type, word.rule_no, word.rating, word.complex);
+			query = MessageFormat
+					.format("insert into words "
+							+ "values ({0,number,#},''{1}'',{2,number,#}, {3,number,#},{5,number,#}, {6},{4,number,#})",
+							word.id, word.word, word.type, word.rule_no, word.rule_variance,
+							word.rating, word.complex);
 			stat.executeUpdate(query);
 			if (word.complex) {
 				query = MessageFormat.format(
@@ -155,6 +158,24 @@ public class DataBank {
 			}
 			stat.close();
 			updateWordCache(word);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void updateWord(Word word) {
+		String query;
+		if (word.id == 0)
+			return;
+		try {
+			establishConnection();
+			Statement stat = conn.createStatement();
+			query = MessageFormat.format(
+					"update words set rule_variance = {4,number,#} where id={0,number,#}", word.id,
+					word.word, word.type, word.rule_no, word.rule_variance, word.rating,
+					word.complex);
+			stat.executeUpdate(query);
+			stat.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -306,23 +327,27 @@ public class DataBank {
 		}
 	}
 
-	public int getWordID(String baseForm, int type, int rule, boolean complex, int word1, int word2) {
+	public int getWordID(String baseForm, int type, int rule, int rule_variance, boolean complex,
+			int word1, int word2) {
 		HashSet<Word> wordSet = wordsByBase.get(baseForm);
 		if (wordSet != null) {
 			Iterator<Word> iterator = wordSet.iterator();
 			Word word;
 			while (iterator.hasNext()) {
 				word = iterator.next();
-				if ((word.type == type) & (word.rule_no == rule) & (word.complex == complex)
-						& (word.word1ID == word1) & (word.word2ID == word2))
+				if ((word.type == type) & (word.rule_no == rule)
+						& ((word.rule_variance == rule_variance) | (word.rule_variance == 0))
+						& (word.complex == complex) & (word.word1ID == word1)
+						& (word.word2ID == word2))
 					return word.id;
 			}
 		}
 		String query = MessageFormat.format(
 				"select id from words left join complex_word on words.id = complex_word.word_id "
 						+ "where word=''{0}'' AND type={1,number,#} AND rule_no={2,number,#} and "
-						+ "complex = {3} and word1 = {4,number,#} and word2 = {5,number,#};",
-				baseForm, type, rule, complex, word1, word2);
+						+ "(rule_variance = {3,number,#} or rule_variance=0) and "
+						+ "complex = {4} and word1 = {5,number,#} and word2 = {6,number,#};",
+				baseForm, type, rule, rule_variance, complex, word1, word2);
 		int wordID = 0;
 		try {
 			establishConnection();
@@ -381,8 +406,8 @@ public class DataBank {
 		rs = stat.executeQuery(query.validate().toString());
 
 		while (rs.next()) {
-			word = getWord(rs.getString("base_form"), rs.getInt("type"), -rs.getInt("type"), false,
-					0, 0, true);
+			word = getWord(rs.getString("base_form"), rs.getInt("type"), -rs.getInt("type"), 0,
+					false, 0, 0, true);
 			wordforms.add(word.createWordform(wordform + postfix.postfix, rs.getInt("rule_id"),
 					postfix.id));
 		}
@@ -449,11 +474,12 @@ public class DataBank {
 		rs = stat.executeQuery(query.validate().toString());
 
 		while (rs.next()) {
-			endingrules.add(new EndingRule(ending, rs.getInt("rule_no"), rs.getInt("type"), rs
-					.getInt("subtype"), rs.getInt("rule_id"), rs.getInt("wcase"), rs
-					.getInt("gender"), rs.getInt("person"), rs.getString("allow_after"), rs
-					.getString("deny_after"), rs.getString("e_before"), rs.getString("o_before"),
-					rs.getInt("min_length")));
+			endingrules.add(new EndingRule(ending, rs.getInt("rule_no"),
+					rs.getInt("rule_variance"), rs.getInt("type"), rs.getInt("subtype"), rs
+							.getInt("rule_id"), rs.getInt("wcase"), rs.getInt("gender"), rs
+							.getInt("person"), rs.getString("allow_after"), rs
+							.getString("deny_after"), rs.getString("e_before"), rs
+							.getString("o_before"), rs.getInt("min_length")));
 		}
 		rs.close();
 		stat.close();
@@ -488,10 +514,11 @@ public class DataBank {
 			rs = stat.executeQuery(query.validate().toString());
 			if (rs.next()) {
 				zeroEndingrule = new EndingRule(rs.getString("ending"), rs.getInt("rule_no"),
-						rs.getInt("type"), rs.getInt("subtype"), rs.getInt("rule_id"),
-						rs.getInt("wcase"), rs.getInt("gender"), rs.getInt("person"),
-						rs.getString("allow_after"), rs.getString("deny_after"),
-						rs.getString("e_before"), rs.getString("o_before"), rs.getInt("min_length"));
+						rs.getInt("rule_variance"), rs.getInt("type"), rs.getInt("subtype"),
+						rs.getInt("rule_id"), rs.getInt("wcase"), rs.getInt("gender"),
+						rs.getInt("person"), rs.getString("allow_after"),
+						rs.getString("deny_after"), rs.getString("e_before"),
+						rs.getString("o_before"), rs.getInt("min_length"));
 				zeroEndingruleByRuleNo.put(new Integer(rule_no), zeroEndingrule);
 			}
 			rs.close();
@@ -674,7 +701,8 @@ public class DataBank {
 						+ "where (word_id=? and relation_type=2) "
 						+ "or (parent_word_id=? and relation_type=2)");
 		wordformQuery = conn.prepareStatement("select count(DISTINCT ending) from wordforms "
-				+ "join ending_rules on wordforms.rule_id=ending_rules.rule_id where word_id=?");
+				+ "join ending_rules on wordforms.rule_id=ending_rules.rule_id "
+				+ "where word_id=?");
 		complexWordQuery = conn
 				.prepareStatement("select word_id from complex_word where word1=? or word2=?");
 		PreparedStatement prep = conn.prepareStatement("UPDATE words SET rating=? WHERE id=?");
@@ -743,6 +771,7 @@ public class DataBank {
 
 	private int getRuleDiversity(int rule_no) {
 		Integer ruleCount;
+		String query;
 		if (rule_no <= 0)
 			return -1;
 		if (ruleDiversity == null)
@@ -750,10 +779,12 @@ public class DataBank {
 		ruleCount = ruleDiversity.get(new Integer(rule_no));
 		if (ruleCount == null) {
 			try {
+				query = MessageFormat.format("select count(DISTINCT ending) from ending_rules "
+						+ "where ending_rules.rule_no={0,number,#} and "
+						+ "(rule_variance=0 or rule_variance=1)", rule_no);
 				establishConnection();
 				Statement stat = conn.createStatement();
-				ResultSet rs = stat.executeQuery("select count(DISTINCT ending) from ending_rules "
-						+ "where ending_rules.rule_no=" + rule_no);
+				ResultSet rs = stat.executeQuery(query);
 				if (rs.next())
 					ruleCount = new Integer(rs.getInt(1));
 				else
@@ -764,6 +795,32 @@ public class DataBank {
 			}
 		}
 		return ruleCount.intValue();
+	}
+
+	public HashSet<Integer> getRuleVariance(int rule_no) {
+		HashSet<Integer> ruleVariance;
+		String query;
+		if (rule_no <= 0)
+			return null;
+		if (ruleVarianceByRuleNo == null)
+			ruleVarianceByRuleNo = new HashMap<Integer, HashSet<Integer>>();
+		ruleVariance = ruleVarianceByRuleNo.get(new Integer(rule_no));
+		if (ruleVariance == null) {
+			try {
+				query = MessageFormat.format("select DISTINCT rule_variance from ending_rules "
+						+ "where rule_no={0,number,#} and rule_variance>0", rule_no);
+				establishConnection();
+				Statement stat = conn.createStatement();
+				ResultSet rs = stat.executeQuery(query);
+				ruleVariance = new HashSet<Integer>();
+				while (rs.next())
+					ruleVariance.add(new Integer(rs.getInt(1)));
+				ruleVarianceByRuleNo.put(new Integer(rule_no), ruleVariance);
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+		return ruleVariance;
 	}
 
 	private int getMaxWordID() throws SQLException {
@@ -883,19 +940,20 @@ public class DataBank {
 	public EndingRule getEndingRule(boolean fixed, int rule) {
 		String query;
 		if (fixed)
-			query = "select wcase,gender,person,type,-type as rule_no from fixed_words where rule_id="
-					+ rule;
+			query = "select wcase,gender,person,type,-type as rule_no,0 as rule_variance "
+					+ "from fixed_words where rule_id=" + rule;
 		else
-			query = "select wcase,gender,person,type,rule_no from ending_rules where rule_id="
-					+ rule;
+			query = "select wcase,gender,person,type,rule_no,rule_variance "
+					+ "from ending_rules where rule_id=" + rule;
 		EndingRule endingRule = null;
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
 			ResultSet rs = stat.executeQuery(query);
 			if (rs.next())
-				endingRule = new EndingRule(rule, rs.getInt(1), rs.getInt(2), rs.getInt(3),
-						rs.getInt("type"), rs.getInt("rule_no"));
+				endingRule = new EndingRule(rule, rs.getInt("wcase"), rs.getInt("gender"),
+						rs.getInt("person"), rs.getInt("type"), rs.getInt("rule_no"),
+						rs.getInt("rule_variance"));
 
 			rs.close();
 			stat.close();
@@ -1091,14 +1149,14 @@ public class DataBank {
 	}
 
 	public boolean checkFilter(int value, String filter) {
-		boolean result=false;
+		boolean result = false;
 		if (filter == null)
 			return true;
 		if (filter.isEmpty())
 			return true;
 		String[] splitFilter = filter.split("\\|");
 		for (int i = 0; i < splitFilter.length; i++) {
-			result=result|checkBinaryFilter(value, splitFilter[i]);
+			result = result | checkBinaryFilter(value, splitFilter[i]);
 		}
 		return result;
 	}
@@ -1334,8 +1392,9 @@ public class DataBank {
 				ResultSet rs = stat.executeQuery(query);
 				if (rs.next()) {
 					word = new Word(this, id, rs.getString("word"), rs.getInt("type"),
-							rs.getInt("rule_no"), rs.getBoolean("complex"), rs.getInt("word1"),
-							rs.getInt("word2"), rs.getInt("rating"));
+							rs.getInt("rule_no"), rs.getInt("rule_variance"),
+							rs.getBoolean("complex"), rs.getInt("word1"), rs.getInt("word2"),
+							rs.getInt("rating"));
 					updateWordCache(word);
 				}
 			} catch (SQLException e) {
@@ -1345,47 +1404,73 @@ public class DataBank {
 		return word;
 	}
 
-	public Word getWord(String baseForm, int type, int rule_no, boolean complex, int word1ID,
-			int word2ID, boolean save) {
+	public Word getWord(String baseForm, int type, int rule_no, int rule_variance, boolean complex,
+			int word1ID, int word2ID, boolean save) {
+		// rule_variance <0 - exclude rule_variance
+		if ((rule_variance < 0) & (save))
+			return null;
+
 		String query;
 
 		if (wordsByBase == null)
 			wordsByBase = new HashMap<String, HashSet<Word>>();
 		HashSet<Word> wordSet = wordsByBase.get(baseForm);
-		Word word = null;
-		if (wordSet != null) {
-			Iterator<Word> iterator = wordSet.iterator();
-			while (iterator.hasNext()) {
-				word = iterator.next();
-				if ((word.type == type) & (word.rule_no == rule_no) & (word.complex == complex)
-						& (word.word1ID == word1ID) & (word.word2ID == word2ID))
-					return word;
-			}
+		wordSet = filterWordSet(type, rule_no, complex, word1ID, word2ID, wordSet);
+		for (Word tempWord : wordSet) {
+			if (rule_variance >= 0)
+				if ((tempWord.rule_variance == rule_variance) | (tempWord.rule_variance == 0)
+						| (rule_variance == 0)) {
+					if ((rule_variance > 0) & (tempWord.rule_variance == 0) & save) {
+						tempWord.rule_variance = rule_variance;
+						updateWord(tempWord);
+					}
+					return tempWord;
+				}
+			if (rule_variance < 0)
+				if (-rule_variance != tempWord.rule_variance)
+					return tempWord;
 		}
 
-		word = null;
+		Word word = null;
 
 		if (complex)
 			query = MessageFormat
-					.format("select id,rating from words left join complex_word on words.id = complex_word.word_id "
+					.format("select id,rating,rule_variance from words left join complex_word on words.id = complex_word.word_id "
 							+ "where word=''{0}'' AND type={1,number,#} AND rule_no={2,number,#} AND "
 							+ "complex = {3} and word1 = {4,number,#} AND word2 = {5,number,#};",
 							baseForm, type, rule_no, complex, word1ID, word2ID);
 		else
-			query = MessageFormat.format(
-					"select id,rating from words where word=''{0}'' AND type={1,number,#} "
-							+ "AND rule_no={2,number,#} AND complex={3}", baseForm, type, rule_no,
-					complex);
+			query = MessageFormat.format("select id,rating,rule_variance from words "
+					+ "where word=''{0}'' AND type={1,number,#} AND rule_no={2,number,#} AND "
+					+ "complex={3}", baseForm, type, rule_no, complex);
 		try {
+			Word tempWord;
 			establishConnection();
 			Statement stat = conn.createStatement();
 			ResultSet rs = stat.executeQuery(query);
 			if (rs.next()) {
-				word = new Word(this, rs.getInt("id"), baseForm, type, rule_no, complex, word1ID,
-						word2ID, rs.getInt("rating"));
-				updateWordCache(word);
-			} else if (save) {
-				word = new Word(this, 0, baseForm, type, rule_no, complex, word1ID, word2ID, 0);
+				while (rs.next()) {
+					tempWord = new Word(this, rs.getInt("id"), baseForm, type, rule_no,
+							rs.getInt("rule_variance"), complex, word1ID, word2ID,
+							rs.getInt("rating"));
+					updateWordCache(tempWord);
+					if (rule_variance >= 0)
+						if ((tempWord.rule_variance == rule_variance)
+								| (tempWord.rule_variance == 0) | (rule_variance == 0)) {
+							if ((rule_variance > 0) & (tempWord.rule_variance == 0) & save) {
+								tempWord.rule_variance = rule_variance;
+								updateWord(tempWord);
+							}
+							word = tempWord;
+						}
+					if (rule_variance < 0)
+						if (-rule_variance != tempWord.rule_variance)
+							word = tempWord;
+				}
+			}
+			if ((word == null) & save) {
+				word = new Word(this, 0, baseForm, type, rule_no, rule_variance, complex, word1ID,
+						word2ID, 0);
 				word.save();
 			}
 			rs.close();
@@ -1396,7 +1481,19 @@ public class DataBank {
 		return word;
 	}
 
-	public ArrayList<Word> getWords(String baseForm, int type, int rule_no) {
+	private HashSet<Word> filterWordSet(int type, int rule_no, boolean complex, int word1ID,
+			int word2ID, HashSet<Word> wordSet) {
+		HashSet<Word> result = new HashSet<Word>();
+		if (wordSet != null)
+			for (Word word : wordSet) {
+				if ((word.type == type) && (word.rule_no == rule_no) && (word.complex == complex)
+						&& (word.word1ID == word1ID) && (word.word2ID == word2ID))
+					result.add(word);
+			}
+		return result;
+	}
+
+	public ArrayList<Word> getWords(String baseForm, int type, int rule_no, int rule_variance) {
 		ArrayList<Word> wordsList = new ArrayList<Word>();
 		Word word;
 
@@ -1404,7 +1501,10 @@ public class DataBank {
 			return wordsList;
 
 		if (type > 0 && rule_no > 0) {
-			word = getWord(baseForm, type, rule_no, false, 0, 0, false);
+			word = getWord(baseForm, type, rule_no, rule_variance, false, 0, 0, false);
+			// если не нашли с текущим rule_variance или нулем, то пытаемся найти с любым другим
+			if ((word == null) && (rule_variance > 0))
+				word = getWord(baseForm, type, rule_no, 0, false, 0, 0, false);
 			if (word != null)
 				wordsList.add(word);
 			return wordsList;
@@ -1417,9 +1517,18 @@ public class DataBank {
 		if (type > 0)
 			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
 					"type"), type));
-		if (rule_no > 0)
-			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-					"rule_no"), rule_no));
+		// if (rule_no > 0) {
+		// query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
+		// "rule_no"), rule_no));
+		// if (rule_variance > 0) {
+		// ComboCondition cc = new ComboCondition(ComboCondition.Op.OR);
+		// cc.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
+		// "rule_variance"), rule_variance));
+		// cc.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
+		// "rule_variance"), 0));
+		// query.addCondition(cc);
+		// }
+		// }
 		query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql("word"),
 				baseForm));
 
@@ -1431,6 +1540,10 @@ public class DataBank {
 				word = getWord(rs.getInt("id"));
 				wordsList.add(word);
 			}
+			// //если не нашли с текущим rule_variance или нулем, то пытаемся найти с любым другим
+			// if ((rule_variance>0)&(wordsList.isEmpty())){
+			// wordsList.addAll(getWords(baseForm,type,rule_no,0));
+			// }
 			rs.close();
 			stat.close();
 		} catch (SQLException e) {

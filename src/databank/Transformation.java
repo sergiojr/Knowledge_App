@@ -46,6 +46,7 @@ public class Transformation {
 		String newWord = oldWord;
 		int newType = 0;
 		int newRule = targetRule;
+		int newRuleVariance = 0;
 
 		if (sourceType != 0)
 			if (word.type != sourceType)
@@ -60,8 +61,10 @@ public class Transformation {
 			if (word.rule_no != sourceRule)
 				return null;
 
-		if (keepRule)
+		if (keepRule) {
 			newRule = word.rule_no;
+			newRuleVariance = word.rule_variance;
+		}
 
 		Prefix sourcePrefix = databank.getPrefix(this.sourcePrefix);
 		if (!this.sourcePrefix.isEmpty() && sourcePrefix == null)
@@ -87,7 +90,7 @@ public class Transformation {
 		newWord = addSuffix(newWord, targetSuffix);
 
 		if (newWord != oldWord)
-			return new Word(null, 0, newWord, newType, newRule, false, 0, 0, 0);
+			return new Word(null, 0, newWord, newType, newRule, newRuleVariance, false, 0, 0, 0);
 		return null;
 	}
 
@@ -96,6 +99,7 @@ public class Transformation {
 		String newWord = oldWord;
 		int newType = 0;
 		int newRule = sourceRule;
+		int newRuleVariance = 0;
 
 		if (targetType != 0)
 			if (word.type != targetType)
@@ -110,8 +114,10 @@ public class Transformation {
 			if (word.rule_no != targetRule)
 				return null;
 
-		if (keepRule)
+		if (keepRule) {
 			newRule = word.rule_no;
+			newRuleVariance = word.rule_variance;
+		}
 
 		Prefix targetPrefix = databank.getPrefix(this.targetPrefix);
 		if (!this.targetPrefix.isEmpty() && targetPrefix == null)
@@ -137,7 +143,7 @@ public class Transformation {
 		newWord = addSuffix(newWord, sourceSuffix);
 
 		if (newWord != oldWord)
-			return new Word(null, 0, newWord, newType, newRule, false, 0, 0, 0);
+			return new Word(null, 0, newWord, newType, newRule, newRuleVariance, false, 0, 0, 0);
 		return null;
 	}
 

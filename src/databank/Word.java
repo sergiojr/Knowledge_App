@@ -9,18 +9,21 @@ import knowledge_app.EndingRule;
 import knowledge_app.WordForm;
 
 public class Word {
-	public Word(DataBank databank, int id, String word, int type, int rule_no, boolean complex,
-			int word1ID, int word2ID, int rating) {
+	public Word(DataBank databank, int id, String word, int type, int rule_no, int rule_variance,
+			boolean complex, int word1ID, int word2ID, int rating) {
 		this.databank = databank;
 		this.id = id;
 		this.word = word;
 		this.type = type;
 		this.rule_no = rule_no;
+		this.rule_variance = rule_variance;
 		this.complex = complex;
 		this.word1ID = word1ID;
 		this.word2ID = word2ID;
 		this.rating = rating;
 		this.fixed = (this.rule_no < 0);
+		if (databank != null)
+			this.ruleVariance = databank.getRuleVariance(rule_no);
 	}
 
 	public String getWord() {
@@ -33,9 +36,11 @@ public class Word {
 	String word;
 	int type;
 	int rule_no;
+	int rule_variance;
 	boolean complex;
 	int word1ID;
 	int word2ID;
+	HashSet<Integer> ruleVariance;
 
 	public int getId() {
 		return id;
@@ -49,6 +54,7 @@ public class Word {
 		Transformation transformation;
 		Word newWord;
 		int transformationType;
+		boolean isNewWord;
 
 		ArrayList<Word> transformedWordsList;
 		Iterator<Word> transformedWordIterator;
@@ -68,36 +74,71 @@ public class Word {
 			newWord = transformation.forwardTransformation(this);
 			if (newWord != null) {
 				transformedWordsList = databank.getWords(newWord.word, newWord.type,
-						newWord.rule_no);
+						newWord.rule_no, newWord.rule_variance);
 				transformedWordIterator = transformedWordsList.iterator();
 				while (transformedWordIterator.hasNext()) {
+					isNewWord = false;
 					transformedWord = transformedWordIterator.next();
 					transformationType = transformation.type;
-					// if (databank.checkSimilarWordforms(id,transformedWord.id))
-					// transformationType=0;
-					transformationRelation = new WordWordRelation(id, transformedWord.id,
-							transformationType, transformation.getId(), transformation.getLine());
-					databank.saveWordWordRelation(transformationRelation);
-					if (rule_no == transformedWord.rule_no)
-						this.copyTransformWordforms(transformationRelation);
+					if ((rule_no == transformedWord.rule_no) & (transformationType == 1)
+							& (rule_variance != transformedWord.rule_variance))
+						if (transformedWord.rule_variance == 0) {
+							transformedWord.rule_variance = rule_variance;
+							databank.updateWord(transformedWord);
+						} else if (rule_variance == 0) {
+							rule_variance = transformedWord.rule_variance;
+							databank.updateWord(this);
+						} else {
+							transformedWord = databank.getWord(transformedWord.word,
+									transformedWord.type, transformedWord.rule_no, rule_variance,
+									transformedWord.complex, transformedWord.word1ID,
+									transformedWord.word2ID, true);
+							isNewWord = true;
+						}
+					if (!isNewWord) {
+						transformationRelation = new WordWordRelation(id, transformedWord.id,
+								transformationType, transformation.getId(),
+								transformation.getLine());
+						databank.saveWordWordRelation(transformationRelation);
+
+						if (rule_no == transformedWord.rule_no)
+							this.copyTransformWordforms(transformationRelation);
+					}
 				}
 			}
 			// check for backward transformation
 			newWord = transformation.backwardTransformation(this);
 			if (newWord != null) {
 				transformedWordsList = databank.getWords(newWord.word, newWord.type,
-						newWord.rule_no);
+						newWord.rule_no, newWord.rule_variance);
 				transformedWordIterator = transformedWordsList.iterator();
 				while (transformedWordIterator.hasNext()) {
+					isNewWord = false;
 					transformedWord = transformedWordIterator.next();
 					transformationType = transformation.type;
-					// if (databank.checkSimilarWordforms(id,transformedWord.id))
-					// transformationType=0;
-					transformationRelation = new WordWordRelation(transformedWord.id, id,
-							transformationType, transformation.getId(), transformation.getLine());
-					databank.saveWordWordRelation(transformationRelation);
-					if (rule_no == transformedWord.rule_no)
-						transformedWord.copyTransformWordforms(transformationRelation);
+					if ((rule_no == transformedWord.rule_no) & (transformationType == 1)
+							& (rule_variance != transformedWord.rule_variance))
+						if (transformedWord.rule_variance == 0) {
+							transformedWord.rule_variance = rule_variance;
+							databank.updateWord(transformedWord);
+						} else if (rule_variance == 0) {
+							rule_variance = transformedWord.rule_variance;
+							databank.updateWord(this);
+						} else {
+							transformedWord = databank.getWord(transformedWord.word,
+									transformedWord.type, transformedWord.rule_no, rule_variance,
+									transformedWord.complex, transformedWord.word1ID,
+									transformedWord.word2ID, true);
+							isNewWord = true;
+						}
+					if (!isNewWord) {
+						transformationRelation = new WordWordRelation(transformedWord.id, id,
+								transformationType, transformation.getId(),
+								transformation.getLine());
+						databank.saveWordWordRelation(transformationRelation);
+						if (rule_no == transformedWord.rule_no)
+							transformedWord.copyTransformWordforms(transformationRelation);
+					}
 				}
 			}
 		}
@@ -122,6 +163,15 @@ public class Word {
 		tempWordform = new WordForm(wordform, id, endingrule, postfix);
 		wordforms.add(tempWordform);
 		databank.saveWordForm(tempWordform);
+		if (endingrule != null)
+			if (endingrule.isZeroVarience() & (rule_variance > 0))
+				for (Integer variance : ruleVariance) {
+					Word word = databank.getWord(this.word, type, rule_no, variance, complex,
+							word1ID, word2ID, false);
+					if (word != null)
+						if (word.rule_variance != rule_variance)
+							word.createWordform(wordform, rule_id, postfix);
+				}
 		return tempWordform;
 	}
 
@@ -156,10 +206,28 @@ public class Word {
 		if (fixed)
 			rating = 100;
 		if (id == 0)
-			id = databank.getWordID(word, type, rule_no, complex, word1ID, word2ID);
+			id = databank.getWordID(word, type, rule_no, rule_variance, complex, word1ID, word2ID);
 		if (id == 0) {
 			databank.saveWord(this);
+			checkRuleVariance();
 			checkTransormations();
+		} else {
+			databank.updateWord(this);
+			checkTransormations();
+		}
+	}
+
+	private void checkRuleVariance() {
+		if (rule_variance == 0)
+			return;
+		Word fromWord = databank.getWord(word, type, rule_no, -rule_variance, complex, word1ID,
+				word2ID, false);
+		if (fromWord == null)
+			return;
+		for (WordForm fromWordform : fromWord.wordforms) {
+			EndingRule endingRule = databank.getEndingRule(fromWord.fixed, fromWordform.rule);
+			if (endingRule.isZeroVarience())
+				createWordform(fromWordform.wordForm, fromWordform.rule, fromWordform.postfix_id);
 		}
 	}
 
@@ -208,13 +276,16 @@ public class Word {
 		if (rule_no != toWord.rule_no)
 			return;
 
+		if ((rule_variance != toWord.rule_variance) & (toWord.rule_variance != 0))
+			return;
+
 		fromWordform = getWordform(rule_id, postfix_id);
 		if (forwardTransform)
 			newWord = transformation.forwardTransformation(new Word(null, 0, fromWordform.wordForm,
-					type, rule_no, false, 0, 0, 0));
+					type, rule_no, rule_variance, false, 0, 0, 0));
 		if (backwardTransform)
 			newWord = transformation.backwardTransformation(new Word(null, 0,
-					fromWordform.wordForm, type, rule_no, false, 0, 0, 0));
+					fromWordform.wordForm, type, rule_no, rule_variance, false, 0, 0, 0));
 		if (newWord != null)
 			toWord.createWordform(newWord.word, rule_id, postfix_id);
 	}
@@ -257,6 +328,9 @@ public class Word {
 		if (rule_no != toWord.rule_no)
 			return;
 
+		if ((rule_variance != toWord.rule_variance) & (toWord.rule_variance != 0))
+			return;
+
 		updateWordforms();
 		if (wordforms != null) {
 			Iterator<WordForm> iterator = wordforms.iterator();
@@ -264,11 +338,13 @@ public class Word {
 				fromWordform = iterator.next();
 				if (toWord.getWordform(fromWordform.rule, fromWordform.postfix_id) == null) {
 					if (forwardTransform)
-						newWord = transformation.forwardTransformation(new Word(null, 0,
-								fromWordform.wordForm, type, rule_no, false, 0, 0, 0));
+						newWord = transformation
+								.forwardTransformation(new Word(null, 0, fromWordform.wordForm,
+										type, rule_no, rule_variance, false, 0, 0, 0));
 					if (backwardTransform)
-						newWord = transformation.backwardTransformation(new Word(null, 0,
-								fromWordform.wordForm, type, rule_no, false, 0, 0, 0));
+						newWord = transformation
+								.backwardTransformation(new Word(null, 0, fromWordform.wordForm,
+										type, rule_no, rule_variance, false, 0, 0, 0));
 
 					if (newWord != null)
 						toWord.createWordform(newWord.word, fromWordform.rule,
