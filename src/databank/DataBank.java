@@ -1448,25 +1448,24 @@ public class DataBank {
 			establishConnection();
 			Statement stat = conn.createStatement();
 			ResultSet rs = stat.executeQuery(query);
-			if (rs.next()) {
-				while (rs.next()) {
-					tempWord = new Word(this, rs.getInt("id"), baseForm, type, rule_no,
-							rs.getInt("rule_variance"), complex, word1ID, word2ID,
-							rs.getInt("rating"));
-					updateWordCache(tempWord);
-					if (rule_variance >= 0)
-						if ((tempWord.rule_variance == rule_variance)
-								| (tempWord.rule_variance == 0) | (rule_variance == 0)) {
-							if ((rule_variance > 0) & (tempWord.rule_variance == 0) & save) {
-								tempWord.rule_variance = rule_variance;
-								updateWord(tempWord);
-							}
-							word = tempWord;
+			while ((word == null) & rs.next()) {
+				tempWord = new Word(this, rs.getInt("id"), baseForm, type, rule_no,
+						rs.getInt("rule_variance"), complex, word1ID, word2ID, rs.getInt("rating"));
+				if (rule_variance >= 0)
+					if ((tempWord.rule_variance == rule_variance) | (tempWord.rule_variance == 0)
+							| (rule_variance == 0)) {
+						if ((rule_variance > 0) & (tempWord.rule_variance == 0) & save) {
+							tempWord.rule_variance = rule_variance;
+							updateWord(tempWord);
 						}
-					if (rule_variance < 0)
-						if (-rule_variance != tempWord.rule_variance)
-							word = tempWord;
-				}
+						word = tempWord;
+						updateWordCache(word);
+					}
+				if (rule_variance < 0)
+					if (-rule_variance != tempWord.rule_variance) {
+						word = tempWord;
+						updateWordCache(word);
+					}
 			}
 			if ((word == null) & save) {
 				word = new Word(this, 0, baseForm, type, rule_no, rule_variance, complex, word1ID,
