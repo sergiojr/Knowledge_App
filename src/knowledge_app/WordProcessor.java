@@ -7,8 +7,10 @@ import java.util.Set;
 
 import databank.ComplexWordTemplate;
 import databank.DataBank;
+import databank.EndingRule;
 import databank.Postfix;
 import databank.Word;
+import databank.WordForm;
 
 public class WordProcessor {
 	private HashSet<WordForm> wordforms;
@@ -37,10 +39,6 @@ public class WordProcessor {
 		this.word = word.toLowerCase().intern();
 		if (!isPunctuation)
 			parseBaseForm(word);
-	}
-
-	public boolean isPunctuation() {
-		return isPunctuation;
 	}
 
 	private void parseBaseForm(String word) throws SQLException {
@@ -72,7 +70,7 @@ public class WordProcessor {
 		}
 		if (wordforms.isEmpty()) {
 			emptyword = databank.getWord(lcWord, 0, 0, 0, false, 0, 0, true);
-			wordforms.add(emptyword.createWordform(lcWord, 0, 0));
+			wordforms.add(emptyword.createWordform(lcWord, null, 0));
 		}
 	}
 
@@ -120,12 +118,10 @@ public class WordProcessor {
 							word2 = databank.getWord(word2Wordform.wordID);
 							word = databank.getWord(
 									word1.getWord() + curComplexWordTemplate.getDelimiter()
-											+ word2.getWord(), word2Wordform.endingRule.type,
-									word2Wordform.endingRule.rule_no,
-									word2Wordform.endingRule.rule_variance, true, word1.getId(),
+											+ word2.getWord(), word2Wordform.getEndingRule(), true, word1.getId(),
 									word2.getId(), true);
 							wordforms.add(word.createWordform(lcWord + postfix.getPostfix(),
-									word2Wordform.endingRule.rule_id, postfix.getId()));
+									word2Wordform.getEndingRule(), postfix.getId()));
 						}
 					}
 				}
@@ -139,8 +135,6 @@ public class WordProcessor {
 		EndingRule endingrule;
 		EndingRule zeroEndingrule;
 		boolean valid;
-		int i;
-		String[] baseEnd;
 		String modbase;
 		Set<String> modbases;
 		Word word;
@@ -153,145 +147,39 @@ public class WordProcessor {
 			Set<String> bases = new HashSet<String>();
 			valid = true;
 			endingrule = iterator.next();
-			zeroEndingrule = databank.getZeroEndingrule(endingrule.rule_no);
-			if (base.length() < endingrule.min_length)
+			zeroEndingrule = databank.getZeroEndingrule(endingrule);
+			if (base.length() < endingrule.getMinLength())
 				valid = false;
-			if (endingrule.allow_after != null)
-				if (valid & !endingrule.allow_after.isEmpty()) {
-					baseEnd = endingrule.allow_after.split(";");
-					valid = false;
-					i = 0;
-					while ((!valid) & (i < baseEnd.length)) {
-						valid = base.endsWith(baseEnd[i]);
-						i++;
-					}
-				}
-			if (endingrule.deny_after != null)
-				if (valid & !endingrule.deny_after.isEmpty()) {
-					baseEnd = endingrule.deny_after.split(";");
-					i = 0;
-					while (valid & (i < baseEnd.length)) {
-						valid = !base.endsWith(baseEnd[i]);
-						i++;
-					}
-				}
+			if (valid)
+				valid=endingrule.checkBase(base);
 			if (valid) {
-				modbases = getZeroForms(base, endingrule, zeroEndingrule);
+				modbases = endingrule.getZeroForms(base, zeroEndingrule);
 				bases.addAll(modbases);
 
-				modbase = dropCharacter(base, endingrule.e_before, 'е', 'ь', "л");
+				modbase = endingrule.dropCharacterE(base);
 				if (modbase != null) {
-					modbases = getZeroForms(modbase, endingrule, zeroEndingrule);
+					modbases = endingrule.getZeroForms(modbase, zeroEndingrule);
 					bases.addAll(modbases);
 				}
 
-				modbase = dropCharacter(base, endingrule.o_before, 'о', 'ь', "");
+				modbase = endingrule.dropCharacterO(base);
 				if (modbase != null) {
-					modbases = getZeroForms(modbase, endingrule, zeroEndingrule);
+					modbases = endingrule.getZeroForms(modbase, zeroEndingrule);
 					bases.addAll(modbases);
 				}
 
 				basesIterator = bases.iterator();
 				while (basesIterator.hasNext()) {
 					modbase = basesIterator.next();
-					if (checkBase(modbase, endingrule.type)) {
-						word = databank.getWord(modbase, endingrule.type, endingrule.rule_no,
-								endingrule.rule_variance, false, 0, 0, true);
+					if (databank.checkBase(modbase, endingrule)) {
+						word = databank.getWord(modbase, endingrule, false, 0, 0, true);
 						wordforms.add(word.createWordform(base + ending + postfix.getPostfix(),
-								endingrule.rule_id, postfix.getId()));
+								endingrule, postfix.getId()));
 					}
 				}
 			}
 		}
 		return wordforms;
-	}
-
-	private boolean checkBase(String base, int type) {
-		if (type == numeral) {
-			return databank.existNumeral(base);
-		}
-		return true;
-	}
-
-	/**
-	 * Changes alternating letters at the end of the base
-	 * 
-	 * @param base
-	 *            - current base
-	 * @param endingrule
-	 *            - current ending rule
-	 * @param zeroEndingrule
-	 *            - ending rule of base word form
-	 * @return list of bases
-	 */
-	private Set<String> getZeroForms(String base, EndingRule endingrule, EndingRule zeroEndingrule) {
-		String[] baseEnd;
-		String[] modEnd;
-		int matchLength = 0;
-		String modbase;
-		Set<String> modbases = new HashSet<String>();
-
-		if (endingrule.rule_id == zeroEndingrule.rule_id) {
-			modbases.add(base);
-			return modbases;
-		}
-
-		if ((endingrule.allow_after == null) | (zeroEndingrule.allow_after == null)) {
-			modbases.add(base);
-			return modbases;
-		}
-
-		if ((endingrule.allow_after.isEmpty()) | (zeroEndingrule.allow_after.isEmpty())) {
-			modbases.add(base);
-			return modbases;
-		}
-
-		if (endingrule.allow_after.intern() == zeroEndingrule.allow_after.intern()) {
-			modbases.add(base);
-			return modbases;
-		}
-
-		baseEnd = endingrule.allow_after.split(";");
-		modEnd = zeroEndingrule.allow_after.split(";");
-
-		for (int i = 0; i < baseEnd.length; i++)
-			if (baseEnd[i].length() >= matchLength)
-				if (base.endsWith(baseEnd[i]))
-					if (baseEnd[i].length() == matchLength) {
-						modbase = base.substring(0, base.length() - baseEnd[i].length())
-								+ modEnd[i];
-						modbases.add(modbase);
-					} else {
-						matchLength = baseEnd[i].length();
-						modbases = new HashSet<String>();
-						modbase = base.substring(0, base.length() - baseEnd[i].length())
-								+ modEnd[i];
-						modbases.add(modbase);
-					}
-		return modbases;
-	}
-
-	private String dropCharacter(String base, String checkList, char character, char change,
-			String change_after) {
-		String[] baseEnd;
-		String checkEnd;
-		String modbase;
-		if ((checkList != null) & (base.length() > 2))
-			if (!checkList.isEmpty()) {
-				baseEnd = checkList.split(";");
-				for (int i = 0; i < baseEnd.length; i++) {
-					checkEnd = character + baseEnd[i];
-					if (base.endsWith(checkEnd)) {
-						modbase = base.substring(0, base.length() - checkEnd.length());
-						if (!change_after.isEmpty())
-							if (modbase.endsWith(change_after))
-								modbase = modbase + change;
-						modbase = modbase + baseEnd[i];
-						return modbase;
-					}
-				}
-			}
-		return null;
 	}
 
 	public String getWord() {
@@ -301,5 +189,4 @@ public class WordProcessor {
 	public boolean isName() {
 		return isName;
 	}
-
 }

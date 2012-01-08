@@ -13,10 +13,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
-import knowledge_app.EndingRule;
-import knowledge_app.Sentence;
-import knowledge_app.SentencePart;
-import knowledge_app.WordForm;
 import knowledge_app.WordProcessor;
 
 import com.healthmarketscience.sqlbuilder.BinaryCondition;
@@ -103,10 +99,8 @@ public class DataBank {
 		}
 	}
 
-	public int saveSentence(int type, String sentence, ArrayList<WordProcessor> words)
+	public int saveSentence(int type, String sentence, ArrayList<SentenceWord> sentenceWordList)
 			throws SQLException {
-		Iterator<WordProcessor> iterator;
-		WordProcessor word;
 		int i = 0;
 		if (sentence.isEmpty())
 			return -1;
@@ -119,16 +113,15 @@ public class DataBank {
 		stat.close();
 		PreparedStatement sent_word_insert = conn.prepareStatement("insert "
 				+ "into sentence_word values (?,?,?,?,0,0,0,0,0,0,?);");
-		iterator = words.iterator();
-		while (iterator.hasNext()) {
+		for (SentenceWord word : sentenceWordList) {
 			i++;
-			word = iterator.next();
-			word.id = i;
+			word.sentenceID = sentenceCount;
+			word.wordPos = i;
 			sent_word_insert.setInt(1, sentenceCount);
 			sent_word_insert.setInt(2, i);
-			sent_word_insert.setString(3, word.getWord());
-			sent_word_insert.setBoolean(4, word.isPunctuation());
-			sent_word_insert.setBoolean(5, word.isName());
+			sent_word_insert.setString(3, word.word);
+			sent_word_insert.setBoolean(4, word.isPunctuation);
+			sent_word_insert.setBoolean(5, word.isName);
 			sent_word_insert.addBatch();
 		}
 		conn.setAutoCommit(false);
@@ -190,7 +183,7 @@ public class DataBank {
 			establishConnection();
 			Statement stat = conn.createStatement();
 			ResultSet rs = stat.executeQuery("select 1 from wordforms " + "where word_id="
-					+ wordform.wordID + " AND rule_id=" + wordform.rule + "" + " AND postfix_id="
+					+ wordform.wordID + " AND rule_id=" + wordform.getRuleID() + "" + " AND postfix_id="
 					+ wordform.postfix_id + ";");
 			if (!rs.next()) {
 				word = getWord(wordform.wordID);
@@ -206,7 +199,7 @@ public class DataBank {
 					transformRelation = new WordWordRelation(rs.getInt("word_id"),
 							rs.getInt("parent_word_id"), 1, rs.getInt("relation_ref_id"),
 							rs.getInt("relation_ref_line"));
-					word.copyWordForm(transformRelation, wordform.rule, wordform.postfix_id);
+					word.copyWordForm(transformRelation, wordform.endingRule, wordform.postfix_id);
 				}
 				rs.close();
 				delayedSave(wordform);
@@ -264,14 +257,14 @@ public class DataBank {
 			while (iterator.hasNext()) {
 				wordform = iterator.next();
 				readWordform.setInt(1, wordform.wordID);
-				readWordform.setInt(2, wordform.rule);
+				readWordform.setInt(2, wordform.getRuleID());
 				readWordform.setInt(3, wordform.postfix_id);
 				ResultSet rs = readWordform.executeQuery();
 				if (!rs.next()) {
 					updatedWordSet.add(getWord(wordform.wordID));
 					saveWordform.setInt(1, wordform.wordID);
 					saveWordform.setString(2, wordform.wordForm);
-					saveWordform.setInt(3, wordform.rule);
+					saveWordform.setInt(3, wordform.getRuleID());
 					saveWordform.setInt(4, wordform.postfix_id);
 					saveWordform.addBatch();
 				}
@@ -408,8 +401,8 @@ public class DataBank {
 		while (rs.next()) {
 			word = getWord(rs.getString("base_form"), rs.getInt("type"), -rs.getInt("type"), 0,
 					false, 0, 0, true);
-			wordforms.add(word.createWordform(wordform + postfix.postfix, rs.getInt("rule_id"),
-					postfix.id));
+			EndingRule endingRule = getEndingRule(true, rs.getInt("rule_id"));
+			wordforms.add(word.createWordform(wordform + postfix.postfix, endingRule, postfix.id));
 		}
 
 		rs.close();
@@ -489,15 +482,16 @@ public class DataBank {
 	/**
 	 * *
 	 * 
-	 * @param rule_no
+	 * @param endingrule
 	 *            - integer value of rule no
 	 * @return ending rule of a base word form
 	 */
-	public EndingRule getZeroEndingrule(int rule_no) {
+	public EndingRule getZeroEndingrule(EndingRule endingrule) {
+		int ruleNo = endingrule.rule_no;
 		EndingRule zeroEndingrule = null;
 		if (zeroEndingruleByRuleNo == null)
 			zeroEndingruleByRuleNo = new HashMap<Integer, EndingRule>();
-		zeroEndingrule = zeroEndingruleByRuleNo.get(new Integer(rule_no));
+		zeroEndingrule = zeroEndingruleByRuleNo.get(new Integer(ruleNo));
 		if (zeroEndingrule != null)
 			return zeroEndingrule;
 		try {
@@ -509,7 +503,7 @@ public class DataBank {
 			query.addAllColumns();
 			query.addCustomFromTable(new CustomSql("ending_rules"));
 			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-					"rule_no"), rule_no));
+					"rule_no"), ruleNo));
 			query.addCustomOrderings(new CustomSql("tense, sing_pl, person, gender, wcase"));
 			rs = stat.executeQuery(query.validate().toString());
 			if (rs.next()) {
@@ -519,7 +513,7 @@ public class DataBank {
 						rs.getInt("person"), rs.getString("allow_after"),
 						rs.getString("deny_after"), rs.getString("e_before"),
 						rs.getString("o_before"), rs.getInt("min_length"));
-				zeroEndingruleByRuleNo.put(new Integer(rule_no), zeroEndingrule);
+				zeroEndingruleByRuleNo.put(new Integer(ruleNo), zeroEndingrule);
 			}
 			rs.close();
 			stat.close();
@@ -964,9 +958,9 @@ public class DataBank {
 		return endingRule;
 	}
 
-	public ArrayList<SentencePart> getSubjectList(int sentence_id, String subsentenceFilter,
+	public ArrayList<SentenceWordform> getSubjectList(int sentence_id, String subsentenceFilter,
 			int predicatePos, String personFilter, int gender, int sing_pl, double rating_tolerance) {
-		ArrayList<SentencePart> subjects = new ArrayList<SentencePart>();
+		ArrayList<SentenceWordform> subjects = new ArrayList<SentenceWordform>();
 		String ratingToleranceCondition = MessageFormat
 				.format("(100-rating)<=(100-maxrating)*{0,number,#.##} and rating*{0,number,#.##}>maxrating",
 						rating_tolerance);
@@ -994,8 +988,8 @@ public class DataBank {
 			ResultSet rs = stat.executeQuery(query.validate().toString());
 
 			while (rs.next()) {
-				subjects.add(new SentencePart(sentence_id, rs.getInt("subsentence_id"), rs
-						.getInt("word_pos"), SentencePart.subject, rs.getInt("type"), rs
+				subjects.add(new SentenceWordform(sentence_id, rs.getInt("subsentence_id"), rs
+						.getInt("word_pos"), SentenceWordform.subject, rs.getInt("type"), rs
 						.getInt("subtype"), rs.getInt("wcase"), rs.getInt("gender"), rs
 						.getInt("person"), rs.getInt("sing_pl"), rs.getInt("word_id"), rs
 						.getInt("rule_id"), rs.getInt("dep_word_pos"), rs.getInt("preposition_id"),
@@ -1012,12 +1006,12 @@ public class DataBank {
 		return subjects;
 	}
 
-	public ArrayList<SentencePart> getPredicateList(int id, String subsentenceFilter,
+	public ArrayList<SentenceWordform> getPredicateList(int id, String subsentenceFilter,
 			int subjectPos, int person, int gender, int sing_pl, double rating_tolerance) {
 		String ratingToleranceCondition = MessageFormat
 				.format("(100-rating)<=(100-maxrating)*{0,number,#.##} and rating*{0,number,#.##}>maxrating",
 						rating_tolerance);
-		ArrayList<SentencePart> predicates = new ArrayList<SentencePart>();
+		ArrayList<SentenceWordform> predicates = new ArrayList<SentenceWordform>();
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
@@ -1043,12 +1037,12 @@ public class DataBank {
 			query.addCustomOrdering(new CustomSql("rating"), OrderObject.Dir.DESCENDING);
 			ResultSet rs = stat.executeQuery(query.validate().toString());
 			while (rs.next()) {
-				predicates.add(new SentencePart(rs.getInt("sentence_id"), rs
-						.getInt("subsentence_id"), rs.getInt("word_pos"), SentencePart.predicate,
-						rs.getInt("type"), rs.getInt("subtype"), rs.getInt("wcase"), rs
-								.getInt("gender"), rs.getInt("person"), rs.getInt("sing_pl"), rs
-								.getInt("word_id"), rs.getInt("rule_id"),
-						rs.getInt("dep_word_pos"), rs.getInt("preposition_id"), rs
+				predicates.add(new SentenceWordform(rs.getInt("sentence_id"), rs
+						.getInt("subsentence_id"), rs.getInt("word_pos"),
+						SentenceWordform.predicate, rs.getInt("type"), rs.getInt("subtype"), rs
+								.getInt("wcase"), rs.getInt("gender"), rs.getInt("person"), rs
+								.getInt("sing_pl"), rs.getInt("word_id"), rs.getInt("rule_id"), rs
+								.getInt("dep_word_pos"), rs.getInt("preposition_id"), rs
 								.getString("word_type_filter"), rs.getString("wcase_filter"), rs
 								.getString("gender_filter"), rs.getString("sing_pl_filter"), rs
 								.getInt("rating"), rs.getInt("maxrating")));
@@ -1061,10 +1055,10 @@ public class DataBank {
 		return predicates;
 	}
 
-	public ArrayList<SentencePart> getSentencePartList(int sentence_id, String subsentenceFilter,
-			int wordPos, String wcaseFilter, String personFilter, int gender, int sing_pl,
-			String typeFilter, String subtypeFilter) {
-		ArrayList<SentencePart> sentenceParts = new ArrayList<SentencePart>();
+	public ArrayList<SentenceWordform> getSentencePartList(int sentence_id,
+			String subsentenceFilter, int wordPos, String wcaseFilter, String personFilter,
+			int gender, int sing_pl, String typeFilter, String subtypeFilter) {
+		ArrayList<SentenceWordform> sentenceParts = new ArrayList<SentenceWordform>();
 		if (wordPos < 0)
 			return sentenceParts;
 		try {
@@ -1098,14 +1092,15 @@ public class DataBank {
 						& checkFilter(rs.getInt("wcase"), rs.getString("wcase_filter"))
 						& checkFilter(rs.getInt("gender"), rs.getString("gender_filter"))
 						& checkFilter(rs.getInt("sing_pl"), rs.getString("sing_pl_filter")))
-					sentenceParts.add(new SentencePart(sentence_id, rs.getInt("subsentence_id"), rs
-							.getInt("word_pos"), 0, rs.getInt("type"), rs.getInt("subtype"), rs
-							.getInt("wcase"), rs.getInt("gender"), rs.getInt("person"), rs
-							.getInt("sing_pl"), rs.getInt("word_id"), rs.getInt("rule_id"), rs
-							.getInt("dep_word_pos"), rs.getInt("preposition_id"), rs
-							.getString("word_type_filter"), rs.getString("wcase_filter"), rs
-							.getString("gender_filter"), rs.getString("sing_pl_filter"), rs
-							.getInt("rating"), rs.getInt("maxrating")));
+					sentenceParts.add(new SentenceWordform(sentence_id,
+							rs.getInt("subsentence_id"), rs.getInt("word_pos"), 0, rs
+									.getInt("type"), rs.getInt("subtype"), rs.getInt("wcase"), rs
+									.getInt("gender"), rs.getInt("person"), rs.getInt("sing_pl"),
+							rs.getInt("word_id"), rs.getInt("rule_id"), rs.getInt("dep_word_pos"),
+							rs.getInt("preposition_id"), rs.getString("word_type_filter"), rs
+									.getString("wcase_filter"), rs.getString("gender_filter"), rs
+									.getString("sing_pl_filter"), rs.getInt("rating"), rs
+									.getInt("maxrating")));
 			}
 			rs.close();
 			stat.close();
@@ -1178,9 +1173,9 @@ public class DataBank {
 		return (value == Integer.valueOf(part));
 	}
 
-	public ArrayList<SentencePart> getLinkedWordList(int sentence_id, int wordPos, int type,
+	public ArrayList<SentenceWordform> getLinkedWordList(int sentence_id, int wordPos, int type,
 			int subtype, int wcase, int person, int gender, int sing_pl) {
-		ArrayList<SentencePart> linkedWords = new ArrayList<SentencePart>();
+		ArrayList<SentenceWordform> linkedWords = new ArrayList<SentenceWordform>();
 		ArrayList<Integer> linkedWordPosition = new ArrayList<Integer>();
 		Iterator<Integer> linkedWordPositionIterator;
 		Integer tempWordPos;
@@ -1229,17 +1224,17 @@ public class DataBank {
 		return linkedWords;
 	}
 
-	public ArrayList<SentencePart> getConjunctions(int sentence_id, String conjunction) {
+	public ArrayList<SentenceWordform> getConjunctions(int sentence_id, String conjunction) {
 		String query = MessageFormat.format("select subsentence_id,word_pos from sentence_word "
 				+ "where sentence_id={0,number,#} and word=''{1}''", sentence_id, conjunction);
-		ArrayList<SentencePart> conjunctions = new ArrayList<SentencePart>();
+		ArrayList<SentenceWordform> conjunctions = new ArrayList<SentenceWordform>();
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
 			ResultSet rs = stat.executeQuery(query);
 			while (rs.next())
 				conjunctions
-						.add(new SentencePart(sentence_id, rs.getInt("subsentence_id"), rs
+						.add(new SentenceWordform(sentence_id, rs.getInt("subsentence_id"), rs
 								.getInt("word_pos"), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "", "", "",
 								"", 0, 0));
 		} catch (SQLException e) {
@@ -1248,18 +1243,18 @@ public class DataBank {
 		return conjunctions;
 	}
 
-	public ArrayList<SentencePart> getNegatives(int sentence_id) {
+	public ArrayList<SentenceWordform> getNegatives(int sentence_id) {
 		String negative = getSetup().getNegative();
 		String query = MessageFormat.format("select * from sentence_wordform_detailed "
 				+ "where sentence_id={0,number,#} and word=''{1}'' and type=97", sentence_id,
 				negative);
-		ArrayList<SentencePart> negatives = new ArrayList<SentencePart>();
+		ArrayList<SentenceWordform> negatives = new ArrayList<SentenceWordform>();
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
 			ResultSet rs = stat.executeQuery(query);
 			while (rs.next())
-				negatives.add(new SentencePart(sentence_id, rs.getInt("subsentence_id"), rs
+				negatives.add(new SentenceWordform(sentence_id, rs.getInt("subsentence_id"), rs
 						.getInt("word_pos"), 0, rs.getInt("type"), rs.getInt("subtype"), rs
 						.getInt("wcase"), rs.getInt("gender"), rs.getInt("person"), rs
 						.getInt("sing_pl"), rs.getInt("word_id"), rs.getInt("rule_id"), rs
@@ -1313,10 +1308,10 @@ public class DataBank {
 		return nextWordPos;
 	}
 
-	public void saveSentenceParts(ArrayList<SentencePart> sentenceParts) {
-		Iterator<SentencePart> iterator;
+	public void saveSentenceParts(ArrayList<SentenceWordform> sentenceParts) {
+		Iterator<SentenceWordform> iterator;
 		iterator = sentenceParts.iterator();
-		SentencePart sentencePart;
+		SentenceWordform sentencePart;
 		try {
 			establishConnection();
 			PreparedStatement prep = conn.prepareStatement("UPDATE sentence_word "
@@ -1402,6 +1397,12 @@ public class DataBank {
 			}
 		}
 		return word;
+	}
+
+	public Word getWord(String baseForm, EndingRule endingRule, boolean complex, int word1ID,
+			int word2ID, boolean save) {
+		return getWord(baseForm, endingRule.type, endingRule.rule_no, endingRule.rule_variance,
+				complex, word1ID, word2ID, save);
 	}
 
 	public Word getWord(String baseForm, int type, int rule_no, int rule_variance, boolean complex,
@@ -1605,8 +1606,8 @@ public class DataBank {
 		return wordforms;
 	}
 
-	public void saveSentenceWordLink(SentencePart prevWordform, SentencePart conjunction,
-			SentencePart nextWordform) {
+	public void saveSentenceWordLink(SentenceWordform prevWordform, SentenceWordform conjunction,
+			SentenceWordform nextWordform) {
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
@@ -1645,8 +1646,8 @@ public class DataBank {
 		}
 	}
 
-	public SentencePart getConjunction(int sentence_id, int wordPos, int wordPos2) {
-		SentencePart conjunction = null;
+	public SentenceWordform getConjunction(int sentence_id, int wordPos, int wordPos2) {
+		SentenceWordform conjunction = null;
 		int conjunctionWordPos = 0;
 		try {
 			establishConnection();
@@ -1669,8 +1670,8 @@ public class DataBank {
 					conjunctionWordPos = rs.getInt("conjunction_word_pos");
 			}
 			if (conjunctionWordPos != 0)
-				conjunction = new SentencePart(sentence_id, 0, conjunctionWordPos, 0, 0, 0, 0, 0,
-						0, 0, 0, 0, 0, 0, "", "", "", "", 0, 0);
+				conjunction = new SentenceWordform(sentence_id, 0, conjunctionWordPos, 0, 0, 0, 0,
+						0, 0, 0, 0, 0, 0, 0, "", "", "", "", 0, 0);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -1934,5 +1935,12 @@ public class DataBank {
 			e.printStackTrace();
 		}
 		return result;
+	}
+
+	public boolean checkBase(String base, EndingRule endingRule) {
+		if (endingRule.type == WordProcessor.numeral) {
+			return existNumeral(base);
+		}
+		return true;
 	}
 }

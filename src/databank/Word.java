@@ -5,8 +5,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
-import knowledge_app.EndingRule;
-import knowledge_app.WordForm;
 
 public class Word {
 	public Word(DataBank databank, int id, String word, int type, int rule_no, int rule_variance,
@@ -144,22 +142,19 @@ public class Word {
 		}
 	}
 
-	public WordForm createWordform(String wordform, int rule_id, int postfix) {
+	public WordForm createWordform(String wordform, EndingRule endingrule, int postfix) {
 		Iterator<WordForm> iterator;
 		WordForm tempWordform;
-		EndingRule endingrule;
-
 		if (wordforms == null)
 			wordforms = new HashSet<WordForm>();
 
 		iterator = wordforms.iterator();
 		while (iterator.hasNext()) {
 			tempWordform = iterator.next();
-			if ((tempWordform.rule == rule_id) & (tempWordform.postfix_id == postfix))
+			if ((tempWordform.getRuleID() == endingrule.rule_id) & (tempWordform.postfix_id == postfix))
 				return tempWordform;
 		}
 
-		endingrule = databank.getEndingRule(fixed, rule_id);
 		tempWordform = new WordForm(wordform, id, endingrule, postfix);
 		wordforms.add(tempWordform);
 		databank.saveWordForm(tempWordform);
@@ -170,7 +165,7 @@ public class Word {
 							word1ID, word2ID, false);
 					if (word != null)
 						if (word.rule_variance != rule_variance)
-							word.createWordform(wordform, rule_id, postfix);
+							word.createWordform(wordform, endingrule, postfix);
 				}
 		return tempWordform;
 	}
@@ -185,7 +180,7 @@ public class Word {
 		iterator = wordforms.iterator();
 		while (iterator.hasNext()) {
 			tempWordform = iterator.next();
-			if ((tempWordform.rule == rule_id) & (tempWordform.postfix_id == postfix_id))
+			if ((tempWordform.getRuleID() == rule_id) & (tempWordform.postfix_id == postfix_id))
 				return tempWordform;
 		}
 		return null;
@@ -197,7 +192,7 @@ public class Word {
 		WordForm tempWordform;
 		while (iterator.hasNext()) {
 			tempWordform = iterator.next();
-			if (getWordform(tempWordform.rule, tempWordform.postfix_id) == null)
+			if (getWordform(tempWordform.getRuleID(), tempWordform.postfix_id) == null)
 				wordforms.add(tempWordform);
 		}
 	}
@@ -225,9 +220,8 @@ public class Word {
 		if (fromWord == null)
 			return;
 		for (WordForm fromWordform : fromWord.wordforms) {
-			EndingRule endingRule = databank.getEndingRule(fromWord.fixed, fromWordform.rule);
-			if (endingRule.isZeroVarience())
-				createWordform(fromWordform.wordForm, fromWordform.rule, fromWordform.postfix_id);
+			if (fromWordform.endingRule.isZeroVarience())
+				createWordform(fromWordform.wordForm, fromWordform.endingRule, fromWordform.postfix_id);
 		}
 	}
 
@@ -236,12 +230,17 @@ public class Word {
 		databank.getWord(transformRelation.parentWordID).copyWordForms(transformRelation);
 	}
 
-	public void copyWordForm(WordWordRelation transformRelation, int rule_id, int postfix_id) {
+	public void copyWordForm(WordWordRelation transformRelation, EndingRule endingRule, int postfix_id) {
 		boolean forwardTransform = false;
 		boolean backwardTransform = false;
+		int rule_id;
 		Word toWord;
 		Word newWord = null;
 		WordForm fromWordform;
+		if (endingRule==null)
+			rule_id = 0;
+		else
+			rule_id=endingRule.rule_id;
 		int to_word_id = 0;
 		if (transformRelation.relationType != 1)
 			return;
@@ -287,7 +286,7 @@ public class Word {
 			newWord = transformation.backwardTransformation(new Word(null, 0,
 					fromWordform.wordForm, type, rule_no, rule_variance, false, 0, 0, 0));
 		if (newWord != null)
-			toWord.createWordform(newWord.word, rule_id, postfix_id);
+			toWord.createWordform(newWord.word, endingRule, postfix_id);
 	}
 
 	public void copyWordForms(WordWordRelation transformRelation) {
@@ -336,7 +335,7 @@ public class Word {
 			Iterator<WordForm> iterator = wordforms.iterator();
 			while (iterator.hasNext()) {
 				fromWordform = iterator.next();
-				if (toWord.getWordform(fromWordform.rule, fromWordform.postfix_id) == null) {
+				if (toWord.getWordform(fromWordform.getRuleID(), fromWordform.postfix_id) == null) {
 					if (forwardTransform)
 						newWord = transformation
 								.forwardTransformation(new Word(null, 0, fromWordform.wordForm,
@@ -347,7 +346,7 @@ public class Word {
 										type, rule_no, rule_variance, false, 0, 0, 0));
 
 					if (newWord != null)
-						toWord.createWordform(newWord.word, fromWordform.rule,
+						toWord.createWordform(newWord.word, fromWordform.endingRule,
 								fromWordform.postfix_id);
 				}
 			}

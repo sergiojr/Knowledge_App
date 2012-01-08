@@ -8,6 +8,8 @@ import java.util.Iterator;
 import databank.DataBank;
 import databank.DataSource;
 import databank.PostgresDataBank;
+import databank.Sentence;
+import databank.SentenceWord;
 
 public class Knowledge_App {
 	PostgresDataBank databank;
@@ -39,26 +41,26 @@ public class Knowledge_App {
 		new Knowledge_App();
 	}
 
-	private float minutes(long l){
-		return ((float)(l/600))/100;
+	private float minutes(long l) {
+		return ((float) (l / 600)) / 100;
 	}
-	
-	private void parseSources(){
+
+	private void parseSources() {
 		DataSource dataSource;
-		dataSource=databank.getNextDataSource();
-		while(dataSource!=null){
-			parseText(dataSource.getFilePath(),dataSource.getAction()>1);
-			dataSource=databank.getNextDataSource();
+		dataSource = databank.getNextDataSource();
+		while (dataSource != null) {
+			parseText(dataSource.getFilePath(), dataSource.getAction() > 1);
+			dataSource = databank.getNextDataSource();
 		}
 	}
-	
-	private void parseText(String filePath,boolean save) {
+
+	private void parseText(String filePath, boolean save) {
 		int bufferSize = 65536;
 		char[] cbuf = new char[bufferSize];
 		Sentence sentence;
 		char newline = '\n';
 		char dash = '-';
-		char apostroph='\'';
+		char apostroph = '\'';
 		int newlinecount = 0;
 		String punctuationMarks;
 		String chameleonMarks;
@@ -68,7 +70,8 @@ public class Knowledge_App {
 		// isPunctuation is true: current block consist of punctuation characters
 		// isPunctuation is false: current block consist of letters
 		boolean isPunctuation = false;
-		int chameleonCharacter;  // <0 - chameleon letter, >0 chameleon punctuation, 0 - not chameleon 
+		int chameleonCharacter; // <0 - chameleon letter, >0 chameleon punctuation, 0 - not
+								// chameleon
 		boolean isName = false;
 		boolean isSentenceEnd = false;
 		boolean isFirstWord = true;
@@ -85,30 +88,32 @@ public class Knowledge_App {
 					// read next character
 					newchar = cbuf[j];
 					// track newlines to detect paragraphs
-					if (newchar==apostroph)
-						newchar=' ';
+					if (newchar == apostroph)
+						newchar = ' ';
 					if (newchar == newline)
 						newlinecount++;
-					//chameleonCharacter contains positive number if newchar is chameleon and 0 if it's not
-					chameleonCharacter=chameleonMarks.indexOf(newchar)+1;
-					//chameleon character '-' belongs to punctuation marks after a punctuation and
-					//to words after a word
-					if(!isPunctuation)
-						chameleonCharacter*=-1;
+					// chameleonCharacter contains positive number if newchar is chameleon and 0 if
+					// it's not
+					chameleonCharacter = chameleonMarks.indexOf(newchar) + 1;
+					// chameleon character '-' belongs to punctuation marks after a punctuation and
+					// to words after a word
+					if (!isPunctuation)
+						chameleonCharacter *= -1;
 					// if new character is punctuation and current block is letter
 					// or character is letter and current block is punctuation then
-					if ((Character.isWhitespace(newchar) | (punctuationMarks.indexOf(newchar) >= 0) 
-							| (chameleonCharacter>0)) != isPunctuation) {
+					if ((Character.isWhitespace(newchar) | (punctuationMarks.indexOf(newchar) >= 0) | (chameleonCharacter > 0)) != isPunctuation) {
 						curInput = curInput.trim();
 						// add current block to sentence
 						if (!curInput.isEmpty()) {
 							sentence.sentence = sentence.sentence + " " + curInput;
-							sentence.wordList.add(new WordProcessor(curInput, isPunctuation,
-									isName, databank));
+							sentence.sentenceWordList.add(new SentenceWord(0, 0, 0,
+									new WordProcessor(curInput, isPunctuation, isName, databank)
+											.getWord(), 0, 0, 0, isPunctuation, isName, "", "", "",
+									""));
 						}
 						isName = false;
-						if(!isPunctuation)
-							isFirstWord=false;
+						if (!isPunctuation)
+							isFirstWord = false;
 						// if current block is punctuation and one of the following
 						// a. new character is a capital letter
 						// b. new character is '-' and current block contains newline character
@@ -121,16 +126,16 @@ public class Knowledge_App {
 								if (curInput.indexOf(endSentenceMarks[i]) >= 0)
 									isSentenceEnd = true;
 							if ((isSentenceEnd) | (newlinecount > 1)) {
-								if(save)
+								if (save)
 									sentence.save(databank);
 								sentence = new Sentence();
 								isSentenceEnd = false;
-								isFirstWord=true;
+								isFirstWord = true;
 							}
-							
+
 						}
-						if(isPunctuation&Character.isUpperCase(newchar)&!isFirstWord)
-							isName=true;
+						if (isPunctuation & Character.isUpperCase(newchar) & !isFirstWord)
+							isName = true;
 						// clear current block
 						curInput = new String();
 						newlinecount = 0;
@@ -144,11 +149,12 @@ public class Knowledge_App {
 			// add current block to sentence
 			if (!curInput.isEmpty()) {
 				sentence.sentence = sentence.sentence + " " + curInput;
-				sentence.wordList.add(new WordProcessor(curInput, isPunctuation,
-						isName, databank));
+				sentence.sentenceWordList.add(new SentenceWord(0, 0, 0, new WordProcessor(curInput,
+						isPunctuation, isName, databank).getWord(), 0, 0, 0, isPunctuation, isName,
+						"", "", "", ""));
 			}
 			if (!sentence.sentence.isEmpty()) {
-				if(save)
+				if (save)
 					sentence.save(databank);
 			}
 			databank.flushWordforms();

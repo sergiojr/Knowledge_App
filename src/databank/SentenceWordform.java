@@ -1,7 +1,7 @@
-package knowledge_app;
+package databank;
 
-public class SentencePart {
-	public SentencePart(int sentenceID, int subsentenceID, int wordPos, int part, int type,
+public class SentenceWordform {
+	public SentenceWordform(int sentenceID, int subsentenceID, int wordPos, int part, int type,
 			int subtype, int wcase, int gender, int person, int sing_pl, int word_id, int rule_id,
 			int dep_word_pos, int preposition_id, String word_type_filter, String wcase_filter,
 			String gender_filter, String sing_pl_filter, int rating, int maxrating) {
