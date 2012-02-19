@@ -2,8 +2,8 @@ package databank;
 
 public class WordForm {
 	public int wordID;
-	public String wordForm;
-	public int postfix_id;
+	String wordForm;
+	int postfix_id;
 	EndingRule endingRule;
 
 	public WordForm(String wordForm, int wordID, EndingRule rule, int postfix_id) {

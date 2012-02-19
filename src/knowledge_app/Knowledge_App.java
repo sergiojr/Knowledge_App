@@ -57,7 +57,8 @@ public class Knowledge_App {
 	private void parseText(String filePath, boolean save) {
 		int bufferSize = 65536;
 		char[] cbuf = new char[bufferSize];
-		Sentence sentence;
+		String sentenceText;
+		ArrayList<SentenceWord> sentenceWordList;
 		char newline = '\n';
 		char dash = '-';
 		char apostroph = '\'';
@@ -76,7 +77,8 @@ public class Knowledge_App {
 		boolean isSentenceEnd = false;
 		boolean isFirstWord = true;
 		String curInput = new String();
-		sentence = new Sentence();
+		sentenceText = new String();
+		sentenceWordList = new ArrayList<SentenceWord>();
 		try {
 			punctuationMarks = databank.getPunctuationMarks();
 			chameleonMarks = databank.getChameleonMarks();
@@ -105,11 +107,10 @@ public class Knowledge_App {
 						curInput = curInput.trim();
 						// add current block to sentence
 						if (!curInput.isEmpty()) {
-							sentence.sentence = sentence.sentence + " " + curInput;
-							sentence.sentenceWordList.add(new SentenceWord(0, 0, 0,
-									new WordProcessor(curInput, isPunctuation, isName, databank)
-											.getWord(), 0, 0, 0, isPunctuation, isName, "", "", "",
-									""));
+							sentenceText = sentenceText + " " + curInput;
+							sentenceWordList.add(new SentenceWord(0, 0, 0, new WordProcessor(
+									curInput, isPunctuation, isName, databank).getWord(), 0, 0, 0,
+									isPunctuation, isName, false, "", "", "", ""));
 						}
 						isName = false;
 						if (!isPunctuation)
@@ -127,8 +128,10 @@ public class Knowledge_App {
 									isSentenceEnd = true;
 							if ((isSentenceEnd) | (newlinecount > 1)) {
 								if (save)
-									sentence.save(databank);
-								sentence = new Sentence();
+									new Sentence(databank, 0, sentenceText, sentenceWordList)
+											.save();
+								sentenceWordList = new ArrayList<SentenceWord>();
+								sentenceText = new String();
 								isSentenceEnd = false;
 								isFirstWord = true;
 							}
@@ -148,14 +151,14 @@ public class Knowledge_App {
 			curInput = curInput.trim();
 			// add current block to sentence
 			if (!curInput.isEmpty()) {
-				sentence.sentence = sentence.sentence + " " + curInput;
-				sentence.sentenceWordList.add(new SentenceWord(0, 0, 0, new WordProcessor(curInput,
-						isPunctuation, isName, databank).getWord(), 0, 0, 0, isPunctuation, isName,
+				sentenceText = sentenceText + " " + curInput;
+				sentenceWordList.add(new SentenceWord(0, 0, 0, new WordProcessor(curInput,
+						isPunctuation, isName, databank).getWord(), 0, 0, 0, isPunctuation, isName, false,
 						"", "", "", ""));
 			}
-			if (!sentence.sentence.isEmpty()) {
+			if (!sentenceText.isEmpty()) {
 				if (save)
-					sentence.save(databank);
+					new Sentence(databank, 0, sentenceText, sentenceWordList).save();
 			}
 			databank.flushWordforms();
 		} catch (Exception e) {

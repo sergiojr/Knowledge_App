@@ -183,8 +183,8 @@ public class DataBank {
 			establishConnection();
 			Statement stat = conn.createStatement();
 			ResultSet rs = stat.executeQuery("select 1 from wordforms " + "where word_id="
-					+ wordform.wordID + " AND rule_id=" + wordform.getRuleID() + "" + " AND postfix_id="
-					+ wordform.postfix_id + ";");
+					+ wordform.wordID + " AND rule_id=" + wordform.getRuleID() + ""
+					+ " AND postfix_id=" + wordform.postfix_id + ";");
 			if (!rs.next()) {
 				word = getWord(wordform.wordID);
 				rs.close();
@@ -876,28 +876,27 @@ public class DataBank {
 		prep.close();
 	}
 
-	public String getCapitalLetters() throws SQLException {
+	public String getCapitalLetters() {
 		return getCharacters(1, 1, -1, -1);
 	}
 
-	public String getChameleonMarks() throws SQLException {
+	public String getChameleonMarks() {
 		return getCharacters(2, -1, -1, -1);
 	}
 
-	public String getPunctuationMarks() throws SQLException {
+	public String getPunctuationMarks() {
 		return getCharacters(0, -1, -1, -1);
 	}
 
-	public String getEndSentenceMarks() throws SQLException {
+	public String getEndSentenceMarks() {
 		return getCharacters(0, -1, 1, -1);
 	}
 
-	public String getPunctuationMarksNotReady() throws SQLException {
+	public String getPunctuationMarksNotReady() {
 		return getCharacters(0, -1, -1, 0);
 	}
 
-	private String getCharacters(int type, int capital, int sentence_end, int ready)
-			throws SQLException {
+	private String getCharacters(int type, int capital, int sentence_end, int ready) {
 		String result = new String("");
 		String whereStatement = new String("");
 		if (type >= 0)
@@ -920,14 +919,18 @@ public class DataBank {
 
 		if (!whereStatement.isEmpty())
 			whereStatement = "where " + whereStatement;
-		establishConnection();
-		Statement stat = conn.createStatement();
-		ResultSet rs = stat.executeQuery("select character from characters " + whereStatement);
-		while (rs.next()) {
-			result = result + rs.getString(1);
+		try {
+			establishConnection();
+			Statement stat = conn.createStatement();
+			ResultSet rs = stat.executeQuery("select character from characters " + whereStatement);
+			while (rs.next()) {
+				result = result + rs.getString(1);
+			}
+			rs.close();
+			stat.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
 		}
-		rs.close();
-		stat.close();
 		return result;
 	}
 
@@ -989,13 +992,13 @@ public class DataBank {
 
 			while (rs.next()) {
 				subjects.add(new SentenceWordform(sentence_id, rs.getInt("subsentence_id"), rs
-						.getInt("word_pos"), SentenceWordform.subject, rs.getInt("type"), rs
-						.getInt("subtype"), rs.getInt("wcase"), rs.getInt("gender"), rs
-						.getInt("person"), rs.getInt("sing_pl"), rs.getInt("word_id"), rs
-						.getInt("rule_id"), rs.getInt("dep_word_pos"), rs.getInt("preposition_id"),
-						rs.getString("word_type_filter"), rs.getString("wcase_filter"), rs
-								.getString("gender_filter"), rs.getString("sing_pl_filter"), rs
-								.getInt("rating"), rs.getInt("maxrating")));
+						.getInt("word_pos"), rs.getInt("type"), rs.getInt("subtype"), rs
+						.getInt("wcase"), rs.getInt("gender"), rs.getInt("person"), rs
+						.getInt("sing_pl"), rs.getInt("word_id"), rs.getInt("rule_id"), rs
+						.getInt("dep_word_pos"), rs.getInt("preposition_id"), rs
+						.getString("word_type_filter"), rs.getString("wcase_filter"), rs
+						.getString("gender_filter"), rs.getString("sing_pl_filter"), rs
+						.getInt("rating"), rs.getInt("maxrating")));
 
 			}
 			rs.close();
@@ -1038,12 +1041,11 @@ public class DataBank {
 			ResultSet rs = stat.executeQuery(query.validate().toString());
 			while (rs.next()) {
 				predicates.add(new SentenceWordform(rs.getInt("sentence_id"), rs
-						.getInt("subsentence_id"), rs.getInt("word_pos"),
-						SentenceWordform.predicate, rs.getInt("type"), rs.getInt("subtype"), rs
-								.getInt("wcase"), rs.getInt("gender"), rs.getInt("person"), rs
-								.getInt("sing_pl"), rs.getInt("word_id"), rs.getInt("rule_id"), rs
-								.getInt("dep_word_pos"), rs.getInt("preposition_id"), rs
-								.getString("word_type_filter"), rs.getString("wcase_filter"), rs
+						.getInt("subsentence_id"), rs.getInt("word_pos"), rs.getInt("type"), rs
+						.getInt("subtype"), rs.getInt("wcase"), rs.getInt("gender"), rs
+						.getInt("person"), rs.getInt("sing_pl"), rs.getInt("word_id"), rs
+						.getInt("rule_id"), rs.getInt("dep_word_pos"), rs.getInt("preposition_id"),
+						rs.getString("word_type_filter"), rs.getString("wcase_filter"), rs
 								.getString("gender_filter"), rs.getString("sing_pl_filter"), rs
 								.getInt("rating"), rs.getInt("maxrating")));
 			}
@@ -1088,16 +1090,17 @@ public class DataBank {
 					"rating"), new CustomSql("maxrating")));
 			ResultSet rs = stat.executeQuery(query.validate().toString());
 			while (rs.next()) {
-				if (checkFilter(rs.getInt("type"), rs.getString("word_type_filter"))
-						& checkFilter(rs.getInt("wcase"), rs.getString("wcase_filter"))
-						& checkFilter(rs.getInt("gender"), rs.getString("gender_filter"))
-						& checkFilter(rs.getInt("sing_pl"), rs.getString("sing_pl_filter")))
+				if (DataBank.checkFilter(rs.getInt("type"), rs.getString("word_type_filter"))
+						& DataBank.checkFilter(rs.getInt("wcase"), rs.getString("wcase_filter"))
+						& DataBank.checkFilter(rs.getInt("gender"), rs.getString("gender_filter"))
+						& DataBank
+								.checkFilter(rs.getInt("sing_pl"), rs.getString("sing_pl_filter")))
 					sentenceParts.add(new SentenceWordform(sentence_id,
-							rs.getInt("subsentence_id"), rs.getInt("word_pos"), 0, rs
-									.getInt("type"), rs.getInt("subtype"), rs.getInt("wcase"), rs
-									.getInt("gender"), rs.getInt("person"), rs.getInt("sing_pl"),
-							rs.getInt("word_id"), rs.getInt("rule_id"), rs.getInt("dep_word_pos"),
-							rs.getInt("preposition_id"), rs.getString("word_type_filter"), rs
+							rs.getInt("subsentence_id"), rs.getInt("word_pos"), rs.getInt("type"),
+							rs.getInt("subtype"), rs.getInt("wcase"), rs.getInt("gender"), rs
+									.getInt("person"), rs.getInt("sing_pl"), rs.getInt("word_id"),
+							rs.getInt("rule_id"), rs.getInt("dep_word_pos"), rs
+									.getInt("preposition_id"), rs.getString("word_type_filter"), rs
 									.getString("wcase_filter"), rs.getString("gender_filter"), rs
 									.getString("sing_pl_filter"), rs.getInt("rating"), rs
 									.getInt("maxrating")));
@@ -1143,7 +1146,7 @@ public class DataBank {
 		return bc;
 	}
 
-	public boolean checkFilter(int value, String filter) {
+	static public boolean checkFilter(int value, String filter) {
 		boolean result = false;
 		if (filter == null)
 			return true;
@@ -1156,7 +1159,7 @@ public class DataBank {
 		return result;
 	}
 
-	private boolean checkBinaryFilter(int value, String filter) {
+	static private boolean checkBinaryFilter(int value, String filter) {
 		String part = filter;
 		if (filter.startsWith("<>")) {
 			part = filter.substring(2);
@@ -1224,25 +1227,6 @@ public class DataBank {
 		return linkedWords;
 	}
 
-	public ArrayList<SentenceWordform> getConjunctions(int sentence_id, String conjunction) {
-		String query = MessageFormat.format("select subsentence_id,word_pos from sentence_word "
-				+ "where sentence_id={0,number,#} and word=''{1}''", sentence_id, conjunction);
-		ArrayList<SentenceWordform> conjunctions = new ArrayList<SentenceWordform>();
-		try {
-			establishConnection();
-			Statement stat = conn.createStatement();
-			ResultSet rs = stat.executeQuery(query);
-			while (rs.next())
-				conjunctions
-						.add(new SentenceWordform(sentence_id, rs.getInt("subsentence_id"), rs
-								.getInt("word_pos"), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "", "", "",
-								"", 0, 0));
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return conjunctions;
-	}
-
 	public ArrayList<SentenceWordform> getNegatives(int sentence_id) {
 		String negative = getSetup().getNegative();
 		String query = MessageFormat.format("select * from sentence_wordform_detailed "
@@ -1255,7 +1239,7 @@ public class DataBank {
 			ResultSet rs = stat.executeQuery(query);
 			while (rs.next())
 				negatives.add(new SentenceWordform(sentence_id, rs.getInt("subsentence_id"), rs
-						.getInt("word_pos"), 0, rs.getInt("type"), rs.getInt("subtype"), rs
+						.getInt("word_pos"), rs.getInt("type"), rs.getInt("subtype"), rs
 						.getInt("wcase"), rs.getInt("gender"), rs.getInt("person"), rs
 						.getInt("sing_pl"), rs.getInt("word_id"), rs.getInt("rule_id"), rs
 						.getInt("dep_word_pos"), rs.getInt("preposition_id"), rs
@@ -1308,10 +1292,10 @@ public class DataBank {
 		return nextWordPos;
 	}
 
-	public void saveSentenceParts(ArrayList<SentenceWordform> sentenceParts) {
-		Iterator<SentenceWordform> iterator;
+	public void saveSentenceParts(ArrayList<SentenceWord> sentenceParts) {
+		Iterator<SentenceWord> iterator;
 		iterator = sentenceParts.iterator();
-		SentenceWordform sentencePart;
+		SentenceWord sentencePart;
 		try {
 			establishConnection();
 			PreparedStatement prep = conn.prepareStatement("UPDATE sentence_word "
@@ -1319,10 +1303,19 @@ public class DataBank {
 					+ "word_type_filter=?, wcase_filter=?, gender_filter=?, sing_pl_filter=? "
 					+ "WHERE sentence_id=? and word_pos=?");
 			while (iterator.hasNext()) {
+				int word_id;
+				int rule_id;
 				sentencePart = iterator.next();
+				if (sentencePart.sentenceWordform == null) {
+					word_id = 0;
+					rule_id = 0;
+				} else {
+					word_id = sentencePart.sentenceWordform.word_id;
+					rule_id = sentencePart.sentenceWordform.rule_id;
+				}
 				prep.setInt(1, sentencePart.part);
-				prep.setInt(2, sentencePart.word_id);
-				prep.setInt(3, sentencePart.rule_id);
+				prep.setInt(2, word_id);
+				prep.setInt(3, rule_id);
 				prep.setInt(4, sentencePart.dep_word_pos);
 				prep.setInt(5, sentencePart.preposition_id);
 				prep.setString(6, sentencePart.word_type_filter);
@@ -1344,19 +1337,69 @@ public class DataBank {
 	}
 
 	public ArrayList<Sentence> getSentences() {
+		int sentence_id;
 		ArrayList<Sentence> sentences = new ArrayList<Sentence>();
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
-			ResultSet rs = stat.executeQuery("select * from sentences");
-			while (rs.next())
-				sentences.add(new Sentence(this, rs.getInt("id"), rs.getString("sentence")));
+			ResultSet rs = stat.executeQuery("select * from sentences order by id");
+			while (rs.next()) {
+				sentence_id = rs.getInt("id");
+				sentences.add(new Sentence(this, sentence_id, rs.getString("sentence"),
+						getSentenceWordList(sentence_id)));
+			}
 			rs.close();
 			stat.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
 		return sentences;
+	}
+
+	private ArrayList<SentenceWord> getSentenceWordList(int sentence_id) {
+		ArrayList<SentenceWord> sentenceWords = new ArrayList<SentenceWord>();
+		String query = MessageFormat.format("select * from sentence_word "
+				+ "where sentence_id = {0,number,#} order by sentence_id, word_pos", sentence_id);
+		try {
+			establishConnection();
+			Statement stat = conn.createStatement();
+			ResultSet rs = stat.executeQuery(query);
+			while (rs.next()) {
+				sentenceWords.add(new SentenceWord(rs.getInt("sentence_id"), rs
+						.getInt("subsentence_id"), rs.getInt("word_pos"), rs.getString("word"), rs
+						.getInt("type"), rs.getInt("dep_word_pos"), rs.getInt("preposition_id"), rs
+						.getBoolean("punctuation"), rs.getBoolean("name"), rs
+						.getBoolean("internal"), rs.getString("word_type_filter"), rs
+						.getString("wcase_filter"), rs.getString("gender_filter"), rs
+						.getString("sing_pl_filter")));
+			}
+			rs.close();
+			stat.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return sentenceWords;
+	}
+
+	public void updateSentenceWordList(ArrayList<SentenceWord> sentenceWordList) {
+		try {
+			establishConnection();
+			PreparedStatement prep = conn.prepareStatement("update sentence_word "
+					+ "set subsentence_id=?, internal=? where sentence_id=? and word_pos=?");
+			for (SentenceWord sentenceWord : sentenceWordList) {
+				prep.setInt(1, sentenceWord.subsentenceID);
+				prep.setBoolean(2, sentenceWord.internal);
+				prep.setInt(3, sentenceWord.sentenceID);
+				prep.setInt(4, sentenceWord.wordPos);
+				prep.addBatch();
+			}
+			conn.setAutoCommit(false);
+			prep.executeBatch();
+			conn.setAutoCommit(true);
+			prep.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public void setSentenceType(int id, int type) {
@@ -1606,7 +1649,7 @@ public class DataBank {
 		return wordforms;
 	}
 
-	public void saveSentenceWordLink(SentenceWordform prevWordform, SentenceWordform conjunction,
+	public void saveSentenceWordLink(SentenceWordform prevWordform, SentenceWord conjunction,
 			SentenceWordform nextWordform) {
 		try {
 			establishConnection();
@@ -1636,10 +1679,6 @@ public class DataBank {
 							prevWordform.person, prevWordform.sing_pl, prevWordform.subtype,
 							conjunction.wordPos);
 			stat.executeUpdate(insertLinkQuery);
-			String markConjunction = MessageFormat.format("update sentence_word set internal=true "
-					+ "where sentence_id={0,number,#} and word_pos={1,number,#}",
-					prevWordform.sentenceID, conjunction.wordPos);
-			stat.executeUpdate(markConjunction);
 			stat.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -1671,7 +1710,7 @@ public class DataBank {
 			}
 			if (conjunctionWordPos != 0)
 				conjunction = new SentenceWordform(sentence_id, 0, conjunctionWordPos, 0, 0, 0, 0,
-						0, 0, 0, 0, 0, 0, 0, "", "", "", "", 0, 0);
+						0, 0, 0, 0, 0, 0, "", "", "", "", 0, 0);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -1816,125 +1855,6 @@ public class DataBank {
 			}
 		}
 		return complexWordTemplates;
-	}
-
-	public ArrayList<ArrayList<Integer>> divideSentence(int sentence_id) {
-		ArrayList<ArrayList<Integer>> division = new ArrayList<ArrayList<Integer>>();
-		ArrayList<Integer> curSubsentence = new ArrayList<Integer>();
-		SelectQuery query;
-		int subsentence_id;
-		boolean internal;
-		boolean punctuation;
-		char[] canNotParseMarks;
-		String word;
-		try {
-			canNotParseMarks = getPunctuationMarksNotReady().toCharArray();
-			query = new SelectQuery();
-			query.addAllColumns();
-			query.addCustomFromTable(new CustomSql("sentence_word"));
-			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-					"sentence_id"), sentence_id));
-			query.addCustomOrderings(new CustomSql("sentence_id, word_pos"));
-			establishConnection();
-			PreparedStatement sent_word_update = conn.prepareStatement("update sentence_word "
-					+ "set subsentence_id=? where sentence_id= ? and word_pos=?");
-			Statement stat = conn.createStatement();
-			ResultSet rs = stat.executeQuery(query.validate().toString());
-			subsentence_id = 1;
-			while (rs.next()) {
-				punctuation = rs.getBoolean("punctuation");
-				if (punctuation) {
-					internal = rs.getBoolean("internal");
-					word = rs.getString("word");
-					for (int i = 0; i < canNotParseMarks.length; i++)
-						if (word.indexOf(canNotParseMarks[i]) >= 0)
-							return null;
-					curSubsentence.add(new Integer(subsentence_id));
-					if (!internal) {
-						division.add(curSubsentence);
-						curSubsentence = new ArrayList<Integer>();
-					}
-					subsentence_id++;
-				} else {
-					sent_word_update.setInt(1, subsentence_id);
-					sent_word_update.setInt(2, sentence_id);
-					sent_word_update.setInt(3, rs.getInt("word_pos"));
-					sent_word_update.addBatch();
-				}
-			}
-			rs.close();
-			stat.close();
-			conn.setAutoCommit(false);
-			sent_word_update.executeBatch();
-			conn.setAutoCommit(true);
-			sent_word_update.close();
-
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		setSentenceType(sentence_id, 1);
-		return division;
-	}
-
-	public boolean markAsInternal(int sentence_id, int wordPos, String punctuation) {
-		boolean result = false;
-		try {
-			establishConnection();
-			ResultSet rs;
-			SelectQuery query;
-			PreparedStatement prep = conn
-					.prepareStatement("update sentence_word set internal=true "
-							+ "where sentence_id=? and word_pos=?");
-			Statement stat = conn.createStatement();
-			// find left punctuation
-			query = new SelectQuery();
-			query.addAllColumns();
-			query.addCustomFromTable(new CustomSql("sentence_word"));
-			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-					"sentence_id"), sentence_id));
-			query.addCondition(new BinaryCondition(BinaryCondition.Op.LESS_THAN, new CustomSql(
-					"word_pos"), wordPos));
-			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-					"punctuation"), new CustomSql("true")));
-			query.addCustomOrderings(new CustomSql("sentence_id, word_pos desc"));
-			rs = stat.executeQuery(query.validate().toString());
-			if (rs.next())
-				if ((!rs.getBoolean("internal")) & (rs.getString("word").equals(punctuation))) {
-					prep.setInt(1, sentence_id);
-					prep.setInt(2, rs.getInt("word_pos"));
-					prep.addBatch();
-					result = true;
-				}
-
-			// find right punctuation
-			query = new SelectQuery();
-			query.addAllColumns();
-			query.addCustomFromTable(new CustomSql("sentence_word"));
-			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-					"sentence_id"), sentence_id));
-			query.addCondition(new BinaryCondition(BinaryCondition.Op.GREATER_THAN, new CustomSql(
-					"word_pos"), wordPos));
-			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-					"punctuation"), new CustomSql("true")));
-			query.addCustomOrderings(new CustomSql("sentence_id, word_pos"));
-			rs = stat.executeQuery(query.validate().toString());
-			if (rs.next())
-				if ((!rs.getBoolean("internal")) & (rs.getString("word").equals(punctuation))) {
-					prep.setInt(1, sentence_id);
-					prep.setInt(2, rs.getInt("word_pos"));
-					prep.addBatch();
-					result = true;
-				}
-			rs.close();
-			stat.close();
-			conn.setAutoCommit(false);
-			prep.executeBatch();
-			conn.setAutoCommit(true);
-			prep.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return result;
 	}
 
 	public boolean checkBase(String base, EndingRule endingRule) {
