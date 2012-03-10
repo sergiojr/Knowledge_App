@@ -1252,46 +1252,6 @@ public class DataBank {
 		return negatives;
 	}
 
-	public int getPrevIndependentWordPos(int id, int wordPos) {
-		int prevWordPos = -1;
-		try {
-			establishConnection();
-			Statement stat = conn.createStatement();
-			String prevWordPosQuery = MessageFormat
-					.format("select word_pos from sentence_word "
-							+ "where sentence_id={0,number,#} and word_pos<{1,number,#} and dep_word_pos=0 "
-							+ "order by word_pos desc", id, wordPos);
-			ResultSet rs = stat.executeQuery(prevWordPosQuery);
-			if (rs.next())
-				prevWordPos = rs.getInt("word_pos");
-			rs.close();
-			stat.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return prevWordPos;
-	}
-
-	public int getNextIndependentWordPos(int id, int wordPos) {
-		int nextWordPos = -1;
-		try {
-			establishConnection();
-			Statement stat = conn.createStatement();
-			String prevWordPosQuery = MessageFormat
-					.format("select word_pos from sentence_word "
-							+ "where sentence_id={0,number,#} and word_pos>{1,number,#} and dep_word_pos=0 "
-							+ "order by word_pos asc", id, wordPos);
-			ResultSet rs = stat.executeQuery(prevWordPosQuery);
-			if (rs.next())
-				nextWordPos = rs.getInt("word_pos");
-			rs.close();
-			stat.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return nextWordPos;
-	}
-
 	public void saveSentenceParts(ArrayList<SentenceWord> sentenceParts) {
 		Iterator<SentenceWord> iterator;
 		iterator = sentenceParts.iterator();
@@ -1709,8 +1669,8 @@ public class DataBank {
 					conjunctionWordPos = rs.getInt("conjunction_word_pos");
 			}
 			if (conjunctionWordPos != 0)
-				conjunction = new SentenceWordform(sentence_id, 0, conjunctionWordPos, 0, 0, 0, 0,
-						0, 0, 0, 0, 0, 0, "", "", "", "", 0, 0);
+				conjunction = new SentenceWordform(sentence_id, 0, conjunctionWordPos,
+						WordProcessor.conjunction, 0, 0, 0, 0, 0, 0, 0, 0, 0, "", "", "", "", 0, 0);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}

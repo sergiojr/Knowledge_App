@@ -63,6 +63,22 @@ public class SentenceWord {
 		sing_pl_filter = addValueToFilter(sentenceWordform.sing_pl, sing_pl_filter);
 	}
 
+	public void addValuestoFilters(SentenceWordRelation wordRelation, int wordSelector) {
+		if (wordSelector == 1) {
+			word_type_filter = addValueToFilter(wordRelation.word1Type, word_type_filter);
+			wcase_filter = addValueToFilter(wordRelation.word1Case, wcase_filter);
+			gender_filter = addValueToFilter(wordRelation.word1Gender, gender_filter);
+			sing_pl_filter = addValueToFilter(wordRelation.word1Sing_Pl, sing_pl_filter);
+		}
+		if (wordSelector == 2) {
+			word_type_filter = addValueToFilter(wordRelation.word2Type, word_type_filter);
+			wcase_filter = addValueToFilter(wordRelation.word2Case, wcase_filter);
+			gender_filter = addValueToFilter(wordRelation.word2Gender, gender_filter);
+			sing_pl_filter = addValueToFilter(wordRelation.word2Sing_Pl, sing_pl_filter);
+		}
+
+	}
+
 	public SentenceWordform getSentenceWordform() {
 		return new SentenceWordform(sentenceID, subsentenceID, wordPos, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, "", "", "", "", 0, 0);
