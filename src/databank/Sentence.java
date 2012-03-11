@@ -615,7 +615,9 @@ public class Sentence {
 			verb = getSentenceWord(verbWordform.wordPos);
 			if (!existWord1Relation(wordRelationList, verb.wordPos, verbWordform.type, relationType)) {
 				adverbList = getAdverbList(id, getPrevIndependentWordPos(verb.wordPos));
-				adverbList.addAll(getAdverbList(id, getNextIndependentWordPos(verb.wordPos)));
+				//если есть связанный инфинитив, то относим наречия к нему
+				if (!existDependentInfinitive(verbWordform.wordPos))
+					adverbList.addAll(getAdverbList(id, getNextIndependentWordPos(verb.wordPos)));
 				adverbsIterator = adverbList.iterator();
 				if (adverbsIterator.hasNext()) {
 					adverbWordform = adverbsIterator.next();
@@ -724,27 +726,6 @@ public class Sentence {
 		databank.saveSentenceParts(sentenceParts);
 	}
 
-	private SentenceWordRelation getMainVerbRelation(int wordPos) {
-		for (SentenceWordRelation wordRelation : wordRelationList)
-			if ((wordRelation.sentenceID == id) && (wordRelation.word2Pos == wordPos)
-					&& (wordRelation.relationType == SentenceWordRelation.verbInfinitive)) {
-				SentenceWordRelation tempWordRelation = getMainVerbRelation(wordRelation.word1Pos);
-				if (tempWordRelation == null)
-					return wordRelation;
-				else
-					return tempWordRelation;
-			}
-		return null;
-	}
-
-	private boolean existDependentInfinitive(int wordPos) {
-		for (SentenceWordRelation wordRelation : wordRelationList)
-			if ((wordRelation.sentenceID == id) && (wordRelation.word1Pos == wordPos)
-					&& (wordRelation.relationType == SentenceWordRelation.verbInfinitive))
-				return true;
-		return false;
-	}
-
 	private void parseAdverbsAttributes() {
 		ArrayList<SentenceWordform> attributeList;
 		Iterator<SentenceWordform> attributeIterator;
@@ -804,8 +785,6 @@ public class Sentence {
 		Iterator<SentenceWordform> linkedAdjectiveIterator;
 		SentenceWordform linkedAdjectiveWordform;
 		SentenceWord linkedAdjective;
-
-		ArrayList<SentenceWord> sentenceParts = new ArrayList<SentenceWord>();
 
 		int relationType = SentenceWordRelation.attribute;
 		SentenceWordRelation wordRelation;
@@ -887,7 +866,7 @@ public class Sentence {
 			}
 		}
 		cleanWordRelationList(wordRelationList, relationType);
-		sentenceParts = generateSentencePartsFormWordRelation(wordRelationList);
+		ArrayList<SentenceWord> sentenceParts = generateSentencePartsFormWordRelation(wordRelationList);
 		databank.saveSentenceParts(sentenceParts);
 	}
 
@@ -1045,6 +1024,27 @@ public class Sentence {
 				}
 		}
 		return result;
+	}
+
+	private SentenceWordRelation getMainVerbRelation(int wordPos) {
+		for (SentenceWordRelation wordRelation : wordRelationList)
+			if ((wordRelation.sentenceID == id) && (wordRelation.word2Pos == wordPos)
+					&& (wordRelation.relationType == SentenceWordRelation.verbInfinitive)) {
+				SentenceWordRelation tempWordRelation = getMainVerbRelation(wordRelation.word1Pos);
+				if (tempWordRelation == null)
+					return wordRelation;
+				else
+					return tempWordRelation;
+			}
+		return null;
+	}
+
+	private boolean existDependentInfinitive(int wordPos) {
+		for (SentenceWordRelation wordRelation : wordRelationList)
+			if ((wordRelation.sentenceID == id) && (wordRelation.word1Pos == wordPos)
+					&& (wordRelation.relationType == SentenceWordRelation.verbInfinitive))
+				return true;
+		return false;
 	}
 
 	private boolean existWord1Relation(ArrayList<SentenceWordRelation> wordRelationList,
