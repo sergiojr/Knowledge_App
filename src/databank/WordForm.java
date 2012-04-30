@@ -13,24 +13,6 @@ public class WordForm {
 		this.postfix_id = postfix_id;
 	}
 
-	private int getPerson(DataBank databank) {
-		if (endingRule != null)
-			return endingRule.person;
-		return -1;
-	}
-
-	private int getCase(DataBank databank) {
-		if (endingRule != null)
-			return endingRule.wcase;
-		return -1;
-	}
-
-	private int getGender(DataBank databank) {
-		if (endingRule != null)
-			return endingRule.gender;
-		return -1;
-	}
-
 	public EndingRule getEndingRule() {
 		return endingRule;
 	}

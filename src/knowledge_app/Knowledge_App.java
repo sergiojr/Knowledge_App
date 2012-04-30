@@ -10,9 +10,11 @@ import databank.DataSource;
 import databank.PostgresDataBank;
 import databank.Sentence;
 import databank.SentenceWord;
+import databank.Vocabulary;
 
 public class Knowledge_App {
 	PostgresDataBank databank;
+	Vocabulary vocabulary;
 
 	Knowledge_App() {
 		long startTime;
@@ -22,13 +24,15 @@ public class Knowledge_App {
 		curTime = startTime;
 		databank = new PostgresDataBank("knowledge");
 		databank.initDB();
+		vocabulary = new Vocabulary (databank);
 
 		System.out.print("Parsing Text...");
 		parseSources();
+		vocabulary.save();
 		endTime = System.currentTimeMillis();
 		System.out.println("Complete in " + minutes(endTime - curTime) + " minutes.");
 		curTime = endTime;
-
+		
 		System.out.print("Parse Sentences...");
 		parseSentences();
 		endTime = System.currentTimeMillis();
@@ -109,7 +113,7 @@ public class Knowledge_App {
 						if (!curInput.isEmpty()) {
 							sentenceText = sentenceText + " " + curInput;
 							sentenceWordList.add(new SentenceWord(0, 0, 0, new WordProcessor(
-									curInput, isPunctuation, isName, databank).getWord(), 0, 0, 0,
+									curInput, isPunctuation, isName, databank, vocabulary).getWord(), 0, 0, 0,
 									isPunctuation, isName, false, "", "", "", ""));
 						}
 						isName = false;
@@ -128,7 +132,7 @@ public class Knowledge_App {
 									isSentenceEnd = true;
 							if ((isSentenceEnd) | (newlinecount > 1)) {
 								if (save)
-									new Sentence(databank, 0, sentenceText, sentenceWordList)
+									new Sentence(databank, vocabulary, 0, sentenceText, sentenceWordList)
 											.save();
 								sentenceWordList = new ArrayList<SentenceWord>();
 								sentenceText = new String();
@@ -153,14 +157,13 @@ public class Knowledge_App {
 			if (!curInput.isEmpty()) {
 				sentenceText = sentenceText + " " + curInput;
 				sentenceWordList.add(new SentenceWord(0, 0, 0, new WordProcessor(curInput,
-						isPunctuation, isName, databank).getWord(), 0, 0, 0, isPunctuation, isName, false,
+						isPunctuation, isName, databank, vocabulary).getWord(), 0, 0, 0, isPunctuation, isName, false,
 						"", "", "", ""));
 			}
 			if (!sentenceText.isEmpty()) {
 				if (save)
-					new Sentence(databank, 0, sentenceText, sentenceWordList).save();
+					new Sentence(databank, vocabulary, 0, sentenceText, sentenceWordList).save();
 			}
-			databank.flushWordforms();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -170,7 +173,7 @@ public class Knowledge_App {
 	private void parseSentences() {
 		ArrayList<Sentence> sentences;
 		Sentence sentence;
-		sentences = databank.getSentences();
+		sentences = databank.getSentences(vocabulary);
 		Iterator<Sentence> iterator;
 		iterator = sentences.iterator();
 		while (iterator.hasNext()) {

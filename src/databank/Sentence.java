@@ -23,10 +23,12 @@ public class Sentence {
 	private int relationCount;
 	private ArrayList<ArrayList<Integer>> division;
 	private DataBank databank;
+	private Vocabulary vocabulary;
 
-	public Sentence(DataBank databank, int id, String sentence,
+	public Sentence(DataBank databank, Vocabulary vocabulary, int id, String sentence,
 			ArrayList<SentenceWord> sentenceWordList) {
 		this.databank = databank;
+		this.vocabulary = vocabulary;
 		this.id = id;
 		this.sentence = sentence;
 		this.sentenceWordList = sentenceWordList;
@@ -61,6 +63,7 @@ public class Sentence {
 		parseNegative();
 		parseConjunctions();
 		parseAdverbsAttributes();
+		parsePrepositions();
 		parseAttributes();
 		parseConjunctions();
 		parseComplexPredicate();
@@ -69,37 +72,40 @@ public class Sentence {
 		parseConjunctions();
 		// parseGenetiveSubstantives();
 
-		sentenceParts = generateSentenceParts(wordRelationList);
-		databank.saveSentenceParts(sentenceParts);
-		
-		
-		// get best wordform
-		try {
-			databank.FillBestMatch(id);
-		} catch (SQLException e) {
-			e.printStackTrace();
+		// update filter values and "preposition_id" in sentenceWordList
+		generateSentenceParts(wordRelationList);
+
+		// find best wordform for each SentenceWord in sentenceWordList
+		sentenceWordFilter = generateSentenceWordFilter(wordRelationList);
+		for (SentenceWord sentenceWord : sentenceWordList) {
+			ArrayList<SentenceWordform> tempWordformList = getSentencePartList("",
+					sentenceWord.wordPos, "", "", 0, 0, "", "", rating_tolerance);
+			Iterator<SentenceWordform> iterator = tempWordformList.iterator();
+			if (iterator.hasNext()) {
+				sentenceWord.sentenceWordform = iterator.next();
+			}
 		}
 
-		division = divideSentence(id);
-		if (division == null)
-			return;
+		division = divideSentence();
+		if (division != null)
+			if (markAdverbialParticiple(division))
+				division = divideSentence();
 
-		if (markAdverbialParticiple(division))
-			division = divideSentence(id);
+		databank.saveSentenceParts(sentenceWordList);
 
-		// save "subsentence_id" and "internal" mark
-		databank.updateSentenceWordList(sentenceWordList);
+		if (division != null) {
+			conjunctions = getConjunctions("и");
 
-		conjunctions = getConjunctions("и");
-
-		subsentenceIterator = division.iterator();
-		while (subsentenceIterator.hasNext()) {
-			curSubsentence = subsentenceIterator.next();
-			sentenceParts = gather(parseSubsentence(conjunctions, curSubsentence));
-			if (!sentenceParts.isEmpty())
-				databank.saveSentenceParts(sentenceParts);
+			subsentenceIterator = division.iterator();
+			while (subsentenceIterator.hasNext()) {
+				curSubsentence = subsentenceIterator.next();
+				sentenceParts = gather(parseSubsentence(conjunctions, curSubsentence));
+				if (!sentenceParts.isEmpty())
+					databank.saveSentenceParts(sentenceParts);
+			}
 		}
 		databank.saveSentenceWordLinkList(wordLinkList);
+		databank.saveSentenceWordRelationList(wordRelationList);
 	}
 
 	private boolean markAdverbialParticiple(ArrayList<ArrayList<Integer>> division) {
@@ -364,6 +370,7 @@ public class Sentence {
 		SentenceWordform prepAlternativeWordform;
 		ArrayList<SentenceWordform> substantiveList;
 		Iterator<SentenceWordform> substantiveIterator;
+		SentenceWordform substantiveWordform;
 		SentenceWord substantive;
 
 		SentenceWordRelation wordRelation;
@@ -381,19 +388,23 @@ public class Sentence {
 			prepositionWordform = prepositionIterator.next();
 			// собираем существительные или прилагательные на позиции за предлогом не в именительном
 			// падеже
-			substantiveList = getSubstantiveList(id, prepositionWordform.wordPos + 1, ">1", "", 0,
-					0);
+			substantiveList = getSubstantiveList(id,
+					getNextIndependentWordPos(prepositionWordform.wordPos), ">1", "", 0, 0, 1);
 			if (!substantiveList.isEmpty()) {
 				substantiveIterator = substantiveList.iterator();
 				if (substantiveIterator.hasNext()) {
-					substantive = getSentenceWord(sentenceWordList,
-							substantiveIterator.next().wordPos);
-					substantive.preposition_id = prepositionWordform.word_id;
-					wordRelation = new SentenceWordRelation(++relationCount, 0, id,
-							substantive.wordPos, 0, 0, 0, 0, prepositionWordform.wordPos,
-							prepositionWordform.type, prepositionWordform.wcase,
-							prepositionWordform.gender, prepositionWordform.sing_pl, relationType);
-					wordRelationList.add(wordRelation);
+					substantiveWordform = substantiveIterator.next();
+					if (!existWordRelation(wordRelationList, substantiveWordform,
+							prepositionWordform, relationType, 0)) {
+						substantive = getSentenceWord(sentenceWordList, substantiveWordform.wordPos);
+						substantive.preposition_id = prepositionWordform.word_id;
+						wordRelation = new SentenceWordRelation(++relationCount, 0, id,
+								substantive.wordPos, 0, 0, 0, 0, prepositionWordform.wordPos,
+								prepositionWordform.type, prepositionWordform.wcase,
+								prepositionWordform.gender, prepositionWordform.sing_pl,
+								relationType);
+						wordRelationList.add(wordRelation);
+					}
 				}
 			} else {
 				// проверяем, есть ли другие подходящие словоформы кроме предлога
@@ -411,6 +422,7 @@ public class Sentence {
 				}
 			}
 		}
+		changeWordRelationStatus(relationType);
 	}
 
 	private void parseNegative() {
@@ -430,7 +442,7 @@ public class Sentence {
 		sentenceWordFilter = generateSentenceWordFilter(wordRelationList);
 
 		// find wordPos of negative
-		negatives = databank.getNegatives(id);
+		negatives = getNegatives();
 		negativeIterator = negatives.iterator();
 		while (negativeIterator.hasNext()) {
 			found = false;
@@ -454,9 +466,9 @@ public class Sentence {
 						negativeWordform.type, negativeWordform.wcase, negativeWordform.gender,
 						negativeWordform.sing_pl, relationType);
 				wordRelationList.add(wordRelation);
-
 			}
 		}
+		changeWordRelationStatus(relationType);
 	}
 
 	private void parseNumerals() {
@@ -486,16 +498,16 @@ public class Sentence {
 			numeralPartWordform = numeralIterator.next();
 			if (!existWord1Relation(wordRelationList, numeralPartWordform.wordPos,
 					numeralPartWordform.type, relationType)) {
-				numeral = databank.getNumeralByWordID(numeralPartWordform.word_id);
+				numeral = databank.getNumeralByWordID(vocabulary, numeralPartWordform.word_id);
 				wcase = numeralPartWordform.wcase;
 				sing_pl = numeralPartWordform.sing_pl;
-				if (databank.isNumeralBaseForm(numeralPartWordform.word_id,
+				if (databank.isNumeralBaseForm(vocabulary, numeralPartWordform.word_id,
 						numeralPartWordform.rule_id)) {
 					wcase = numeral.getBaseWcase();
 					sing_pl = numeral.getBaseSingPl();
 				}
 				substantiveList = getSubstantiveList(id, numeralPartWordform.wordPos + 1,
-						String.valueOf(wcase), ">0", numeralPartWordform.gender, sing_pl);
+						String.valueOf(wcase), ">0", numeralPartWordform.gender, sing_pl, 1);
 				substantiveIterator = substantiveList.iterator();
 				while (substantiveIterator.hasNext()) {
 					substantiveWordform = substantiveIterator.next();
@@ -513,6 +525,7 @@ public class Sentence {
 				}
 			}
 		}
+		changeWordRelationStatus(relationType);
 	}
 
 	private void parseGenetiveSubstantives() {
@@ -529,7 +542,7 @@ public class Sentence {
 		sentenceWordFilter = generateSentenceWordFilter(wordRelationList);
 
 		// получить существительные
-		mainSubstantiveList = getSubstantiveList(id, 0, ">0", ">0", 0, 0);
+		mainSubstantiveList = getSubstantiveList(id, 0, ">0", ">0", 0, 0, 1);
 		mainSubstantiveIterator = mainSubstantiveList.iterator();
 
 		// для каждого существительного в родительном падеже получить предшествующее существительное
@@ -538,7 +551,8 @@ public class Sentence {
 			if (!existWord1Relation(wordRelationList, mainSubstantiveWordform.wordPos,
 					mainSubstantiveWordform.type, relationType)) {
 				genetiveSubstantiveList = getSubstantiveList(id,
-						getNextIndependentWordPos(mainSubstantiveWordform.wordPos), "2", ">0", 0, 0);
+						getNextIndependentWordPos(mainSubstantiveWordform.wordPos), "2", ">0", 0,
+						0, 1);
 				genetiveSubstantiveIterator = genetiveSubstantiveList.iterator();
 				if (genetiveSubstantiveIterator.hasNext()) {
 					genetiveSubstantiveWordform = genetiveSubstantiveIterator.next();
@@ -558,6 +572,7 @@ public class Sentence {
 				}
 			}
 		}
+		changeWordRelationStatus(relationType);
 	}
 
 	private void parseComplexPredicate() {
@@ -601,6 +616,7 @@ public class Sentence {
 				}
 			}
 		}
+		changeWordRelationStatus(relationType);
 	}
 
 	private void parseAdverbs() {
@@ -646,6 +662,7 @@ public class Sentence {
 			}
 		}
 		cleanWordRelationList(wordRelationList, relationType);
+		changeWordRelationStatus(relationType);
 	}
 
 	private void parseVerbControlledSubstantives() {
@@ -694,8 +711,8 @@ public class Sentence {
 				if (curWordPos > 0)
 					if (existDependence(curWordPos, SentenceWordRelation.preposition)
 							| (getSubstantiveList(id, curWordPos, "1", personFilter, mainGender,
-									mainSing_Pl).isEmpty())) {
-						substantiveList = getSubstantiveList(id, curWordPos, ">1", ">0", 0, 0);
+									mainSing_Pl, 1).isEmpty())) {
+						substantiveList = getSubstantiveList(id, curWordPos, ">1", ">0", 0, 0, 1);
 						substantiveIterator = substantiveList.iterator();
 						while (substantiveIterator.hasNext()) {
 							substantiveWordform = substantiveIterator.next();
@@ -715,6 +732,7 @@ public class Sentence {
 			}
 		}
 		cleanWordRelationList(wordRelationList, relationType);
+		changeWordRelationStatus(relationType);
 	}
 
 	private void parseAdverbsAttributes() {
@@ -731,7 +749,7 @@ public class Sentence {
 		sentenceWordFilter = generateSentenceWordFilter(wordRelationList);
 
 		// получить прилагательные и местоимения прилагательные
-		attributeList = getAdjectiveList(id, 0, ">0", 0, 0);
+		attributeList = getAdjectiveList(id, 0, ">0", 0, 0, 1);
 		attributeIterator = attributeList.iterator();
 
 		// для каждого прилагательного получить предшествующие наречия
@@ -758,6 +776,7 @@ public class Sentence {
 			}
 		}
 		cleanWordRelationList(wordRelationList, relationType);
+		changeWordRelationStatus(relationType);
 	}
 
 	private void parseAttributes() {
@@ -784,7 +803,7 @@ public class Sentence {
 		// find possible substantives
 		// possible substantive: wordform that has an substantive as a word
 		// with maximal rating
-		substantiveList = getSubstantiveList(id, 0, ">0", ">0", 0, 0);
+		substantiveList = getSubstantiveList(id, 0, ">0", ">0", 0, 0, rating_tolerance);
 		substantiveIterator = substantiveList.iterator();
 
 		// find possible adjectives that have common form with substantive
@@ -797,7 +816,7 @@ public class Sentence {
 							substantiveWordform.type, relationType))) {
 				adjectiveList = getAdjectiveList(id, substantiveWordform.wordPos - 1,
 						String.valueOf(substantiveWordform.wcase), substantiveWordform.gender,
-						substantiveWordform.sing_pl);
+						substantiveWordform.sing_pl, rating_tolerance);
 				adjectiveIterator = adjectiveList.iterator();
 				if (adjectiveIterator.hasNext()) {
 					adjectiveWordform = adjectiveIterator.next();
@@ -830,7 +849,8 @@ public class Sentence {
 							found = false;
 							linkedAdjectiveList = getAdjectiveList(id, curWordPos,
 									String.valueOf(substantiveWordform.wcase),
-									substantiveWordform.gender, substantiveWordform.sing_pl);
+									substantiveWordform.gender, substantiveWordform.sing_pl,
+									rating_tolerance);
 							linkedAdjectiveIterator = linkedAdjectiveList.iterator();
 							if (linkedAdjectiveIterator.hasNext()) {
 								found = true;
@@ -852,15 +872,77 @@ public class Sentence {
 			}
 		}
 		cleanWordRelationList(wordRelationList, relationType);
+		changeWordRelationStatus(relationType);
 	}
 
-	private void movePrepositionRelation(SentenceWordRelation wordRelation) {
-		int relationType = SentenceWordRelation.preposition;
-		for (SentenceWordRelation prepWordRelation : wordRelationList)
-			if ((prepWordRelation.relationType == relationType)
-					&& (wordRelation.sentenceID == prepWordRelation.sentenceID)
-					&& (wordRelation.word2Pos == prepWordRelation.word1Pos))
-				prepWordRelation.word1Pos = wordRelation.word1Pos;
+	private void parseConjunctions() {
+		ArrayList<SentenceWord> conjunctions;
+		Iterator<SentenceWord> conjunctionIterator;
+		SentenceWord conjunction;
+		ArrayList<SentenceWordform> prevWordforms;
+		Iterator<SentenceWordform> prevWordformIterator;
+		SentenceWordform prevWordform;
+		ArrayList<SentenceWordform> nextWordforms;
+		Iterator<SentenceWordform> nextWordformIterator;
+		SentenceWordform nextWordform;
+
+		SentenceWordLink wordLink;
+
+		// find wordPos with conjunction
+		conjunctions = getConjunctions("и");
+		conjunctions.addAll(getConjunctions("или"));
+		conjunctions.addAll(getConjunctions(","));
+		conjunctionIterator = conjunctions.iterator();
+		while (conjunctionIterator.hasNext()) {
+			conjunction = conjunctionIterator.next();
+			// get wordforms with maxrating at previous and next position
+			prevWordforms = getPrevWordforms(id, conjunction.wordPos);
+			nextWordforms = getNextWordforms(id, conjunction.wordPos);
+			// find and save pairs with same rules
+			prevWordformIterator = prevWordforms.iterator();
+			while (prevWordformIterator.hasNext()) {
+				prevWordform = prevWordformIterator.next();
+				nextWordformIterator = nextWordforms.iterator();
+				while (nextWordformIterator.hasNext()) {
+					nextWordform = nextWordformIterator.next();
+					// существительные и местоимения существительные
+					if ((prevWordform.wcase > 0) & (prevWordform.person > 0))
+						if ((prevWordform.wcase == nextWordform.wcase) & (nextWordform.person > 0)) {
+							conjunction.internal = true;
+							wordLink = new SentenceWordLink(prevWordform, conjunction, nextWordform);
+							if (!wordLink.exists(wordLinkList))
+								wordLinkList.add(wordLink);
+						}
+
+					// прилагательные и местоимения прилагательные
+					if ((prevWordform.wcase > 0) & (prevWordform.person == 0))
+						if ((nextWordform.person == 0)
+								& (prevWordform.wcase == nextWordform.wcase)
+								& ((prevWordform.gender == nextWordform.gender)
+										| (prevWordform.gender == 0) | (nextWordform.gender == 0))
+								& ((prevWordform.sing_pl == nextWordform.sing_pl)
+										| (prevWordform.sing_pl == 0) | (nextWordform.sing_pl == 0))) {
+							conjunction.internal = true;
+							wordLink = new SentenceWordLink(prevWordform, conjunction, nextWordform);
+							if (!wordLink.exists(wordLinkList))
+								wordLinkList.add(wordLink);
+						}
+					// прочие
+					if (prevWordform.wcase == 0)
+						if ((nextWordform.person == prevWordform.person)
+								& (prevWordform.wcase == nextWordform.wcase)
+								& (prevWordform.gender == nextWordform.gender)
+								& (prevWordform.sing_pl == nextWordform.sing_pl)
+								& (prevWordform.type == nextWordform.type)
+								& (prevWordform.subtype == nextWordform.subtype)) {
+							conjunction.internal = true;
+							wordLink = new SentenceWordLink(prevWordform, conjunction, nextWordform);
+							if (!wordLink.exists(wordLinkList))
+								wordLinkList.add(wordLink);
+						}
+				}
+			}
+		}
 	}
 
 	private void markLinkedWords(ArrayList<SentenceWordRelation> wordRelationList,
@@ -877,8 +959,9 @@ public class Sentence {
 		linkedWordIterator = linkedWordList.iterator();
 		while (linkedWordIterator.hasNext()) {
 			linkedWordform = linkedWordIterator.next();
-			if (!existWordRelation(wordRelationList, wordRelation, linkedWordform,
-					wordRelation.relationType)) {
+			if ((wordRelation.word1Pos != linkedWordform.wordPos)
+					&& !existWordRelation(wordRelationList, wordRelation, linkedWordform,
+							wordRelation.relationType)) {
 				if (linkedWordform.wcase > 0)
 					linkedWordRelation = new SentenceWordRelation(++relationCount, wordRelation,
 							linkedWordform.wordPos, linkedWordform.type, linkedWordform.wcase,
@@ -899,45 +982,19 @@ public class Sentence {
 		}
 	}
 
-	private ArrayList<SentenceWord> generateSentenceParts(
-			ArrayList<SentenceWordRelation> wordRelationList) {
-		ArrayList<SentenceWord> sentenceParts = new ArrayList<SentenceWord>();
-		ArrayList<SentenceWord> mainSentenceParts = new ArrayList<SentenceWord>();
-		SentenceWord sentencePart;
-		for (SentenceWordRelation wordRelation : wordRelationList) {
-			sentencePart = getSentenceWord(sentenceWordList, wordRelation.word1Pos);
-			sentencePart.addValuestoFilters(wordRelation, 1);
-			sentenceParts.add(sentencePart);
-			mainSentenceParts.add(sentencePart);
-			if (wordRelation.word2Pos != 0) {
-				sentencePart = getSentenceWord(sentenceWordList, wordRelation.word2Pos);
-				sentencePart.addValuestoFilters(wordRelation, 2);
-				sentencePart.dep_word_pos = wordRelation.word1Pos;
-				sentenceParts.add(sentencePart);
-			}
-		}
-
-		for (SentenceWord mainSentencePart : mainSentenceParts)
-			transferPrepositionId(mainSentencePart, sentenceParts);
-		return sentenceParts;
+	private void movePrepositionRelation(SentenceWordRelation wordRelation) {
+		int relationType = SentenceWordRelation.preposition;
+		for (SentenceWordRelation prepWordRelation : wordRelationList)
+			if ((prepWordRelation.relationType == relationType)
+					&& (wordRelation.sentenceID == prepWordRelation.sentenceID)
+					&& (wordRelation.word2Pos == prepWordRelation.word1Pos))
+				prepWordRelation.word1Pos = wordRelation.word1Pos;
 	}
 
-	private SentenceWordFilter[] generateSentenceWordFilter(
-			ArrayList<SentenceWordRelation> wordRelationList) {
-		SentenceWordFilter[] sentenceWordFilter = new SentenceWordFilter[wordCount + 1];
-		for (SentenceWordRelation wordRelation : wordRelationList) {
-			if (sentenceWordFilter[wordRelation.word1Pos] == null)
-				sentenceWordFilter[wordRelation.word1Pos] = new SentenceWordFilter(id,
-						wordRelation.word1Pos);
-			sentenceWordFilter[wordRelation.word1Pos].addValuestoFilters(wordRelation, 1);
-			if (wordRelation.word2Pos != 0) {
-				if (sentenceWordFilter[wordRelation.word2Pos] == null)
-					sentenceWordFilter[wordRelation.word2Pos] = new SentenceWordFilter(id,
-							wordRelation.word2Pos);
-				sentenceWordFilter[wordRelation.word2Pos].addValuestoFilters(wordRelation, 2);
-			}
-		}
-		return sentenceWordFilter;
+	private void changeWordRelationStatus(int relationType) {
+		for (SentenceWordRelation wordRelation : wordRelationList)
+			if ((wordRelation.status == 1) && (wordRelation.relationType == relationType))
+				wordRelation.status = 2;
 	}
 
 	/**
@@ -1017,6 +1074,27 @@ public class Sentence {
 		return result;
 	}
 
+	private boolean isDependentRelation(ArrayList<SentenceWordRelation> wordRelationList,
+			SentenceWordRelation wordRelation, int depID) {
+		if (depID == 0 | wordRelation.id == 0)
+			return false;
+		int curDepID = depID;
+		boolean found = true;
+		while (found) {
+			if (curDepID == wordRelation.id)
+				return true;
+			found = false;
+			for (SentenceWordRelation curWordRelation : wordRelationList)
+				if (curWordRelation.id == curDepID) {
+					found = true;
+					curDepID = curWordRelation.depID;
+					if (curDepID == 0)
+						return false;
+				}
+		}
+		return false;
+	}
+
 	private SentenceWordRelation getLastWordRelation(
 			ArrayList<SentenceWordRelation> wordRelationList, SentenceWordRelation wordRelation) {
 		SentenceWordRelation result = wordRelation;
@@ -1032,6 +1110,15 @@ public class Sentence {
 				}
 		}
 		return result;
+	}
+
+	private int getLastWordRelationID(ArrayList<SentenceWordRelation> wordRelationList,
+			SentenceWordRelation wordRelation) {
+		SentenceWordRelation lastWordRelation = getLastWordRelation(wordRelationList, wordRelation);
+		if (lastWordRelation == null)
+			return 0;
+		else
+			return lastWordRelation.id;
 	}
 
 	private SentenceWordRelation getMainVerbRelation(int wordPos) {
@@ -1074,10 +1161,12 @@ public class Sentence {
 			int depRelationID) {
 		for (SentenceWordRelation wordRelation : wordRelationList) {
 			// if exist WordRelation where Word2 has different type and type is not zero
-			if ((wordRelation.sentenceID == id) && (wordRelation.word1Pos == word2Form.wordPos)
+			if ((wordRelation.status == 2) && (wordRelation.sentenceID == id)
+					&& (wordRelation.word1Pos == word2Form.wordPos)
 					&& (wordRelation.word1Type != word2Form.type) && (wordRelation.word1Type != 0))
 				return true;
-			if ((wordRelation.sentenceID == id) && (wordRelation.word2Pos == word2Form.wordPos)
+			if ((wordRelation.status == 2) && (wordRelation.sentenceID == id)
+					&& (wordRelation.word2Pos == word2Form.wordPos)
 					&& (wordRelation.word2Type != word2Form.type) && (wordRelation.word2Type != 0))
 				return true;
 			// if exist wordRelation where Word1 is related to different Word2 and has the same
@@ -1088,7 +1177,8 @@ public class Sentence {
 					&& (wordRelation.depID == depRelationID))
 				return true;
 			// if exist wordRelation where Word2 is related to different Word1
-			if ((wordRelation.sentenceID == id) && (wordRelation.word2Pos == word2Form.wordPos)
+			if ((wordRelation.status == 2) && (wordRelation.sentenceID == id)
+					&& (wordRelation.word2Pos == word2Form.wordPos)
 					&& (wordRelation.word1Pos != word1Form.wordPos))
 				return true;
 			// if exist wordRelation with the same Word1 and Word2
@@ -1112,10 +1202,12 @@ public class Sentence {
 			SentenceWordRelation mainWordRelation, SentenceWordform word2Form, int relationType) {
 		for (SentenceWordRelation wordRelation : wordRelationList) {
 			// if exist WordRelation where Word2 has different type
-			if ((wordRelation.sentenceID == id) && (wordRelation.word1Pos == word2Form.wordPos)
+			if ((wordRelation.status == 2) && (wordRelation.sentenceID == id)
+					&& (wordRelation.word1Pos == word2Form.wordPos)
 					&& (wordRelation.word1Type != word2Form.type) && (wordRelation.word1Type != 0))
 				return true;
-			if ((wordRelation.sentenceID == id) && (wordRelation.word2Pos == word2Form.wordPos)
+			if ((wordRelation.status == 2) && (wordRelation.sentenceID == id)
+					&& (wordRelation.word2Pos == word2Form.wordPos)
 					&& (wordRelation.word2Type != word2Form.type) && (wordRelation.word2Type != 0))
 				return true;
 			// if exist wordRelation where Word1 is related to different Word2 and has the same
@@ -1127,9 +1219,17 @@ public class Sentence {
 					&& (wordRelation.depID == mainWordRelation.id))
 				return true;
 			// if exist wordRelation where Word2 is related to different Word1
-			if ((wordRelation.sentenceID == id) && (wordRelation.word2Pos == word2Form.wordPos)
+			if ((wordRelation.status == 2) && (wordRelation.sentenceID == id)
+					&& (wordRelation.word2Pos == word2Form.wordPos)
 					&& (wordRelation.word1Pos != mainWordRelation.word1Pos))
 				return true;
+			// if exist wordRelation in WordRelation dependency chain with the same Word1 and Word2
+			if ((wordRelation.sentenceID == id)
+					&& (wordRelation.word1Pos == mainWordRelation.word1Pos)
+					&& (wordRelation.word2Pos == word2Form.wordPos)
+					&& (isDependentRelation(wordRelationList, wordRelation, mainWordRelation.id)))
+				return true;
+
 			// if exist wordRelation with the same Word1 and Word2
 			if ((wordRelation.sentenceID == id)
 					&& (wordRelation.relationType == relationType)
@@ -1140,10 +1240,54 @@ public class Sentence {
 					&& (wordRelation.word2Pos == word2Form.wordPos)
 					&& (wordRelation.word2Type == word2Form.type)
 					&& ((word2Form.wcase == 0) | ((wordRelation.word2Case == word2Form.wcase)
-							&& (wordRelation.word2Gender == word2Form.gender) && (wordRelation.word2Sing_Pl == word2Form.sing_pl))))
+							&& (wordRelation.word2Gender == word2Form.gender) && (wordRelation.word2Sing_Pl == word2Form.sing_pl)))
+					&& ((wordRelation.depID == 0) | (mainWordRelation.id == 0) | (getLastWordRelationID(
+							wordRelationList, wordRelation) == getLastWordRelationID(
+							wordRelationList, mainWordRelation))))
 				return true;
 		}
 		return false;
+	}
+
+	private ArrayList<SentenceWord> generateSentenceParts(
+			ArrayList<SentenceWordRelation> wordRelationList) {
+		ArrayList<SentenceWord> sentenceParts = new ArrayList<SentenceWord>();
+		ArrayList<SentenceWord> mainSentenceParts = new ArrayList<SentenceWord>();
+		SentenceWord sentencePart;
+		for (SentenceWordRelation wordRelation : wordRelationList) {
+			sentencePart = getSentenceWord(sentenceWordList, wordRelation.word1Pos);
+			sentencePart.addValuestoFilters(wordRelation, 1);
+			sentenceParts.add(sentencePart);
+			mainSentenceParts.add(sentencePart);
+			if (wordRelation.word2Pos != 0) {
+				sentencePart = getSentenceWord(sentenceWordList, wordRelation.word2Pos);
+				sentencePart.addValuestoFilters(wordRelation, 2);
+				sentencePart.dep_word_pos = wordRelation.word1Pos;
+				sentenceParts.add(sentencePart);
+			}
+		}
+
+		for (SentenceWord mainSentencePart : mainSentenceParts)
+			transferPrepositionId(mainSentencePart, sentenceParts);
+		return sentenceParts;
+	}
+
+	private SentenceWordFilter[] generateSentenceWordFilter(
+			ArrayList<SentenceWordRelation> wordRelationList) {
+		SentenceWordFilter[] sentenceWordFilter = new SentenceWordFilter[wordCount + 1];
+		for (SentenceWordRelation wordRelation : wordRelationList) {
+			if (sentenceWordFilter[wordRelation.word1Pos] == null)
+				sentenceWordFilter[wordRelation.word1Pos] = new SentenceWordFilter(id,
+						wordRelation.word1Pos);
+			sentenceWordFilter[wordRelation.word1Pos].addValuestoFilters(wordRelation, 1);
+			if (wordRelation.word2Pos != 0) {
+				if (sentenceWordFilter[wordRelation.word2Pos] == null)
+					sentenceWordFilter[wordRelation.word2Pos] = new SentenceWordFilter(id,
+							wordRelation.word2Pos);
+				sentenceWordFilter[wordRelation.word2Pos].addValuestoFilters(wordRelation, 2);
+			}
+		}
+		return sentenceWordFilter;
 	}
 
 	private void transferPrepositionId(SentenceWord mainSentencePart,
@@ -1176,79 +1320,10 @@ public class Sentence {
 		}
 	}
 
-	private void parseConjunctions() {
-		ArrayList<SentenceWord> conjunctions;
-		Iterator<SentenceWord> conjunctionIterator;
-		SentenceWord conjunction;
-		ArrayList<SentenceWordform> prevWordforms;
-		Iterator<SentenceWordform> prevWordformIterator;
-		SentenceWordform prevWordform;
-		ArrayList<SentenceWordform> nextWordforms;
-		Iterator<SentenceWordform> nextWordformIterator;
-		SentenceWordform nextWordform;
-
-		SentenceWordLink wordLink;
-
-		// find wordPos with conjunction
-		conjunctions = getConjunctions("и");
-		conjunctions.addAll(getConjunctions("или"));
-		conjunctions.addAll(getConjunctions(","));
-		conjunctionIterator = conjunctions.iterator();
-		while (conjunctionIterator.hasNext()) {
-			conjunction = conjunctionIterator.next();
-			// get wordforms with maxrating at previous and next position
-			prevWordforms = getPrevWordforms(id, conjunction.wordPos);
-			nextWordforms = getNextWordforms(id, conjunction.wordPos);
-			// find and save pairs with same rules
-			prevWordformIterator = prevWordforms.iterator();
-			while (prevWordformIterator.hasNext()) {
-				prevWordform = prevWordformIterator.next();
-				nextWordformIterator = nextWordforms.iterator();
-				while (nextWordformIterator.hasNext()) {
-					nextWordform = nextWordformIterator.next();
-					// существительные и местоимения существительные
-					if ((prevWordform.wcase > 0) & (prevWordform.person > 0))
-						if ((prevWordform.wcase == nextWordform.wcase) & (nextWordform.person > 0)) {
-							conjunction.internal = true;
-							wordLink = new SentenceWordLink(prevWordform, conjunction, nextWordform);
-							if (!wordLink.exists(wordLinkList))
-								wordLinkList.add(wordLink);
-						}
-
-					// прилагательные и местоимения прилагательные
-					if ((prevWordform.wcase > 0) & (prevWordform.person == 0))
-						if ((nextWordform.person == 0)
-								& (prevWordform.wcase == nextWordform.wcase)
-								& ((prevWordform.gender == nextWordform.gender)
-										| (prevWordform.gender == 0) | (nextWordform.gender == 0))
-								& ((prevWordform.sing_pl == nextWordform.sing_pl)
-										| (prevWordform.sing_pl == 0) | (nextWordform.sing_pl == 0))) {
-							conjunction.internal = true;
-							wordLink = new SentenceWordLink(prevWordform, conjunction, nextWordform);
-							if (!wordLink.exists(wordLinkList))
-								wordLinkList.add(wordLink);
-						}
-					// прочие
-					if (prevWordform.wcase == 0)
-						if ((nextWordform.person == prevWordform.person)
-								& (prevWordform.wcase == nextWordform.wcase)
-								& (prevWordform.gender == nextWordform.gender)
-								& (prevWordform.sing_pl == nextWordform.sing_pl)
-								& (prevWordform.type == nextWordform.type)
-								& (prevWordform.subtype == nextWordform.subtype)) {
-							conjunction.internal = true;
-							wordLink = new SentenceWordLink(prevWordform, conjunction, nextWordform);
-							if (!wordLink.exists(wordLinkList))
-								wordLinkList.add(wordLink);
-						}
-				}
-			}
-		}
-	}
-
 	private ArrayList<SentenceWordform> getAdjectiveList(int sentence_id, int wordPos,
-			String wcaseFilter, int gender, int sing_pl) {
-		return getSentencePartList("", wordPos, wcaseFilter, "0", gender, sing_pl, "", "", 1);
+			String wcaseFilter, int gender, int sing_pl, double rating_tolerance) {
+		return getSentencePartList("", wordPos, wcaseFilter, "0", gender, sing_pl, "", "",
+				rating_tolerance);
 	}
 
 	private ArrayList<SentenceWordform> getAdverbList(int sentence_id, int wordPos) {
@@ -1259,9 +1334,10 @@ public class Sentence {
 	}
 
 	private ArrayList<SentenceWordform> getSubstantiveList(int sentence_id, int wordPos,
-			String wcaseFilter, String personFilter, int gender, int sing_pl) {
+			String wcaseFilter, String personFilter, int gender, int sing_pl,
+			double rating_tolerance) {
 		return getSentencePartList("", wordPos, wcaseFilter, personFilter, gender, sing_pl, "", "",
-				1);
+				rating_tolerance);
 	}
 
 	private ArrayList<SentenceWordform> getVerbList(int sentence_id, String subsentenceFilter,
@@ -1347,10 +1423,29 @@ public class Sentence {
 		return null;
 	}
 
+	private ArrayList<SentenceWord> getConjunctions(String conjunction) {
+		ArrayList<SentenceWord> conjunctions = new ArrayList<SentenceWord>();
+		for (SentenceWord sentenceWord : sentenceWordList)
+			if (sentenceWord.word.equals(conjunction))
+				conjunctions.add(sentenceWord);
+		return conjunctions;
+	}
+
+	private ArrayList<SentenceWordform> getNegatives() {
+		ArrayList<SentenceWordform> result = new ArrayList<SentenceWordform>();
+		String negative = databank.getSetup().getNegative();
+		for (SentenceWord sentenceWord : sentenceWordList)
+			if (sentenceWord.word.equals(negative))
+				result.addAll(getSentencePartList("", sentenceWord.wordPos, "", "", 0, 0, "97", "",
+						1));
+		return result;
+	}
+
 	private ArrayList<SentenceWordform> getSentencePartList(String subsentenceFilter, int wordPos,
 			String wcaseFilter, String personFilter, int gender, int sing_pl, String typeFilter,
 			String subtypeFilter, double rating_tolerance) {
 		ArrayList<SentenceWordform> result = new ArrayList<SentenceWordform>();
+		SentenceWord sentenceWord;
 		for (SentenceWordform sentenceWordform : sentenceWordformList)
 			if ((wordPos == 0 | sentenceWordform.wordPos == wordPos)
 					&& ((100 - sentenceWordform.rating) <= (100 - sentenceWordform.maxrating)
@@ -1361,22 +1456,22 @@ public class Sentence {
 					&& (gender == 0 | sentenceWordform.gender == 0 | sentenceWordform.gender == gender)
 					&& (sing_pl == 0 | sentenceWordform.sing_pl == 0 | sentenceWordform.sing_pl == sing_pl)
 					&& DataBank.checkFilter(sentenceWordform.type, typeFilter)
-					&& DataBank.checkFilter(sentenceWordform.subtype, subtypeFilter)
-					&& DataBank
-							.checkFilter(
-									getSentenceWord(sentenceWordList, sentenceWordform.wordPos).subsentenceID,
-									subsentenceFilter))
-				if (sentenceWordFilter[sentenceWordform.wordPos] == null)
-					result.add(sentenceWordform);
-				else if (DataBank.checkFilter(sentenceWordform.type,
-						sentenceWordFilter[sentenceWordform.wordPos].typeFilter)
-						&& DataBank.checkFilter(sentenceWordform.wcase,
-								sentenceWordFilter[sentenceWordform.wordPos].wcaseFilter)
-						&& DataBank.checkFilter(sentenceWordform.gender,
-								sentenceWordFilter[sentenceWordform.wordPos].genderFilter)
-						&& DataBank.checkFilter(sentenceWordform.sing_pl,
-								sentenceWordFilter[sentenceWordform.wordPos].sing_plFilter))
-					result.add(sentenceWordform);
+					&& DataBank.checkFilter(sentenceWordform.subtype, subtypeFilter)) {
+				sentenceWord = getSentenceWord(sentenceWordList, sentenceWordform.wordPos);
+				if (((sentenceWordform.wcase != 1) | ((sentenceWordform.wcase == 1) & (sentenceWord.preposition_id == 0)))
+						&& DataBank.checkFilter(sentenceWord.subsentenceID, subsentenceFilter))
+					if (sentenceWordFilter[sentenceWordform.wordPos] == null)
+						result.add(sentenceWordform);
+					else if (DataBank.checkFilter(sentenceWordform.type,
+							sentenceWordFilter[sentenceWordform.wordPos].typeFilter)
+							&& DataBank.checkFilter(sentenceWordform.wcase,
+									sentenceWordFilter[sentenceWordform.wordPos].wcaseFilter)
+							&& DataBank.checkFilter(sentenceWordform.gender,
+									sentenceWordFilter[sentenceWordform.wordPos].genderFilter)
+							&& DataBank.checkFilter(sentenceWordform.sing_pl,
+									sentenceWordFilter[sentenceWordform.wordPos].sing_plFilter))
+						result.add(sentenceWordform);
+			}
 		return result;
 	}
 
@@ -1447,40 +1542,6 @@ public class Sentence {
 		return null;
 	}
 
-	private String convertArrayToFilter(ArrayList<Integer> array) {
-		Iterator<Integer> iterator;
-		Integer curID;
-		String filter;
-		filter = "-1";
-		iterator = array.iterator();
-		if (iterator.hasNext()) {
-			curID = iterator.next();
-			filter = curID.toString();
-			while (iterator.hasNext()) {
-				curID = iterator.next();
-				filter = filter + '|' + curID.toString();
-			}
-		}
-		return filter;
-	}
-
-	private ArrayList<SentenceWord> gather(ArrayList<ArrayList<SentenceWord>> arraylist) {
-		ArrayList<SentenceWord> result = new ArrayList<SentenceWord>();
-		Iterator<ArrayList<SentenceWord>> iterator;
-		iterator = arraylist.iterator();
-		while (iterator.hasNext())
-			result.addAll(iterator.next());
-		return result;
-	}
-
-	private ArrayList<SentenceWord> getConjunctions(String conjunction) {
-		ArrayList<SentenceWord> conjunctions = new ArrayList<SentenceWord>();
-		for (SentenceWord sentenceWord : sentenceWordList)
-			if (sentenceWord.word.equals(conjunction))
-				conjunctions.add(sentenceWord);
-		return conjunctions;
-	}
-
 	private SentenceWord getSentenceWord(SentenceWordform sentenceWordform) {
 		SentenceWord result = getSentenceWord(sentenceWordList, sentenceWordform.wordPos);
 		result.sentenceWordform = sentenceWordform;
@@ -1520,7 +1581,7 @@ public class Sentence {
 		return result;
 	}
 
-	private ArrayList<ArrayList<Integer>> divideSentence(int sentence_id) {
+	private ArrayList<ArrayList<Integer>> divideSentence() {
 		ArrayList<ArrayList<Integer>> division = new ArrayList<ArrayList<Integer>>();
 		ArrayList<Integer> curSubsentence = new ArrayList<Integer>();
 		int subsentence_id;
@@ -1540,7 +1601,33 @@ public class Sentence {
 				subsentence_id++;
 			} else
 				sentenceWord.subsentenceID = subsentence_id;
-		databank.setSentenceType(sentence_id, 1);
+		databank.setSentenceType(id, 1);
 		return division;
+	}
+
+	private String convertArrayToFilter(ArrayList<Integer> array) {
+		Iterator<Integer> iterator;
+		Integer curID;
+		String filter;
+		filter = "-1";
+		iterator = array.iterator();
+		if (iterator.hasNext()) {
+			curID = iterator.next();
+			filter = curID.toString();
+			while (iterator.hasNext()) {
+				curID = iterator.next();
+				filter = filter + '|' + curID.toString();
+			}
+		}
+		return filter;
+	}
+
+	private ArrayList<SentenceWord> gather(ArrayList<ArrayList<SentenceWord>> arraylist) {
+		ArrayList<SentenceWord> result = new ArrayList<SentenceWord>();
+		Iterator<ArrayList<SentenceWord>> iterator;
+		iterator = arraylist.iterator();
+		while (iterator.hasNext())
+			result.addAll(iterator.next());
+		return result;
 	}
 }

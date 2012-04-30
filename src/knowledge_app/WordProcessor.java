@@ -9,12 +9,14 @@ import databank.ComplexWordTemplate;
 import databank.DataBank;
 import databank.EndingRule;
 import databank.Postfix;
+import databank.Vocabulary;
 import databank.Word;
 import databank.WordForm;
 
 public class WordProcessor {
 	private HashSet<WordForm> wordforms;
 	private DataBank databank;
+	private Vocabulary vocabulary;
 	private boolean isPunctuation;
 	private boolean isName;
 	private String word;
@@ -31,9 +33,10 @@ public class WordProcessor {
 	public static int preposition = 100; // предлог
 	public static int punctuation = 200; // знак препинания
 
-	public WordProcessor(String word, boolean isPunctuation, boolean isName, DataBank databank)
+	public WordProcessor(String word, boolean isPunctuation, boolean isName, DataBank databank, Vocabulary vocabulary)
 			throws Exception {
 		this.databank = databank;
+		this.vocabulary = vocabulary;
 		this.isPunctuation = isPunctuation;
 		this.isName = isName;
 		this.word = word.toLowerCase().intern();
@@ -44,12 +47,12 @@ public class WordProcessor {
 	private void parseBaseForm(String word) throws SQLException {
 		Set<Postfix> postfixes;
 		Postfix postfix;
-		Word emptyword;
+		Word emptyWord;
 		String lcWord = word.toLowerCase().intern();
 		String tempWord;
-		wordforms = databank.getWordformsByWordformstring(lcWord);
+		wordforms = vocabulary.getWordformsByWordformstring(lcWord);
 		if (wordforms == null) {
-			wordforms = databank.getFixedWordForms(lcWord, databank.getPostfix(0));
+			wordforms = databank.getFixedWordForms(vocabulary, lcWord, databank.getPostfix(0));
 			if (!wordforms.isEmpty())
 				if (databank.isOnlyFixedForm(lcWord))
 					return;
@@ -59,18 +62,18 @@ public class WordProcessor {
 				postfix = iterator.next();
 				if (lcWord.endsWith(postfix.getPostfix())) {
 					tempWord = lcWord.substring(0, lcWord.length() - postfix.getPostfix().length());
-					wordforms.addAll(databank.getFixedWordForms(tempWord, postfix));
+					wordforms.addAll(databank.getFixedWordForms(vocabulary,tempWord, postfix));
 					if (databank.isOnlyFixedForm(tempWord))
 						return;
 					wordforms.addAll(parseEnding(tempWord, postfix, 0, null));
 				}
 			}
 			wordforms.addAll(parseEnding(lcWord, databank.getPostfix(0), 0, null));
-			databank.putWorformsByWordformstring(lcWord, wordforms);
+			vocabulary.putWordformsByWordformstring(lcWord, wordforms);
 		}
 		if (wordforms.isEmpty()) {
-			emptyword = databank.getWord(lcWord, 0, 0, 0, false, 0, 0, true);
-			wordforms.add(emptyword.createWordform(lcWord, null, 0));
+			emptyWord = vocabulary.getWord(lcWord, 0, 0, 0, false, 0, 0, true);
+			wordforms.add(vocabulary.createWordform(emptyWord,lcWord, null, 0));
 		}
 	}
 
@@ -114,13 +117,13 @@ public class WordProcessor {
 						word1WordformsIterator = word1Wordforms.iterator();
 						while (word1WordformsIterator.hasNext()) {
 							word1Wordform = word1WordformsIterator.next();
-							word1 = databank.getWord(word1Wordform.wordID);
-							word2 = databank.getWord(word2Wordform.wordID);
-							word = databank.getWord(
+							word1 = vocabulary.getWord(word1Wordform.wordID);
+							word2 = vocabulary.getWord(word2Wordform.wordID);
+							word = vocabulary.getWord(
 									word1.getWord() + curComplexWordTemplate.getDelimiter()
 											+ word2.getWord(), word2Wordform.getEndingRule(), true, word1.getId(),
 									word2.getId(), true);
-							wordforms.add(word.createWordform(lcWord + postfix.getPostfix(),
+							wordforms.add(vocabulary.createWordform(word,lcWord + postfix.getPostfix(),
 									word2Wordform.getEndingRule(), postfix.getId()));
 						}
 					}
@@ -172,8 +175,8 @@ public class WordProcessor {
 				while (basesIterator.hasNext()) {
 					modbase = basesIterator.next();
 					if (databank.checkBase(modbase, endingrule)) {
-						word = databank.getWord(modbase, endingrule, false, 0, 0, true);
-						wordforms.add(word.createWordform(base + ending + postfix.getPostfix(),
+						word = vocabulary.getWord(modbase, endingrule, false, 0, 0, true);
+						wordforms.add(vocabulary.createWordform(word,base + ending + postfix.getPostfix(),
 								endingrule, postfix.getId()));
 					}
 				}

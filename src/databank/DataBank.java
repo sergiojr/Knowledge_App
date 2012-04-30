@@ -29,19 +29,14 @@ public class DataBank {
 	private HashSet<Prefix> prefixes;
 	private HashMap<Integer, Prefix> prefixesById;
 	private HashMap<String, Prefix> prefixesByPrefix;
-	private HashSet<Word> words;
-	private HashMap<Integer, Word> wordsById;
-	private HashMap<String, HashSet<Word>> wordsByBase;
 	private HashMap<Integer, Integer> ruleDiversity;
 	private HashMap<Integer, HashSet<Integer>> ruleVarianceByRuleNo;
 	private HashMap<Integer, EndingRule> zeroEndingruleByRuleNo;
 	private HashSet<Transformation> transformations;
 	private HashMap<Integer, HashSet<Transformation>> transformationsById;
 	private HashSet<ComplexWordTemplate> complexWordTemplates;
-	private HashMap<String, HashSet<WordForm>> wordformsByWordformstring;
 	private HashSet<Numeral> numerals;
 	private HashMap<String, Numeral> numeralsByNumeral;
-	private HashSet<WordForm> delayedSaveWordforms;
 
 	String DBName;
 	String DBFileName;
@@ -131,123 +126,129 @@ public class DataBank {
 		return sentenceCount;
 	}
 
-	public void saveWord(Word word) {
-		String query;
+	public HashSet<Word> getWords(String baseForm, int type) {
+		HashSet<Word> wordsList = new HashSet<Word>();
+		Word word;
+
+		if (baseForm == null)
+			return wordsList;
+
+		SelectQuery query;
+		query = new SelectQuery();
+		query.addAllColumns();
+		query.addCustomFromTable(new CustomSql("words"));
+		query.addCustomJoin(new CustomSql(
+				" left join complex_word on words.id=complex_word.word_id"));
+		if (type > 0)
+			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
+					"type"), type));
+		if (baseForm != "")
+			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
+					"word"), baseForm));
+
 		try {
-			word.id = getMaxWordID() + 1;
 			establishConnection();
 			Statement stat = conn.createStatement();
-			query = MessageFormat
-					.format("insert into words "
-							+ "values ({0,number,#},''{1}'',{2,number,#}, {3,number,#},{5,number,#}, {6},{4,number,#})",
-							word.id, word.word, word.type, word.rule_no, word.rule_variance,
-							word.rating, word.complex);
-			stat.executeUpdate(query);
-			if (word.complex) {
-				query = MessageFormat.format(
-						"insert into complex_word values ({0,number,#},{1,number,#},{2,number,#})",
-						word.id, word.word1ID, word.word2ID);
-				stat.executeUpdate(query);
+			ResultSet rs = stat.executeQuery(query.validate().toString());
+			while (rs.next()) {
+				word = new Word(this, rs.getInt("id"), rs.getString("word"), rs.getInt("type"),
+						rs.getInt("rule_no"), rs.getInt("rule_variance"), rs.getBoolean("complex"),
+						rs.getInt("word1"), rs.getInt("word2"), rs.getInt("rating"));
+				wordsList.add(word);
 			}
+			rs.close();
 			stat.close();
-			updateWordCache(word);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
+		return wordsList;
 	}
 
-	public void updateWord(Word word) {
-		String query;
-		if (word.id == 0)
+	public void saveWord(HashSet<Word> words) {
+		if (words == null)
 			return;
 		try {
 			establishConnection();
-			Statement stat = conn.createStatement();
-			query = MessageFormat.format(
-					"update words set rule_variance = {4,number,#} where id={0,number,#}", word.id,
-					word.word, word.type, word.rule_no, word.rule_variance, word.rating,
-					word.complex);
-			stat.executeUpdate(query);
-			stat.close();
+			PreparedStatement readWord = conn.prepareStatement("select 1 from words where id=?");
+			PreparedStatement saveWord = conn.prepareStatement("insert into words "
+					+ "values (?,?,?,?,?,?,?);");
+			PreparedStatement saveComplexWord = conn.prepareStatement("insert into complex_word "
+					+ "values (?,?,?)");
+			PreparedStatement updateWord = conn.prepareStatement("update words "
+					+ "set rule_variance = ?, rating=? where id=?");
+			for (Word word : words) {
+				readWord.setInt(1, word.id);
+				ResultSet rs = readWord.executeQuery();
+				if (rs.next()) {
+					updateWord.setInt(1, word.rule_variance);
+					updateWord.setInt(2, word.rating);
+					updateWord.setInt(3, word.id);
+					updateWord.addBatch();
+				} else {
+					saveWord.setInt(1, word.id);
+					saveWord.setString(2, word.word);
+					saveWord.setInt(3, word.type);
+					saveWord.setInt(4, word.rule_no);
+					saveWord.setInt(5, word.rating);
+					saveWord.setBoolean(6, word.complex);
+					saveWord.setInt(7, word.rule_variance);
+					saveWord.addBatch();
+					if (word.complex) {
+						saveComplexWord.setInt(1, word.id);
+						saveComplexWord.setInt(2, word.word1ID);
+						saveComplexWord.setInt(3, word.word2ID);
+						saveComplexWord.addBatch();
+					}
+				}
+			}
+			readWord.close();
+			conn.setAutoCommit(false);
+			updateWord.executeBatch();
+			saveWord.executeBatch();
+			saveComplexWord.executeBatch();
+			conn.setAutoCommit(true);
+			updateWord.close();
+			saveWord.close();
+			saveComplexWord.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
+			e.getNextException().printStackTrace();
 		}
 	}
 
-	public void saveWordForm(WordForm wordform) {
-		String query;
-		WordWordRelation transformRelation;
-		Word word;
+	public HashSet<WordForm> getWordforms(Word word) {
+		EndingRule endingrule;
+		HashSet<WordForm> wordforms = new HashSet<WordForm>();
+		SelectQuery query = new SelectQuery();
+		query.addAllColumns();
+		query.addCustomFromTable(new CustomSql("wordforms"));
+		query.addCustomJoin(new CustomSql(" join words on words.id=wordforms.word_id"));
+		if (word != null)
+			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
+					"word_id"), word.id));
 
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
-			ResultSet rs = stat.executeQuery("select 1 from wordforms " + "where word_id="
-					+ wordform.wordID + " AND rule_id=" + wordform.getRuleID() + ""
-					+ " AND postfix_id=" + wordform.postfix_id + ";");
-			if (!rs.next()) {
-				word = getWord(wordform.wordID);
-				rs.close();
-				// check word for transformation
-				query = MessageFormat.format(
-						"select word_id,parent_word_id,relation_ref_id,relation_ref_line from word_word_relation "
-								+ "where (word_id={0,number,#} and relation_type=1) "
-								+ "or (parent_word_id={0,number,#} and relation_type=1)",
-						wordform.wordID);
-				rs = stat.executeQuery(query);
-				while (rs.next()) {
-					transformRelation = new WordWordRelation(rs.getInt("word_id"),
-							rs.getInt("parent_word_id"), 1, rs.getInt("relation_ref_id"),
-							rs.getInt("relation_ref_line"));
-					word.copyWordForm(transformRelation, wordform.endingRule, wordform.postfix_id);
-				}
-				rs.close();
-				delayedSave(wordform);
+			ResultSet rs = stat.executeQuery(query.validate().toString());
+			while (rs.next()) {
+				endingrule = getEndingRule(rs.getInt("rule_no") < 0, rs.getInt("rule_id"));
+				wordforms.add(new WordForm(rs.getString("wordform"), rs.getInt("id"), endingrule,
+						rs.getInt("postfix_id")));
 			}
 			rs.close();
-			// Transformation transformation;
-			// check transformations with type=0 if they need to be restored to their own type
-			/*
-			 * query = MessageFormat.format(
-			 * "select parent_word_id,relation_ref_id from word_word_relation " +
-			 * "where word_id={0,number,#} and relation_type=0", wordform.wordID); rs =
-			 * stat.executeQuery(query); while (rs.next()) { if
-			 * (!checkSimilarWordforms(wordform.wordID, rs.getInt("parent_word_id"))) {
-			 * transformation = transformationsById.get(new Integer(rs.getInt("relation_ref_id")));
-			 * updateWordWordRelationType
-			 * (wordform.wordID,rs.getInt("parent_word_id"),transformation.type,transformation.id);
-			 * } } rs.close(); // check other words for prefixes to this query =
-			 * MessageFormat.format("select word_id,relation_ref_id from word_word_relation " +
-			 * "where parent_word_id={0,number,#} and relation_type=0", wordform.wordID); rs =
-			 * stat.executeQuery(query); while (rs.next()) { if
-			 * (!checkSimilarWordforms(wordform.wordID, rs.getInt("word_id"))) { transformation =
-			 * transformationsById.get(new Integer(rs.getInt("relation_ref_id")));
-			 * updateWordWordRelationType
-			 * (rs.getInt("word_id"),wordform.wordID,transformation.type,transformation.id); } }
-			 */
 			stat.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
+		return wordforms;
 	}
 
-	private void delayedSave(WordForm wordform) {
-		if (delayedSaveWordforms == null)
-			delayedSaveWordforms = new HashSet<WordForm>();
-
-		delayedSaveWordforms.add(wordform);
-
-		if (delayedSaveWordforms.size() >= 1000)
-			flushWordforms();
-
-	}
-
-	public void flushWordforms() {
+	public void saveWordforms(HashSet<WordForm> delayedSaveWordforms) {
 		if (delayedSaveWordforms == null)
 			return;
 		Iterator<WordForm> iterator = delayedSaveWordforms.iterator();
 		WordForm wordform;
-		HashSet<Word> updatedWordSet = new HashSet<Word>();
 		try {
 			establishConnection();
 			PreparedStatement readWordform = conn.prepareStatement("select 1 from wordforms "
@@ -261,7 +262,6 @@ public class DataBank {
 				readWordform.setInt(3, wordform.postfix_id);
 				ResultSet rs = readWordform.executeQuery();
 				if (!rs.next()) {
-					updatedWordSet.add(getWord(wordform.wordID));
 					saveWordform.setInt(1, wordform.wordID);
 					saveWordform.setString(2, wordform.wordForm);
 					saveWordform.setInt(3, wordform.getRuleID());
@@ -274,86 +274,76 @@ public class DataBank {
 			saveWordform.executeBatch();
 			conn.setAutoCommit(true);
 			saveWordform.close();
-			UpdateWordRating(updatedWordSet);
 		} catch (SQLException e) {
 			e.printStackTrace();
 			e.getNextException().printStackTrace();
 		}
-		delayedSaveWordforms.clear();
 	}
 
-	public void saveWordWordRelation(WordWordRelation prefixRelation) {
-		String query = MessageFormat.format("insert into word_word_relation "
-				+ "values ({0,number,#},{1,number,#},{2,number,#},{3,number,#},{4,number,#}) ",
-				prefixRelation.wordID, prefixRelation.parentWordID, prefixRelation.relationType,
-				prefixRelation.relationRefID, prefixRelation.relationRefLine);
+	public HashSet<WordWordRelation> getWordWordRelation(int wordID, int relationType) {
+		HashSet<WordWordRelation> result = new HashSet<WordWordRelation>();
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
-			stat.executeUpdate(query);
-			stat.close();
-			HashSet<Word> wordSet = new HashSet<Word>();
-			wordSet.add(getWord(prefixRelation.wordID));
-			wordSet.add(getWord(prefixRelation.parentWordID));
-			UpdateWordRating(wordSet);
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-	}
-
-	private void updateWordWordRelationType(int wordID, int parentWordID, int type, int refID) {
-		String query = MessageFormat.format(
-				"update word_word_relation set relation_type = {2,number,#} "
-						+ "where word_id = {0,number,#} and parent_word_id = {1,number,#} and "
-						+ "relation_ref_id = {3,number,#}", wordID, parentWordID, type, refID);
-		try {
-			establishConnection();
-			Statement stat = conn.createStatement();
-			stat.executeUpdate(query);
-			stat.close();
-			HashSet<Word> wordSet = new HashSet<Word>();
-			wordSet.add(getWord(wordID));
-			wordSet.add(getWord(parentWordID));
-			UpdateWordRating(wordSet);
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-	}
-
-	public int getWordID(String baseForm, int type, int rule, int rule_variance, boolean complex,
-			int word1, int word2) {
-		HashSet<Word> wordSet = wordsByBase.get(baseForm);
-		if (wordSet != null) {
-			Iterator<Word> iterator = wordSet.iterator();
-			Word word;
-			while (iterator.hasNext()) {
-				word = iterator.next();
-				if ((word.type == type) & (word.rule_no == rule)
-						& ((word.rule_variance == rule_variance) | (word.rule_variance == 0))
-						& (word.complex == complex) & (word.word1ID == word1)
-						& (word.word2ID == word2))
-					return word.id;
+			SelectQuery query = new SelectQuery();
+			query.addAllColumns();
+			query.addCustomFromTable(new CustomSql("word_word_relation"));
+			if (relationType >= 0)
+				query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
+						"relation_type"), relationType));
+			if (wordID > 0) {
+				ComboCondition cc = new ComboCondition(ComboCondition.Op.OR);
+				cc.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
+						"word_id"), wordID));
+				cc.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
+						"parent_word_id"), wordID));
+				query.addCondition(cc);
 			}
-		}
-		String query = MessageFormat.format(
-				"select id from words left join complex_word on words.id = complex_word.word_id "
-						+ "where word=''{0}'' AND type={1,number,#} AND rule_no={2,number,#} and "
-						+ "(rule_variance = {3,number,#} or rule_variance=0) and "
-						+ "complex = {4} and word1 = {5,number,#} and word2 = {6,number,#};",
-				baseForm, type, rule, rule_variance, complex, word1, word2);
-		int wordID = 0;
-		try {
-			establishConnection();
-			Statement stat = conn.createStatement();
-			ResultSet rs = stat.executeQuery(query);
-			if (rs.next())
-				wordID = rs.getInt("id");
+			ResultSet rs = stat.executeQuery(query.validate().toString());
+			while (rs.next())
+				result.add(new WordWordRelation(rs.getInt("word_id"), rs.getInt("parent_word_id"),
+						rs.getInt("relation_type"), rs.getInt("relation_ref_id"), rs
+								.getInt("relation_ref_line")));
 			rs.close();
-			stat.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		return wordID;
+		return result;
+	}
+
+	public void saveWordWordRelation(HashSet<WordWordRelation> wordRelations) {
+		if (wordRelations == null)
+			return;
+		try {
+			establishConnection();
+			PreparedStatement readWordWordRelation = conn
+					.prepareStatement("select 1 from word_word_relation "
+							+ "where word_id=? and parent_word_id=? and relation_type=?");
+			PreparedStatement saveWordWordRelation = conn
+					.prepareStatement("insert into word_word_relation " + "values (?,?,?,?,?);");
+			for (WordWordRelation wordRelation : wordRelations) {
+				readWordWordRelation.setInt(1, wordRelation.wordID);
+				readWordWordRelation.setInt(2, wordRelation.parentWordID);
+				readWordWordRelation.setInt(3, wordRelation.relationType);
+				ResultSet rs = readWordWordRelation.executeQuery();
+				if (!rs.next()) {
+					saveWordWordRelation.setInt(1, wordRelation.wordID);
+					saveWordWordRelation.setInt(2, wordRelation.parentWordID);
+					saveWordWordRelation.setInt(3, wordRelation.relationType);
+					saveWordWordRelation.setInt(4, wordRelation.relationRefID);
+					saveWordWordRelation.setInt(5, wordRelation.relationRefLine);
+					saveWordWordRelation.addBatch();
+				}
+			}
+			readWordWordRelation.close();
+			conn.setAutoCommit(false);
+			saveWordWordRelation.executeBatch();
+			conn.setAutoCommit(true);
+			saveWordWordRelation.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+			e.getNextException().printStackTrace();
+		}
 	}
 
 	public boolean isOnlyFixedForm(String lcWord) {
@@ -373,8 +363,8 @@ public class DataBank {
 		return result;
 	}
 
-	public HashSet<WordForm> getFixedWordForms(String wordform, Postfix postfix)
-			throws SQLException {
+	public HashSet<WordForm> getFixedWordForms(Vocabulary vocabulary, String wordform,
+			Postfix postfix) throws SQLException {
 		Word word;
 		HashSet<WordForm> wordforms = new HashSet<WordForm>();
 		ResultSet rs;
@@ -399,10 +389,11 @@ public class DataBank {
 		rs = stat.executeQuery(query.validate().toString());
 
 		while (rs.next()) {
-			word = getWord(rs.getString("base_form"), rs.getInt("type"), -rs.getInt("type"), 0,
-					false, 0, 0, true);
+			word = vocabulary.getWord(rs.getString("base_form"), rs.getInt("type"),
+					-rs.getInt("type"), 0, false, 0, 0, true);
 			EndingRule endingRule = getEndingRule(true, rs.getInt("rule_id"));
-			wordforms.add(word.createWordform(wordform + postfix.postfix, endingRule, postfix.id));
+			wordforms.add(vocabulary.createWordform(word, wordform + postfix.postfix, endingRule,
+					postfix.id));
 		}
 
 		rs.close();
@@ -644,12 +635,6 @@ public class DataBank {
 		return dataSource;
 	}
 
-	private Prefix getPrefix(int id) {
-		if (prefixesById == null)
-			getPrefixes();
-		return prefixesById.get(new Integer(id));
-	}
-
 	public Prefix getPrefix(String prefix) {
 		if (prefixesByPrefix == null)
 			getPrefixes();
@@ -675,7 +660,7 @@ public class DataBank {
 		return setup;
 	}
 
-	private void UpdateWordRating(HashSet<Word> wordSet) throws SQLException {
+	private void UpdateWordRating(Vocabulary vocabulary, HashSet<Word> wordSet) {
 		if (wordSet.isEmpty())
 			return;
 		int wordDiversity = 0;
@@ -683,87 +668,63 @@ public class DataBank {
 		int newrating = 0;
 		boolean isChanged = false;
 		HashSet<Word> updateWordSet = new HashSet<Word>();
-		ResultSet rs;
 		Iterator<Word> iterator = wordSet.iterator();
 		Word word;
-		establishConnection();
-		PreparedStatement relationQuery;
-		PreparedStatement wordformQuery;
-		PreparedStatement complexWordQuery;
-		relationQuery = conn
-				.prepareStatement("select count (distinct relation_ref_id ) from word_word_relation "
-						+ "where (word_id=? and relation_type=2) "
-						+ "or (parent_word_id=? and relation_type=2)");
-		wordformQuery = conn.prepareStatement("select count(DISTINCT ending) from wordforms "
-				+ "join ending_rules on wordforms.rule_id=ending_rules.rule_id "
-				+ "where word_id=?");
-		complexWordQuery = conn
-				.prepareStatement("select word_id from complex_word where word1=? or word2=?");
-		PreparedStatement prep = conn.prepareStatement("UPDATE words SET rating=? WHERE id=?");
-		while (iterator.hasNext()) {
-			newrating = 0;
-			isChanged = false;
-			word = iterator.next();
-			if (word.complex) {
-				Word word1;
-				Word word2;
-				word1 = getWord(word.word1ID);
-				word2 = getWord(word.word2ID);
-				newrating = Math.round((float) Math.sqrt(word1.rating * word2.rating));
-				if (newrating != word.rating)
-					isChanged = true;
-				word.rating = newrating;
-			}
-			if (!word.complex) {
-				relationQuery.setInt(1, word.id);
-				relationQuery.setInt(2, word.id);
-				rs = relationQuery.executeQuery();
-				if (rs.next())
-					wordDiversity = rs.getInt(1);
-				rs.close();
-				wordformQuery.setInt(1, word.id);
-				rs = wordformQuery.executeQuery();
-				if (rs.next()) {
-					wordDiversity = wordDiversity + rs.getInt(1);
-					ruleDiversity = getRuleDiversity(word.rule_no);
-					if (wordDiversity > ruleDiversity)
-						wordDiversity = ruleDiversity;
-					if (word.rule_no > 0)
-						newrating = Math.round(100.0f * wordDiversity / ruleDiversity);
-					if (word.rule_no < -10)
-						newrating = 100;
+		try {
+			establishConnection();
+			PreparedStatement prep = conn.prepareStatement("UPDATE words SET rating=? WHERE id=?");
+			while (iterator.hasNext()) {
+				newrating = 0;
+				isChanged = false;
+				word = iterator.next();
+				if (word.complex) {
+					Word word1;
+					Word word2;
+					word1 = vocabulary.getWord(word.word1ID);
+					word2 = vocabulary.getWord(word.word2ID);
+					newrating = Math.round((float) Math.sqrt(word1.rating * word2.rating));
 					if (newrating != word.rating)
 						isChanged = true;
-
 					word.rating = newrating;
 				}
-				rs.close();
-			}
-			if (isChanged) {
-				if (word.rating != 0) {
-					prep.setInt(1, word.rating);
-					prep.setInt(2, word.id);
-					prep.addBatch();
+				if (!word.complex) {
+					wordDiversity = word.getWordRelationDiversity() + word.getEndingDiversity();
+					if (wordDiversity > 0) {
+						ruleDiversity = getRuleDiversity(word.rule_no);
+						if (wordDiversity > ruleDiversity)
+							wordDiversity = ruleDiversity;
+						if (word.rule_no > 0)
+							newrating = Math.round(100.0f * wordDiversity / ruleDiversity);
+						if (word.rule_no < -10)
+							newrating = 100;
+						if (newrating != word.rating)
+							isChanged = true;
+
+						word.rating = newrating;
+					}
 				}
-				complexWordQuery.setInt(1, word.id);
-				complexWordQuery.setInt(2, word.id);
-				rs = complexWordQuery.executeQuery();
-				while (rs.next())
-					updateWordSet.add(getWord(rs.getInt(1)));
+				if (isChanged) {
+					if (word.rating != 0) {
+						prep.setInt(1, word.rating);
+						prep.setInt(2, word.id);
+						prep.addBatch();
+					}
+					updateWordSet.addAll(word.getDependentComplexWords());
+				}
 			}
+			conn.setAutoCommit(false);
+			prep.executeBatch();
+			conn.setAutoCommit(true);
+			prep.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
 		}
-		relationQuery.close();
-		wordformQuery.close();
-		complexWordQuery.close();
-		conn.setAutoCommit(false);
-		prep.executeBatch();
-		conn.setAutoCommit(true);
-		prep.close();
+
 		if (!updateWordSet.isEmpty())
-			UpdateWordRating(updateWordSet);
+			UpdateWordRating(vocabulary, updateWordSet);
 	}
 
-	private int getRuleDiversity(int rule_no) {
+	public int getRuleDiversity(int rule_no) {
 		Integer ruleCount;
 		String query;
 		if (rule_no <= 0)
@@ -817,63 +778,20 @@ public class DataBank {
 		return ruleVariance;
 	}
 
-	private int getMaxWordID() throws SQLException {
+	public int getMaxWordID() {
 		int result = 0;
-		establishConnection();
-		Statement stat = conn.createStatement();
-		ResultSet rs = stat.executeQuery("select id from words order by id desc limit 1");
-		if (rs.next())
-			result = rs.getInt(1);
-		rs.close();
-		stat.close();
-		return result;
-	}
-
-	public void FillBestMatch(int sentence_id) throws SQLException {
-		String query;
-		SelectQuery queryBestWordform;
-		establishConnection();
-		Statement stat = conn.createStatement();
-		Statement stat2 = conn.createStatement();
-		query = MessageFormat.format("select word_pos, word, word_type_filter, wcase_filter, "
-				+ "gender_filter, sing_pl_filter "
-				+ "from sentence_word where punctuation=false and sentence_id={0,number,#} "
-				+ "order by word_pos", sentence_id);
-		ResultSet rs = stat.executeQuery(query);
-		PreparedStatement prep = conn.prepareStatement("UPDATE sentence_word "
-				+ "SET word_id=?, rule_id=?, postfix_id=? " + "WHERE sentence_id=? and word_pos=?");
-		while (rs.next()) {
-			queryBestWordform = new SelectQuery();
-			queryBestWordform.addAllColumns();
-			queryBestWordform.addCustomFromTable(new CustomSql("sentence_wordform_detailed"));
-			queryBestWordform.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO,
-					new CustomSql("sentence_id"), sentence_id));
-			queryBestWordform.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO,
-					new CustomSql("word_pos"), rs.getInt("word_pos")));
-			applyFilter(queryBestWordform, "type", rs.getString("word_type_filter"));
-			applyFilter(queryBestWordform, "wcase", rs.getString("wcase_filter"));
-			applyFilter(queryBestWordform, "gender", rs.getString("gender_filter"));
-			applyFilter(queryBestWordform, "sing_pl", rs.getString("sing_pl_filter"));
-			queryBestWordform
-					.addCustomOrdering(new CustomSql("rating"), OrderObject.Dir.DESCENDING);
-			ResultSet rs2 = stat2.executeQuery(queryBestWordform.validate().toString());
-			if (rs2.next()) {
-				prep.setInt(1, rs2.getInt("word_id"));
-				prep.setInt(2, rs2.getInt("rule_id"));
-				prep.setInt(3, rs2.getInt("postfix_id"));
-				prep.setInt(4, sentence_id);
-				prep.setInt(5, rs.getInt("word_pos"));
-				prep.addBatch();
-			}
-			rs2.close();
+		try {
+			establishConnection();
+			Statement stat = conn.createStatement();
+			ResultSet rs = stat.executeQuery("select id from words order by id desc limit 1");
+			if (rs.next())
+				result = rs.getInt(1);
+			rs.close();
+			stat.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
 		}
-		stat2.close();
-		rs.close();
-		stat.close();
-		conn.setAutoCommit(false);
-		prep.executeBatch();
-		conn.setAutoCommit(true);
-		prep.close();
+		return result;
 	}
 
 	public String getCapitalLetters() {
@@ -1087,45 +1005,16 @@ public class DataBank {
 		return (value == Integer.valueOf(part));
 	}
 
-	public ArrayList<SentenceWordform> getNegatives(int sentence_id) {
-		String negative = getSetup().getNegative();
-		String query = MessageFormat.format("select * from sentence_wordform_detailed "
-				+ "where sentence_id={0,number,#} and word=''{1}'' and type=97", sentence_id,
-				negative);
-		ArrayList<SentenceWordform> negatives = new ArrayList<SentenceWordform>();
-		try {
-			establishConnection();
-			Statement stat = conn.createStatement();
-			ResultSet rs = stat.executeQuery(query);
-			while (rs.next())
-				negatives.add(new SentenceWordform(sentence_id, rs.getInt("subsentence_id"), rs
-						.getInt("word_pos"), rs.getInt("type"), rs.getInt("subtype"), rs
-						.getInt("wcase"), rs.getInt("gender"), rs.getInt("person"), rs
-						.getInt("sing_pl"), rs.getInt("word_id"), rs.getInt("rule_id"), rs
-						.getInt("dep_word_pos"), rs.getInt("preposition_id"), rs
-						.getString("word_type_filter"), rs.getString("wcase_filter"), rs
-						.getString("gender_filter"), rs.getString("sing_pl_filter"), rs
-						.getInt("rating"), rs.getInt("maxrating")));
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return negatives;
-	}
-
 	public void saveSentenceParts(ArrayList<SentenceWord> sentenceParts) {
-		Iterator<SentenceWord> iterator;
-		iterator = sentenceParts.iterator();
-		SentenceWord sentencePart;
 		try {
 			establishConnection();
 			PreparedStatement prep = conn.prepareStatement("UPDATE sentence_word "
 					+ "SET type=?,word_id=?,rule_id=?,dep_word_pos=?,preposition_id=?,"
-					+ "word_type_filter=?, wcase_filter=?, gender_filter=?, sing_pl_filter=? "
-					+ "WHERE sentence_id=? and word_pos=?");
-			while (iterator.hasNext()) {
+					+ "word_type_filter=?, wcase_filter=?, gender_filter=?, sing_pl_filter=?, "
+					+ "subsentence_id=?, internal=? " + "WHERE sentence_id=? and word_pos=?");
+			for (SentenceWord sentencePart : sentenceParts) {
 				int word_id;
 				int rule_id;
-				sentencePart = iterator.next();
 				if (sentencePart.sentenceWordform == null) {
 					word_id = 0;
 					rule_id = 0;
@@ -1142,8 +1031,10 @@ public class DataBank {
 				prep.setString(7, sentencePart.wcase_filter);
 				prep.setString(8, sentencePart.gender_filter);
 				prep.setString(9, sentencePart.sing_pl_filter);
-				prep.setInt(10, sentencePart.sentenceID);
-				prep.setInt(11, sentencePart.wordPos);
+				prep.setInt(10, sentencePart.subsentenceID);
+				prep.setBoolean(11, sentencePart.internal);
+				prep.setInt(12, sentencePart.sentenceID);
+				prep.setInt(13, sentencePart.wordPos);
 				prep.addBatch();
 			}
 			conn.setAutoCommit(false);
@@ -1153,10 +1044,68 @@ public class DataBank {
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-
 	}
 
-	public ArrayList<Sentence> getSentences() {
+	public void saveSentenceWordLinkList(ArrayList<SentenceWordLink> wordLinkList) {
+		try {
+			establishConnection();
+			PreparedStatement prep = conn.prepareStatement("insert into sentence_word_link values "
+					+ "(?,?,?,?,?,?,?,?,?)");
+			for (SentenceWordLink wordLink : wordLinkList) {
+				prep.setInt(1, wordLink.sentenceID);
+				prep.setInt(2, wordLink.wordPos);
+				prep.setInt(3, wordLink.linkWordPos);
+				prep.setInt(4, wordLink.type);
+				prep.setInt(5, wordLink.wcase);
+				prep.setInt(6, wordLink.gender);
+				prep.setInt(7, wordLink.person);
+				prep.setInt(8, wordLink.sing_pl);
+				prep.setInt(9, wordLink.subtype);
+				prep.addBatch();
+			}
+			conn.setAutoCommit(false);
+			prep.executeBatch();
+			conn.setAutoCommit(true);
+			prep.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void saveSentenceWordRelationList(ArrayList<SentenceWordRelation> wordRelationList) {
+		try {
+			establishConnection();
+			PreparedStatement prep = conn
+					.prepareStatement("insert into sentence_word_relation values "
+							+ "(?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+			for (SentenceWordRelation wordRelation : wordRelationList)
+				if (wordRelation.status == 2) {
+					prep.setInt(1, wordRelation.id);
+					prep.setInt(2, wordRelation.depID);
+					prep.setInt(3, wordRelation.sentenceID);
+					prep.setInt(4, wordRelation.word1Pos);
+					prep.setInt(5, wordRelation.word1Type);
+					prep.setInt(6, wordRelation.word1Case);
+					prep.setInt(7, wordRelation.word1Gender);
+					prep.setInt(8, wordRelation.word1Sing_Pl);
+					prep.setInt(9, wordRelation.word2Pos);
+					prep.setInt(10, wordRelation.word2Type);
+					prep.setInt(11, wordRelation.word2Case);
+					prep.setInt(12, wordRelation.word2Gender);
+					prep.setInt(13, wordRelation.word2Sing_Pl);
+					prep.setInt(14, wordRelation.relationType);
+					prep.addBatch();
+				}
+			conn.setAutoCommit(false);
+			prep.executeBatch();
+			conn.setAutoCommit(true);
+			prep.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public ArrayList<Sentence> getSentences(Vocabulary vocabulary) {
 		int sentence_id;
 		ArrayList<Sentence> sentences = new ArrayList<Sentence>();
 		try {
@@ -1165,7 +1114,7 @@ public class DataBank {
 			ResultSet rs = stat.executeQuery("select * from sentences order by id");
 			while (rs.next()) {
 				sentence_id = rs.getInt("id");
-				sentences.add(new Sentence(this, sentence_id, rs.getString("sentence"),
+				sentences.add(new Sentence(this, vocabulary, sentence_id, rs.getString("sentence"),
 						getSentenceWordList(sentence_id)));
 			}
 			rs.close();
@@ -1201,27 +1150,6 @@ public class DataBank {
 		return sentenceWords;
 	}
 
-	public void updateSentenceWordList(ArrayList<SentenceWord> sentenceWordList) {
-		try {
-			establishConnection();
-			PreparedStatement prep = conn.prepareStatement("update sentence_word "
-					+ "set subsentence_id=?, internal=? where sentence_id=? and word_pos=?");
-			for (SentenceWord sentenceWord : sentenceWordList) {
-				prep.setInt(1, sentenceWord.subsentenceID);
-				prep.setBoolean(2, sentenceWord.internal);
-				prep.setInt(3, sentenceWord.sentenceID);
-				prep.setInt(4, sentenceWord.wordPos);
-				prep.addBatch();
-			}
-			conn.setAutoCommit(false);
-			prep.executeBatch();
-			conn.setAutoCommit(true);
-			prep.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-	}
-
 	public void setSentenceType(int id, int type) {
 		try {
 			establishConnection();
@@ -1233,310 +1161,6 @@ public class DataBank {
 			e.printStackTrace();
 		}
 
-	}
-
-	public Word getWord(int id) {
-		if (wordsById == null)
-			wordsById = new HashMap<Integer, Word>();
-
-		Word word = wordsById.get(new Integer(id));
-		if (word == null) {
-			String query = MessageFormat.format(
-					"select * from words left join complex_word on words.id = complex_word.word_id "
-							+ "where id={0,number,#}", id);
-			try {
-				establishConnection();
-				Statement stat = conn.createStatement();
-				ResultSet rs = stat.executeQuery(query);
-				if (rs.next()) {
-					word = new Word(this, id, rs.getString("word"), rs.getInt("type"),
-							rs.getInt("rule_no"), rs.getInt("rule_variance"),
-							rs.getBoolean("complex"), rs.getInt("word1"), rs.getInt("word2"),
-							rs.getInt("rating"));
-					updateWordCache(word);
-				}
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
-		}
-		return word;
-	}
-
-	public Word getWord(String baseForm, EndingRule endingRule, boolean complex, int word1ID,
-			int word2ID, boolean save) {
-		return getWord(baseForm, endingRule.type, endingRule.rule_no, endingRule.rule_variance,
-				complex, word1ID, word2ID, save);
-	}
-
-	public Word getWord(String baseForm, int type, int rule_no, int rule_variance, boolean complex,
-			int word1ID, int word2ID, boolean save) {
-		// rule_variance <0 - exclude rule_variance
-		if ((rule_variance < 0) & (save))
-			return null;
-
-		String query;
-
-		if (wordsByBase == null)
-			wordsByBase = new HashMap<String, HashSet<Word>>();
-		HashSet<Word> wordSet = wordsByBase.get(baseForm);
-		wordSet = filterWordSet(type, rule_no, complex, word1ID, word2ID, wordSet);
-		for (Word tempWord : wordSet) {
-			if (rule_variance >= 0)
-				if ((tempWord.rule_variance == rule_variance) | (tempWord.rule_variance == 0)
-						| (rule_variance == 0)) {
-					if ((rule_variance > 0) & (tempWord.rule_variance == 0) & save) {
-						tempWord.rule_variance = rule_variance;
-						updateWord(tempWord);
-					}
-					return tempWord;
-				}
-			if (rule_variance < 0)
-				if (-rule_variance != tempWord.rule_variance)
-					return tempWord;
-		}
-
-		Word word = null;
-
-		if (complex)
-			query = MessageFormat
-					.format("select id,rating,rule_variance from words left join complex_word on words.id = complex_word.word_id "
-							+ "where word=''{0}'' AND type={1,number,#} AND rule_no={2,number,#} AND "
-							+ "complex = {3} and word1 = {4,number,#} AND word2 = {5,number,#};",
-							baseForm, type, rule_no, complex, word1ID, word2ID);
-		else
-			query = MessageFormat.format("select id,rating,rule_variance from words "
-					+ "where word=''{0}'' AND type={1,number,#} AND rule_no={2,number,#} AND "
-					+ "complex={3}", baseForm, type, rule_no, complex);
-		try {
-			Word tempWord;
-			establishConnection();
-			Statement stat = conn.createStatement();
-			ResultSet rs = stat.executeQuery(query);
-			while ((word == null) & rs.next()) {
-				tempWord = new Word(this, rs.getInt("id"), baseForm, type, rule_no,
-						rs.getInt("rule_variance"), complex, word1ID, word2ID, rs.getInt("rating"));
-				if (rule_variance >= 0)
-					if ((tempWord.rule_variance == rule_variance) | (tempWord.rule_variance == 0)
-							| (rule_variance == 0)) {
-						if ((rule_variance > 0) & (tempWord.rule_variance == 0) & save) {
-							tempWord.rule_variance = rule_variance;
-							updateWord(tempWord);
-						}
-						word = tempWord;
-						updateWordCache(word);
-					}
-				if (rule_variance < 0)
-					if (-rule_variance != tempWord.rule_variance) {
-						word = tempWord;
-						updateWordCache(word);
-					}
-			}
-			if ((word == null) & save) {
-				word = new Word(this, 0, baseForm, type, rule_no, rule_variance, complex, word1ID,
-						word2ID, 0);
-				word.save();
-			}
-			rs.close();
-			stat.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return word;
-	}
-
-	private HashSet<Word> filterWordSet(int type, int rule_no, boolean complex, int word1ID,
-			int word2ID, HashSet<Word> wordSet) {
-		HashSet<Word> result = new HashSet<Word>();
-		if (wordSet != null)
-			for (Word word : wordSet) {
-				if ((word.type == type) && (word.rule_no == rule_no) && (word.complex == complex)
-						&& (word.word1ID == word1ID) && (word.word2ID == word2ID))
-					result.add(word);
-			}
-		return result;
-	}
-
-	public ArrayList<Word> getWords(String baseForm, int type, int rule_no, int rule_variance) {
-		ArrayList<Word> wordsList = new ArrayList<Word>();
-		Word word;
-
-		if (baseForm == null)
-			return wordsList;
-
-		if (type > 0 && rule_no > 0) {
-			word = getWord(baseForm, type, rule_no, rule_variance, false, 0, 0, false);
-			// если не нашли с текущим rule_variance или нулем, то пытаемся найти с любым другим
-			if ((word == null) && (rule_variance > 0))
-				word = getWord(baseForm, type, rule_no, 0, false, 0, 0, false);
-			if (word != null)
-				wordsList.add(word);
-			return wordsList;
-		}
-
-		SelectQuery query;
-		query = new SelectQuery();
-		query.addAllColumns();
-		query.addCustomFromTable(new CustomSql("words"));
-		if (type > 0)
-			query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-					"type"), type));
-		// if (rule_no > 0) {
-		// query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-		// "rule_no"), rule_no));
-		// if (rule_variance > 0) {
-		// ComboCondition cc = new ComboCondition(ComboCondition.Op.OR);
-		// cc.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-		// "rule_variance"), rule_variance));
-		// cc.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
-		// "rule_variance"), 0));
-		// query.addCondition(cc);
-		// }
-		// }
-		query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql("word"),
-				baseForm));
-
-		try {
-			establishConnection();
-			Statement stat = conn.createStatement();
-			ResultSet rs = stat.executeQuery(query.validate().toString());
-			while (rs.next()) {
-				word = getWord(rs.getInt("id"));
-				wordsList.add(word);
-			}
-			// //если не нашли с текущим rule_variance или нулем, то пытаемся найти с любым другим
-			// if ((rule_variance>0)&(wordsList.isEmpty())){
-			// wordsList.addAll(getWords(baseForm,type,rule_no,0));
-			// }
-			rs.close();
-			stat.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return wordsList;
-	}
-
-	private void updateWordCache(Word word) {
-		if (words == null)
-			words = new HashSet<Word>();
-		if (wordsById == null)
-			wordsById = new HashMap<Integer, Word>();
-		if (wordsByBase == null)
-			wordsByBase = new HashMap<String, HashSet<Word>>();
-
-		HashSet<Word> wordSet;
-		words.add(word);
-		wordsById.put(new Integer(word.id), word);
-		wordSet = wordsByBase.get(word.word);
-		if (wordSet == null) {
-			wordSet = new HashSet<Word>();
-			wordSet.add(word);
-			wordsByBase.put(word.word, wordSet);
-		} else
-			wordSet.add(word);
-	}
-
-	public void putWorformsByWordformstring(String wordform, HashSet<WordForm> wordforms) {
-		if (wordformsByWordformstring == null)
-			wordformsByWordformstring = new HashMap<String, HashSet<WordForm>>();
-
-		wordformsByWordformstring.put(wordform.intern(), wordforms);
-	}
-
-	public HashSet<WordForm> getWordformsByWordformstring(String wordform) {
-		if (wordformsByWordformstring == null)
-			wordformsByWordformstring = new HashMap<String, HashSet<WordForm>>();
-
-		return wordformsByWordformstring.get(wordform.intern());
-	}
-
-	public HashSet<WordForm> getWordforms(int wordID) {
-		EndingRule endingrule;
-		HashSet<WordForm> wordforms = new HashSet<WordForm>();
-		String query = MessageFormat.format("select * from wordforms where word_id={0,number,#}",
-				wordID);
-		try {
-			establishConnection();
-			Statement stat = conn.createStatement();
-			ResultSet rs = stat.executeQuery(query);
-			while (rs.next()) {
-				endingrule = getEndingRule(getWord(wordID).fixed, rs.getInt("rule_id"));
-				wordforms.add(new WordForm(rs.getString("wordform"), wordID, endingrule, rs
-						.getInt("postfix_id")));
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return wordforms;
-	}
-
-	public void saveSentenceWordLinkList(ArrayList<SentenceWordLink> wordLinkList){
-		for (SentenceWordLink wordLink:wordLinkList)
-			saveSentenceWordLink(wordLink);
-	}
-	
-	private void saveSentenceWordLink(SentenceWordLink wordLink) {
-		try {
-			establishConnection();
-			Statement stat = conn.createStatement();
-			String existLinkQuery = MessageFormat
-					.format("select 1 from sentence_word_link "
-							+ "where sentence_id={0,number,#} and word_pos={1,number,#} and "
-							+ "link_word_pos={2,number,#} and type={3,number,#} and wcase={4,number,#} and "
-							+ "gender={5,number,#} and person={6,number,#} and sing_pl={7,number,#} and "
-							+ "subtype={8,number,#}", wordLink.sentenceID,
-							wordLink.wordPos, wordLink.linkWordPos, wordLink.type,
-							wordLink.wcase, wordLink.gender, wordLink.person,
-							wordLink.sing_pl, wordLink.subtype);
-			ResultSet rs = stat.executeQuery(existLinkQuery);
-			if (rs.next()) {
-				rs.close();
-				stat.close();
-				return;
-			}
-			rs.close();
-			String insertLinkQuery = MessageFormat
-					.format("insert into sentence_word_link values "
-							+ "({0,number,#},{1,number,#},{2,number,#},{3,number,#},{4,number,#},{5,number,#},"
-							+ "{6,number,#},{7,number,#},{8,number,#},{9,number,#})",
-							wordLink.sentenceID, wordLink.wordPos, wordLink.linkWordPos,
-							wordLink.type, wordLink.wcase, wordLink.gender,
-							wordLink.person, wordLink.sing_pl, wordLink.subtype,
-							wordLink.conjunctionWordPos);
-			stat.executeUpdate(insertLinkQuery);
-			stat.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-	}
-
-	public boolean checkSimilarWordforms(int wordID, int transformedWordID) {
-		String query;
-		try {
-			establishConnection();
-			Statement stat = conn.createStatement();
-			String queryTemplate = "select wordform from wordforms where word_id = {0,number,#} "
-					+ "except select wordform from wordforms where word_id={1,number,#}";
-			query = MessageFormat.format(queryTemplate, wordID, transformedWordID);
-			ResultSet rs = stat.executeQuery(query);
-			if (!rs.next()) {
-				rs.close();
-				stat.close();
-				return true;
-			}
-			rs.close();
-			query = MessageFormat.format(queryTemplate, transformedWordID, wordID);
-			rs = stat.executeQuery(query);
-			if (!rs.next()) {
-				rs.close();
-				stat.close();
-				return true;
-			}
-			rs.close();
-			stat.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return false;
 	}
 
 	public HashSet<Numeral> getNumerals() {
@@ -1574,15 +1198,15 @@ public class DataBank {
 		return true;
 	}
 
-	public Numeral getNumeralByWordID(int word_id) {
+	public Numeral getNumeralByWordID(Vocabulary vocabulary, int word_id) {
 		if (numerals == null)
 			getNumerals();
-		return numeralsByNumeral.get(getWord(word_id).word);
+		return numeralsByNumeral.get(vocabulary.getWord(word_id).word);
 	}
 
-	public boolean isNumeralBaseForm(int word_id, int rule_id) {
+	public boolean isNumeralBaseForm(Vocabulary vocabulary, int word_id, int rule_id) {
 		String query;
-		Word word = getWord(word_id);
+		Word word = vocabulary.getWord(word_id);
 		if (word.rule_no > 0)
 			query = MessageFormat
 					.format("select 1 from ending_rules join ending_rules as base_ending "

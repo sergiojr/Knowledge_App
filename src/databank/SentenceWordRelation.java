@@ -14,6 +14,7 @@ public class SentenceWordRelation {
 	int word2Case;
 	int word2Gender;
 	int word2Sing_Pl;
+	int status;
 	int relationType;
 	static int attribute = 1;
 	static int adverbAttribute = 2;
@@ -42,6 +43,7 @@ public class SentenceWordRelation {
 		this.word2Gender = word2Gender;
 		this.word2Sing_Pl = word2Sing_Pl;
 		this.relationType = relationType;
+		this.status=1;
 	}
 
 	public SentenceWordRelation(int id, int depID, int sentenceID, int word1Pos, int word1Type, int word1Case,
@@ -61,5 +63,6 @@ public class SentenceWordRelation {
 		this.word2Gender = word2Gender;
 		this.word2Sing_Pl = word2Sing_Pl;
 		this.relationType = relationType;
+		this.status=1;
 	}
 }
