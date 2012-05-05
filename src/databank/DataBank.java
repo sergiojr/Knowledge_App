@@ -27,6 +27,7 @@ import com.healthmarketscience.sqlbuilder.SelectQuery;
 public class DataBank {
 	private Setup setup;
 	private HashSet<Prefix> prefixes;
+	private HashSet<Postfix> postfixes;
 	private HashMap<Integer, Prefix> prefixesById;
 	private HashMap<String, Prefix> prefixesByPrefix;
 	private HashMap<Integer, Integer> ruleDiversity;
@@ -514,35 +515,34 @@ public class DataBank {
 		return zeroEndingrule;
 	}
 
-	public Set<Postfix> getPostfixes() throws SQLException {
-		Set<Postfix> postfixes = new HashSet<Postfix>();
-		ResultSet rs;
-		establishConnection();
-		Statement stat = conn.createStatement();
-		rs = stat.executeQuery("select * from postfixes");
-		while (rs.next())
-			postfixes.add(new Postfix(rs.getInt("id"), rs.getString("postfix"), rs
-					.getInt("reflexive"), rs.getInt("type"), rs.getInt("tense"), rs
-					.getInt("rule_no")));
-		rs.close();
-		stat.close();
+	public Set<Postfix> getPostfixes() {
+		if (postfixes == null) {
+			postfixes = new HashSet<Postfix>();
+			ResultSet rs;
+			try{
+			establishConnection();
+			Statement stat = conn.createStatement();
+			rs = stat.executeQuery("select * from postfixes");
+			while (rs.next())
+				postfixes.add(new Postfix(rs.getInt("id"), rs.getString("postfix"), rs
+						.getInt("reflexive"), rs.getInt("type"), rs.getInt("tense"), rs
+						.getInt("rule_no")));
+			rs.close();
+			stat.close();
+			}catch(SQLException e){
+				e.printStackTrace();
+			}
+		}
 		return postfixes;
 	}
 
-	public Postfix getPostfix(int id) throws SQLException {
-		Postfix postfix;
-		ResultSet rs;
-		establishConnection();
-		Statement stat = conn.createStatement();
-		rs = stat.executeQuery("select * from postfixes where id=" + id + ";");
-		if (rs.next())
-			postfix = new Postfix(rs.getInt("id"), rs.getString("postfix"), rs.getInt("reflexive"),
-					rs.getInt("type"), rs.getInt("tense"), rs.getInt("rule_no"));
-		else
-			postfix = new Postfix(id, "", 0, 0, 0, 0);
-		rs.close();
-		stat.close();
-		return postfix;
+	public Postfix getPostfix(int id) {
+		if (postfixes==null)
+			getPostfixes();
+		for (Postfix postfix : postfixes)
+			if (postfix.id==id)
+				return postfix;
+		return new Postfix(id, "", 0, 0, 0, 0);		
 	}
 
 	public HashSet<Prefix> getPrefixes() {
@@ -575,6 +575,12 @@ public class DataBank {
 			}
 		}
 		return prefixes;
+	}
+
+	public Prefix getPrefix(String prefix) {
+		if (prefixesByPrefix == null)
+			getPrefixes();
+		return prefixesByPrefix.get(prefix.intern());
 	}
 
 	public HashSet<Transformation> getTransformations() {
@@ -613,6 +619,44 @@ public class DataBank {
 		return transformations;
 	}
 
+	public Transformation getTransformation(int relationRefID, int relationRefLine) {
+		Iterator<Transformation> iterator;
+		Transformation transformation;
+		if (transformations == null)
+			getTransformations();
+		iterator = transformationsById.get(relationRefID).iterator();
+		while (iterator.hasNext()) {
+			transformation = iterator.next();
+			if (transformation.line == relationRefLine)
+				return transformation;
+		}
+		return null;
+	}
+
+	public HashSet<ComplexWordTemplate> getComplexWordTemplates() {
+		if (complexWordTemplates == null) {
+			complexWordTemplates = new HashSet<ComplexWordTemplate>();
+	
+			String query = "select * from complex_word_template";
+			try {
+				establishConnection();
+				Statement stat = conn.createStatement();
+				ResultSet rs = stat.executeQuery(query);
+				while (rs.next()) {
+					complexWordTemplates.add(new ComplexWordTemplate(rs.getInt("id"), rs
+							.getInt("word1_type"), rs.getInt("word1_subtype"), rs
+							.getInt("word1_wcase"), rs.getInt("word1_sing_pl"), rs
+							.getInt("word2_type"), rs.getInt("word2_subtype"), rs
+							.getInt("word2_wcase"), rs.getInt("word2_sing_pl"), rs
+							.getString("delimiter")));
+				}
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+		return complexWordTemplates;
+	}
+
 	public DataSource getNextDataSource() {
 		DataSource dataSource = null;
 		try {
@@ -635,12 +679,6 @@ public class DataBank {
 		return dataSource;
 	}
 
-	public Prefix getPrefix(String prefix) {
-		if (prefixesByPrefix == null)
-			getPrefixes();
-		return prefixesByPrefix.get(prefix.intern());
-	}
-
 	public Setup getSetup() {
 		if (setup == null) {
 			ResultSet rs;
@@ -658,70 +696,6 @@ public class DataBank {
 			}
 		}
 		return setup;
-	}
-
-	private void UpdateWordRating(Vocabulary vocabulary, HashSet<Word> wordSet) {
-		if (wordSet.isEmpty())
-			return;
-		int wordDiversity = 0;
-		int ruleDiversity;
-		int newrating = 0;
-		boolean isChanged = false;
-		HashSet<Word> updateWordSet = new HashSet<Word>();
-		Iterator<Word> iterator = wordSet.iterator();
-		Word word;
-		try {
-			establishConnection();
-			PreparedStatement prep = conn.prepareStatement("UPDATE words SET rating=? WHERE id=?");
-			while (iterator.hasNext()) {
-				newrating = 0;
-				isChanged = false;
-				word = iterator.next();
-				if (word.complex) {
-					Word word1;
-					Word word2;
-					word1 = vocabulary.getWord(word.word1ID);
-					word2 = vocabulary.getWord(word.word2ID);
-					newrating = Math.round((float) Math.sqrt(word1.rating * word2.rating));
-					if (newrating != word.rating)
-						isChanged = true;
-					word.rating = newrating;
-				}
-				if (!word.complex) {
-					wordDiversity = word.getWordRelationDiversity() + word.getEndingDiversity();
-					if (wordDiversity > 0) {
-						ruleDiversity = getRuleDiversity(word.rule_no);
-						if (wordDiversity > ruleDiversity)
-							wordDiversity = ruleDiversity;
-						if (word.rule_no > 0)
-							newrating = Math.round(100.0f * wordDiversity / ruleDiversity);
-						if (word.rule_no < -10)
-							newrating = 100;
-						if (newrating != word.rating)
-							isChanged = true;
-
-						word.rating = newrating;
-					}
-				}
-				if (isChanged) {
-					if (word.rating != 0) {
-						prep.setInt(1, word.rating);
-						prep.setInt(2, word.id);
-						prep.addBatch();
-					}
-					updateWordSet.addAll(word.getDependentComplexWords());
-				}
-			}
-			conn.setAutoCommit(false);
-			prep.executeBatch();
-			conn.setAutoCommit(true);
-			prep.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-
-		if (!updateWordSet.isEmpty())
-			UpdateWordRating(vocabulary, updateWordSet);
 	}
 
 	public int getRuleDiversity(int rule_no) {
@@ -1233,44 +1207,6 @@ public class DataBank {
 			e.printStackTrace();
 		}
 		return false;
-	}
-
-	public Transformation getTransformation(int relationRefID, int relationRefLine) {
-		Iterator<Transformation> iterator;
-		Transformation transformation;
-		if (transformations == null)
-			getTransformations();
-		iterator = transformationsById.get(relationRefID).iterator();
-		while (iterator.hasNext()) {
-			transformation = iterator.next();
-			if (transformation.line == relationRefLine)
-				return transformation;
-		}
-		return null;
-	}
-
-	public HashSet<ComplexWordTemplate> getComplexWordTemplates() {
-		if (complexWordTemplates == null) {
-			complexWordTemplates = new HashSet<ComplexWordTemplate>();
-
-			String query = "select * from complex_word_template";
-			try {
-				establishConnection();
-				Statement stat = conn.createStatement();
-				ResultSet rs = stat.executeQuery(query);
-				while (rs.next()) {
-					complexWordTemplates.add(new ComplexWordTemplate(rs.getInt("id"), rs
-							.getInt("word1_type"), rs.getInt("word1_subtype"), rs
-							.getInt("word1_wcase"), rs.getInt("word1_sing_pl"), rs
-							.getInt("word2_type"), rs.getInt("word2_subtype"), rs
-							.getInt("word2_wcase"), rs.getInt("word2_sing_pl"), rs
-							.getString("delimiter")));
-				}
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
-		}
-		return complexWordTemplates;
 	}
 
 	public boolean checkBase(String base, EndingRule endingRule) {

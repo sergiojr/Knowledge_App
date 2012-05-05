@@ -41,7 +41,7 @@ public class PostgresDataBank extends DataBank {
 			stat.executeUpdate("delete from sentence_word_link");
 			stat.executeUpdate("delete from sentence_word;");
 			stat.executeUpdate("delete from sentences;");
-			stat.executeUpdate("delete from words;");
+//			stat.executeUpdate("delete from words;");
 			stat.close();
 		} catch (Exception e) {
 			e.printStackTrace();

@@ -490,7 +490,7 @@ public class Sentence {
 
 		// получить список числительных
 		numeralList = getSentencePartList("", 0, ">0", ">0", 0, 0,
-				String.valueOf(WordProcessor.numeral), "", 1);
+				String.valueOf(WordProcessor.numeral), "", rating_tolerance);
 		numeralIterator = numeralList.iterator();
 
 		// для каждого числительного найти существительное, следующее за ним
@@ -507,7 +507,8 @@ public class Sentence {
 					sing_pl = numeral.getBaseSingPl();
 				}
 				substantiveList = getSubstantiveList(id, numeralPartWordform.wordPos + 1,
-						String.valueOf(wcase), ">0", numeralPartWordform.gender, sing_pl, 1);
+						String.valueOf(wcase), ">0", numeralPartWordform.gender, sing_pl,
+						rating_tolerance);
 				substantiveIterator = substantiveList.iterator();
 				while (substantiveIterator.hasNext()) {
 					substantiveWordform = substantiveIterator.next();

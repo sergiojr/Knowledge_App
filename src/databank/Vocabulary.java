@@ -342,7 +342,7 @@ public class Vocabulary {
 		copyWordForms(getWord(transformRelation.parentWordID), transformRelation);
 	}
 
-	public void copyWordForm(Word sourceWord, WordWordRelation transformRelation,
+	private void copyWordForm(Word sourceWord, WordWordRelation transformRelation,
 			EndingRule endingRule, int postfix_id) {
 		boolean forwardTransform = false;
 		boolean backwardTransform = false;
@@ -486,7 +486,7 @@ public class Vocabulary {
 		delayedSaveWordWordRelations.clear();
 	}
 
-	public HashSet<Word> UpdateWordRating(HashSet<Word> wordSet) {
+	private HashSet<Word> UpdateWordRating(HashSet<Word> wordSet) {
 		HashSet<Word> updatedWordSet = new HashSet<Word>();
 		if (wordSet.isEmpty())
 			return updatedWordSet;
