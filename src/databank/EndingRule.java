@@ -38,8 +38,9 @@ public class EndingRule {
 		this.min_length = min_length;
 	}
 
-	public EndingRule(int rule_id, int wcase, int gender, int person, int type, int rule_no,
+	public EndingRule(String ending, int rule_id, int wcase, int gender, int person, int type, int rule_no,
 			int rule_variance) {
+		this.ending=ending;
 		this.rule_id = rule_id;
 		this.type = type;
 		this.rule_no = rule_no;

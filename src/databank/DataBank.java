@@ -829,10 +829,10 @@ public class DataBank {
 	public EndingRule getEndingRule(boolean fixed, int rule) {
 		String query;
 		if (fixed)
-			query = "select wcase,gender,person,type,-type as rule_no,0 as rule_variance "
+			query = "select base_form as ending,wcase,gender,person,type,-type as rule_no,0 as rule_variance "
 					+ "from fixed_words where rule_id=" + rule;
 		else
-			query = "select wcase,gender,person,type,rule_no,rule_variance "
+			query = "select ending,wcase,gender,person,type,rule_no,rule_variance "
 					+ "from ending_rules where rule_id=" + rule;
 		EndingRule endingRule = null;
 		try {
@@ -840,7 +840,7 @@ public class DataBank {
 			Statement stat = conn.createStatement();
 			ResultSet rs = stat.executeQuery(query);
 			if (rs.next())
-				endingRule = new EndingRule(rule, rs.getInt("wcase"), rs.getInt("gender"),
+				endingRule = new EndingRule(rs.getString("ending"),rule, rs.getInt("wcase"), rs.getInt("gender"),
 						rs.getInt("person"), rs.getInt("type"), rs.getInt("rule_no"),
 						rs.getInt("rule_variance"));
 
