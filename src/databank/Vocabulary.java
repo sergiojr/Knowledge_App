@@ -468,14 +468,16 @@ public class Vocabulary {
 	}
 
 	public void save() {
-		//gather Words that have to update rating
+		// gather Words that have to update rating
 		for (WordWordRelation wordRelation : delayedSaveWordWordRelations) {
 			delayedSaveWords.add(getWord(wordRelation.wordID));
 			delayedSaveWords.add(getWord(wordRelation.parentWordID));
 		}
 		for (WordForm wordform : delayedSaveWordforms)
 			delayedSaveWords.add(getWord(wordform.wordID));
-		
+
+		delayedSaveWords.addAll(updateWordformRelationIndex());
+
 		delayedSaveWords.addAll(UpdateWordRating(delayedSaveWords));
 
 		databank.saveWord(delayedSaveWords);
@@ -490,7 +492,7 @@ public class Vocabulary {
 		HashSet<Word> updatedWordSet = new HashSet<Word>();
 		if (wordSet.isEmpty())
 			return updatedWordSet;
-		int wordDiversity = 0;
+		float wordDiversity = 0;
 		int ruleDiversity;
 		int newrating = 0;
 		boolean isChanged = false;
@@ -512,7 +514,8 @@ public class Vocabulary {
 				word.rating = newrating;
 			}
 			if (!word.complex) {
-				wordDiversity = word.getWordRelationDiversity() + word.getEndingDiversity();
+				wordDiversity = word.getRelationIndex() + word.getWordRelationDiversity()
+						+ word.getEndingDiversity();
 				if (wordDiversity > 0) {
 					ruleDiversity = databank.getRuleDiversity(word.rule_no);
 					if (wordDiversity > ruleDiversity)
@@ -536,8 +539,32 @@ public class Vocabulary {
 
 		if (!dependentWordSet.isEmpty())
 			updatedWordSet.addAll(UpdateWordRating(dependentWordSet));
-		
+
 		return updatedWordSet;
+	}
+
+	private HashSet<Word> updateWordformRelationIndex() {
+		HashSet<Word> updatedWords = new HashSet<Word>();
+		HashMap<String, HashSet<EndingRuleStat>> wordformRelationStats = databank
+				.getWordformRelationStats();
+		for (String wordformString : wordformRelationStats.keySet()) {
+			HashSet<EndingRuleStat> endingRuleStats = wordformRelationStats.get(wordformString);
+			int totalCount = 0;
+			for (EndingRuleStat endingRuleStat : endingRuleStats)
+				totalCount += endingRuleStat.index;
+			for (EndingRuleStat endingRuleStat : endingRuleStats)
+				for (WordForm wordform : wordformsByWordformstring.get(wordformString)) {
+					EndingRule endingrule = wordform.endingRule;
+					if ((endingrule.type == endingRuleStat.type)
+							&& (endingrule.wcase == endingRuleStat.wcase)
+							&& (endingrule.gender == endingRuleStat.gender)
+							&& (endingrule.sing_pl == endingRuleStat.sing_pl)) {
+						wordform.setRelationIndex(((float) endingRuleStat.index) / totalCount);
+						updatedWords.add(getWord(wordform.wordID));
+					}
+				}
+		}
+		return updatedWords;
 	}
 
 }

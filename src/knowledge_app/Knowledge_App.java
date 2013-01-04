@@ -35,6 +35,7 @@ public class Knowledge_App {
 		
 		System.out.print("Parse Sentences...");
 		parseSentences();
+		databank.saveWordformRelationStats();
 		endTime = System.currentTimeMillis();
 		System.out.println("Complete in " + minutes(endTime - curTime) + " minutes.");
 		curTime = endTime;

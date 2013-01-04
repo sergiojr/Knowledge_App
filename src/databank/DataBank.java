@@ -347,6 +347,43 @@ public class DataBank {
 		}
 	}
 
+	public void saveWordformRelationStats() {
+		try {
+			establishConnection();
+			Statement stat = conn.createStatement();
+			stat.execute("delete from wordform_relation_stats;");
+			stat.execute("insert into wordform_relation_stats select * from sentence_word_relation_stats;");
+			stat.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public HashMap<String, HashSet<EndingRuleStat>> getWordformRelationStats() {
+		HashMap<String, HashSet<EndingRuleStat>> result = new HashMap<String, HashSet<EndingRuleStat>>();
+		String curWordform;
+		HashSet<EndingRuleStat> curRelationStats;
+		try {
+			establishConnection();
+			Statement stat = conn.createStatement();
+			ResultSet rs = stat
+					.executeQuery("select * from wordform_relation_stats order by wordform");
+			while (rs.next()) {
+				curWordform = rs.getString("wordform").intern();
+				curRelationStats = result.get(curWordform);
+				if (curRelationStats == null) {
+					curRelationStats = new HashSet<EndingRuleStat>();
+					result.put(curWordform, curRelationStats);
+				}
+				curRelationStats.add(new EndingRuleStat(rs.getInt("type"), rs.getInt("wcase"), rs.getInt("gender"), rs
+						.getInt("sing_pl"), rs.getInt("wordform_count")));
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return result;
+	}
+
 	public boolean isOnlyFixedForm(String lcWord) {
 		boolean result = false;
 		try {
@@ -462,9 +499,9 @@ public class DataBank {
 			endingrules.add(new EndingRule(ending, rs.getInt("rule_no"),
 					rs.getInt("rule_variance"), rs.getInt("type"), rs.getInt("subtype"), rs
 							.getInt("rule_id"), rs.getInt("wcase"), rs.getInt("gender"), rs
-							.getInt("person"), rs.getString("allow_after"), rs
-							.getString("deny_after"), rs.getString("e_before"), rs
-							.getString("o_before"), rs.getInt("min_length")));
+							.getInt("sing_pl"), rs.getInt("person"), rs.getString("allow_after"),
+					rs.getString("deny_after"), rs.getString("e_before"), rs.getString("o_before"),
+					rs.getInt("min_length")));
 		}
 		rs.close();
 		stat.close();
@@ -502,7 +539,7 @@ public class DataBank {
 				zeroEndingrule = new EndingRule(rs.getString("ending"), rs.getInt("rule_no"),
 						rs.getInt("rule_variance"), rs.getInt("type"), rs.getInt("subtype"),
 						rs.getInt("rule_id"), rs.getInt("wcase"), rs.getInt("gender"),
-						rs.getInt("person"), rs.getString("allow_after"),
+						rs.getInt("sing_pl"), rs.getInt("person"), rs.getString("allow_after"),
 						rs.getString("deny_after"), rs.getString("e_before"),
 						rs.getString("o_before"), rs.getInt("min_length"));
 				zeroEndingruleByRuleNo.put(new Integer(ruleNo), zeroEndingrule);
@@ -519,17 +556,17 @@ public class DataBank {
 		if (postfixes == null) {
 			postfixes = new HashSet<Postfix>();
 			ResultSet rs;
-			try{
-			establishConnection();
-			Statement stat = conn.createStatement();
-			rs = stat.executeQuery("select * from postfixes");
-			while (rs.next())
-				postfixes.add(new Postfix(rs.getInt("id"), rs.getString("postfix"), rs
-						.getInt("reflexive"), rs.getInt("type"), rs.getInt("tense"), rs
-						.getInt("rule_no")));
-			rs.close();
-			stat.close();
-			}catch(SQLException e){
+			try {
+				establishConnection();
+				Statement stat = conn.createStatement();
+				rs = stat.executeQuery("select * from postfixes");
+				while (rs.next())
+					postfixes.add(new Postfix(rs.getInt("id"), rs.getString("postfix"), rs
+							.getInt("reflexive"), rs.getInt("type"), rs.getInt("tense"), rs
+							.getInt("rule_no")));
+				rs.close();
+				stat.close();
+			} catch (SQLException e) {
 				e.printStackTrace();
 			}
 		}
@@ -537,12 +574,12 @@ public class DataBank {
 	}
 
 	public Postfix getPostfix(int id) {
-		if (postfixes==null)
+		if (postfixes == null)
 			getPostfixes();
 		for (Postfix postfix : postfixes)
-			if (postfix.id==id)
+			if (postfix.id == id)
 				return postfix;
-		return new Postfix(id, "", 0, 0, 0, 0);		
+		return new Postfix(id, "", 0, 0, 0, 0);
 	}
 
 	public HashSet<Prefix> getPrefixes() {
@@ -636,7 +673,7 @@ public class DataBank {
 	public HashSet<ComplexWordTemplate> getComplexWordTemplates() {
 		if (complexWordTemplates == null) {
 			complexWordTemplates = new HashSet<ComplexWordTemplate>();
-	
+
 			String query = "select * from complex_word_template";
 			try {
 				establishConnection();
@@ -829,10 +866,10 @@ public class DataBank {
 	public EndingRule getEndingRule(boolean fixed, int rule) {
 		String query;
 		if (fixed)
-			query = "select base_form as ending,wcase,gender,person,type,-type as rule_no,0 as rule_variance "
+			query = "select base_form as ending,wcase,gender,person,sing_pl, type,-type as rule_no,0 as rule_variance "
 					+ "from fixed_words where rule_id=" + rule;
 		else
-			query = "select ending,wcase,gender,person,type,rule_no,rule_variance "
+			query = "select ending,wcase,gender,person,sing_pl,type,rule_no,rule_variance "
 					+ "from ending_rules where rule_id=" + rule;
 		EndingRule endingRule = null;
 		try {
@@ -840,9 +877,9 @@ public class DataBank {
 			Statement stat = conn.createStatement();
 			ResultSet rs = stat.executeQuery(query);
 			if (rs.next())
-				endingRule = new EndingRule(rs.getString("ending"),rule, rs.getInt("wcase"), rs.getInt("gender"),
-						rs.getInt("person"), rs.getInt("type"), rs.getInt("rule_no"),
-						rs.getInt("rule_variance"));
+				endingRule = new EndingRule(rs.getString("ending"), rule, rs.getInt("wcase"),
+						rs.getInt("gender"), rs.getInt("sing_pl"), rs.getInt("person"),
+						rs.getInt("type"), rs.getInt("rule_no"), rs.getInt("rule_variance"));
 
 			rs.close();
 			stat.close();

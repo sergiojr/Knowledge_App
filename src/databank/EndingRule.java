@@ -13,6 +13,7 @@ public class EndingRule {
 	int person;
 	int wcase;
 	int gender;
+	int sing_pl;
 	String allow_after;
 	String deny_after;
 	String e_before;
@@ -20,7 +21,7 @@ public class EndingRule {
 	int min_length;
 
 	public EndingRule(String ending, int rule_no, int rule_variance, int type, int subtype,
-			int rule_id, int wcase, int gender, int person, String allow_after, String deny_after,
+			int rule_id, int wcase, int gender, int sing_pl, int person, String allow_after, String deny_after,
 			String e_before, String o_before, int min_length) {
 		this.ending = ending;
 		this.rule_no = rule_no;
@@ -30,6 +31,7 @@ public class EndingRule {
 		this.rule_id = rule_id;
 		this.wcase = wcase;
 		this.gender = gender;
+		this.sing_pl = sing_pl;
 		this.person = person;
 		this.allow_after = allow_after;
 		this.deny_after = deny_after;
@@ -38,7 +40,7 @@ public class EndingRule {
 		this.min_length = min_length;
 	}
 
-	public EndingRule(String ending, int rule_id, int wcase, int gender, int person, int type, int rule_no,
+	public EndingRule(String ending, int rule_id, int wcase, int gender, int sing_pl, int person, int type, int rule_no,
 			int rule_variance) {
 		this.ending=ending;
 		this.rule_id = rule_id;
@@ -47,6 +49,7 @@ public class EndingRule {
 		this.rule_variance = rule_variance;
 		this.wcase = wcase;
 		this.gender = gender;
+		this.sing_pl = sing_pl;
 		this.person = person;
 	}
 

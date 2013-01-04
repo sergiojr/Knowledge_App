@@ -5,6 +5,7 @@ public class WordForm {
 	String wordForm;
 	int postfix_id;
 	EndingRule endingRule;
+	float relationIndex;
 
 	public WordForm(String wordForm, int wordID, EndingRule rule, int postfix_id) {
 		this.wordForm = wordForm;
@@ -21,8 +22,16 @@ public class WordForm {
 		if (endingRule == null)
 			return 0;
 		else
-			return endingRule.rule_id;
-		
+			return endingRule.rule_id;		
 	}
+
+	public float getRelationIndex() {
+		return relationIndex;
+	}
+
+	public void setRelationIndex(float relationIndex) {
+		this.relationIndex = relationIndex;
+	}
+	
 
 }

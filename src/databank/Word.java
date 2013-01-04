@@ -102,4 +102,11 @@ public class Word {
 					endings.add(wordform.endingRule.ending.intern());
 		return endings.size();
 	}
+
+	public float getRelationIndex() {
+		float result = 0.0f;
+		for (WordForm wordform: wordforms)
+			result+=wordform.relationIndex;
+		return result;
+	}
 }
