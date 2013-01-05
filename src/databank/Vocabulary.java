@@ -544,6 +544,9 @@ public class Vocabulary {
 	}
 
 	private HashSet<Word> updateWordformRelationIndex() {
+		if (wordformsByWordformstring==null)
+			return null;
+				
 		HashSet<Word> updatedWords = new HashSet<Word>();
 		HashMap<String, HashSet<EndingRuleStat>> wordformRelationStats = databank
 				.getWordformRelationStats();
@@ -552,17 +555,20 @@ public class Vocabulary {
 			int totalCount = 0;
 			for (EndingRuleStat endingRuleStat : endingRuleStats)
 				totalCount += endingRuleStat.index;
-			for (EndingRuleStat endingRuleStat : endingRuleStats)
-				for (WordForm wordform : wordformsByWordformstring.get(wordformString)) {
-					EndingRule endingrule = wordform.endingRule;
-					if ((endingrule.type == endingRuleStat.type)
-							&& (endingrule.wcase == endingRuleStat.wcase)
-							&& (endingrule.gender == endingRuleStat.gender)
-							&& (endingrule.sing_pl == endingRuleStat.sing_pl)) {
-						wordform.setRelationIndex(((float) endingRuleStat.index) / totalCount);
-						updatedWords.add(getWord(wordform.wordID));
+			for (EndingRuleStat endingRuleStat : endingRuleStats) {
+				HashSet<WordForm> wordforms = wordformsByWordformstring.get(wordformString);
+				if (wordforms != null)
+					for (WordForm wordform : wordforms) {
+						EndingRule endingrule = wordform.endingRule;
+						if ((endingrule.type == endingRuleStat.type)
+								&& (endingrule.wcase == endingRuleStat.wcase)
+								&& (endingrule.gender == endingRuleStat.gender)
+								&& (endingrule.sing_pl == endingRuleStat.sing_pl)) {
+							wordform.setRelationIndex(((float) endingRuleStat.index) / totalCount);
+							updatedWords.add(getWord(wordform.wordID));
+						}
 					}
-				}
+			}
 		}
 		return updatedWords;
 	}
