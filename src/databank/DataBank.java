@@ -33,6 +33,7 @@ public class DataBank {
 	private HashMap<Integer, Integer> ruleDiversity;
 	private HashMap<Integer, HashSet<Integer>> ruleVarianceByRuleNo;
 	private HashMap<Integer, EndingRule> zeroEndingruleByRuleNo;
+	private HashMap<Integer, EndingRule> endingRulesByRuleNo;
 	private HashSet<Transformation> transformations;
 	private HashMap<Integer, HashSet<Transformation>> transformationsById;
 	private HashSet<ComplexWordTemplate> complexWordTemplates;
@@ -552,6 +553,48 @@ public class DataBank {
 		return zeroEndingrule;
 	}
 
+	private EndingRule getEndingRule(boolean fixed, int rule) {
+		int ruleNo;
+		EndingRule endingRule = null;
+		
+		if (fixed)
+			ruleNo=-rule;
+		else
+			ruleNo=rule;
+		
+		if (endingRulesByRuleNo == null)
+			endingRulesByRuleNo = new HashMap<Integer, EndingRule>();
+		endingRule = endingRulesByRuleNo.get(new Integer(ruleNo));
+		if (endingRule != null)
+			return endingRule;		
+		
+		String query;
+		if (fixed)
+			query = "select base_form as ending,wcase,gender,person,sing_pl, type,-type as rule_no,0 as rule_variance "
+					+ "from fixed_words where rule_id=" + rule;
+		else
+			query = "select ending,wcase,gender,person,sing_pl,type,rule_no,rule_variance "
+					+ "from ending_rules where rule_id=" + rule;
+
+		try {
+			establishConnection();
+			Statement stat = conn.createStatement();
+			ResultSet rs = stat.executeQuery(query);
+			if (rs.next()){
+				endingRule = new EndingRule(rs.getString("ending"), rule, rs.getInt("wcase"),
+						rs.getInt("gender"), rs.getInt("sing_pl"), rs.getInt("person"),
+						rs.getInt("type"), rs.getInt("rule_no"), rs.getInt("rule_variance"));
+				endingRulesByRuleNo.put(new Integer(ruleNo), endingRule);
+			}
+			rs.close();
+			stat.close();
+	
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return endingRule;
+	}
+
 	public Set<Postfix> getPostfixes() {
 		if (postfixes == null) {
 			postfixes = new HashSet<Postfix>();
@@ -861,33 +904,6 @@ public class DataBank {
 			e.printStackTrace();
 		}
 		return result;
-	}
-
-	public EndingRule getEndingRule(boolean fixed, int rule) {
-		String query;
-		if (fixed)
-			query = "select base_form as ending,wcase,gender,person,sing_pl, type,-type as rule_no,0 as rule_variance "
-					+ "from fixed_words where rule_id=" + rule;
-		else
-			query = "select ending,wcase,gender,person,sing_pl,type,rule_no,rule_variance "
-					+ "from ending_rules where rule_id=" + rule;
-		EndingRule endingRule = null;
-		try {
-			establishConnection();
-			Statement stat = conn.createStatement();
-			ResultSet rs = stat.executeQuery(query);
-			if (rs.next())
-				endingRule = new EndingRule(rs.getString("ending"), rule, rs.getInt("wcase"),
-						rs.getInt("gender"), rs.getInt("sing_pl"), rs.getInt("person"),
-						rs.getInt("type"), rs.getInt("rule_no"), rs.getInt("rule_variance"));
-
-			rs.close();
-			stat.close();
-
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return endingRule;
 	}
 
 	public ArrayList<SentenceWordform> getSentencePartList(int sentence_id,
