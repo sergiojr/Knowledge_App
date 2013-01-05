@@ -33,8 +33,8 @@ public class WordProcessor {
 	public static int preposition = 100; // предлог
 	public static int punctuation = 200; // знак препинания
 
-	public WordProcessor(String word, boolean isPunctuation, boolean isName, DataBank databank, Vocabulary vocabulary)
-			throws Exception {
+	public WordProcessor(String word, boolean isPunctuation, boolean isName, DataBank databank,
+			Vocabulary vocabulary) throws Exception {
 		this.databank = databank;
 		this.vocabulary = vocabulary;
 		this.isPunctuation = isPunctuation;
@@ -62,7 +62,7 @@ public class WordProcessor {
 				postfix = iterator.next();
 				if (lcWord.endsWith(postfix.getPostfix())) {
 					tempWord = lcWord.substring(0, lcWord.length() - postfix.getPostfix().length());
-					wordforms.addAll(databank.getFixedWordForms(vocabulary,tempWord, postfix));
+					wordforms.addAll(databank.getFixedWordForms(vocabulary, tempWord, postfix));
 					if (databank.isOnlyFixedForm(tempWord))
 						return;
 					wordforms.addAll(parseEnding(tempWord, postfix, 0, null));
@@ -73,7 +73,7 @@ public class WordProcessor {
 		}
 		if (wordforms.isEmpty()) {
 			emptyWord = vocabulary.getWord(lcWord, 0, 0, 0, false, 0, 0, true);
-			wordforms.add(vocabulary.createWordform(emptyWord,lcWord, null, 0));
+			wordforms.add(vocabulary.createWordform(emptyWord, lcWord, null, 0));
 		}
 	}
 
@@ -121,10 +121,11 @@ public class WordProcessor {
 							word2 = vocabulary.getWord(word2Wordform.wordID);
 							word = vocabulary.getWord(
 									word1.getWord() + curComplexWordTemplate.getDelimiter()
-											+ word2.getWord(), word2Wordform.getEndingRule(), true, word1.getId(),
-									word2.getId(), true);
-							wordforms.add(vocabulary.createWordform(word,lcWord + postfix.getPostfix(),
-									word2Wordform.getEndingRule(), postfix.getId()));
+											+ word2.getWord(), word2Wordform.getEndingRule(), true,
+									word1.getId(), word2.getId(), true);
+							wordforms.add(vocabulary.createWordform(word,
+									lcWord + postfix.getPostfix(), word2Wordform.getEndingRule(),
+									postfix.getId()));
 						}
 					}
 				}
@@ -135,53 +136,18 @@ public class WordProcessor {
 
 	private Set<WordForm> getEndingWordForms(String ending, String base, Postfix postfix,
 			int complexWordIndex, ComplexWordTemplate complexWordTemplate) throws SQLException {
-		EndingRule endingrule;
-		EndingRule zeroEndingrule;
-		boolean valid;
-		String modbase;
-		Set<String> modbases;
-		Word word;
 		Set<WordForm> wordforms = new HashSet<WordForm>();
-		Set<EndingRule> endingrules = databank.getEndingRules(ending, postfix, complexWordIndex,
-				complexWordTemplate);
-		Iterator<EndingRule> iterator = endingrules.iterator();
-		Iterator<String> basesIterator;
-		while (iterator.hasNext()) {
-			Set<String> bases = new HashSet<String>();
-			valid = true;
-			endingrule = iterator.next();
-			zeroEndingrule = databank.getZeroEndingrule(endingrule);
-			if (base.length() < endingrule.getMinLength())
-				valid = false;
-			if (valid)
-				valid=endingrule.checkBase(base);
-			if (valid) {
-				modbases = endingrule.getZeroForms(base, zeroEndingrule);
-				bases.addAll(modbases);
-
-				modbase = endingrule.dropCharacterE(base);
-				if (modbase != null) {
-					modbases = endingrule.getZeroForms(modbase, zeroEndingrule);
-					bases.addAll(modbases);
+		//look through list of ending rules with selected ending
+		for (EndingRule endingrule : databank.getEndingRules(ending, postfix, complexWordIndex,
+				complexWordTemplate))
+			//for each ending rule get list of base forms
+			for (String modbase : endingrule.getBaseForms(base,
+					databank.getZeroEndingrule(endingrule)))
+				if (databank.checkBase(modbase, endingrule)) {
+					Word word = vocabulary.getWord(modbase, endingrule, false, 0, 0, true);
+					wordforms.add(vocabulary.createWordform(word,
+							base + ending + postfix.getPostfix(), endingrule, postfix.getId()));
 				}
-
-				modbase = endingrule.dropCharacterO(base);
-				if (modbase != null) {
-					modbases = endingrule.getZeroForms(modbase, zeroEndingrule);
-					bases.addAll(modbases);
-				}
-
-				basesIterator = bases.iterator();
-				while (basesIterator.hasNext()) {
-					modbase = basesIterator.next();
-					if (databank.checkBase(modbase, endingrule)) {
-						word = vocabulary.getWord(modbase, endingrule, false, 0, 0, true);
-						wordforms.add(vocabulary.createWordform(word,base + ending + postfix.getPostfix(),
-								endingrule, postfix.getId()));
-					}
-				}
-			}
-		}
 		return wordforms;
 	}
 

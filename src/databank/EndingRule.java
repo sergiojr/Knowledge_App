@@ -59,14 +59,99 @@ public class EndingRule {
 		return false;
 	}
 
-	public int getMinLength() {
-		return min_length;
+	/**
+	 * @param base - original base (could contain variable suffixes)
+	 * @param zeroEndingrule - EndingRule for base form
+	 * @return possible base forms from non-base form
+	 */
+	public Set<String> getBaseForms(String base, EndingRule zeroEndingrule) {
+		String modbase;
+		Set<String> modbases;
+		Set<String> bases = new HashSet<String>();
+		if (checkBase(base)) {
+			modbases = getZeroForms(base, zeroEndingrule);
+			bases.addAll(modbases);
+	
+			modbase = dropCharacterE(base);
+			if (modbase != null) {
+				modbases = getZeroForms(modbase, zeroEndingrule);
+				bases.addAll(modbases);
+			}
+	
+			modbase = dropCharacterO(base);
+			if (modbase != null) {
+				modbases = getZeroForms(modbase, zeroEndingrule);
+				bases.addAll(modbases);
+			}
+		}
+		return bases;
 	}
 
-	public boolean checkBase(String base) {
+	private Set<String> getZeroForms(String base, EndingRule zeroEndingrule) {
+		String[] baseEnd;
+		String[] modEnd;
+		int matchLength = 0;
+		String modbase;
+		Set<String> modbases = new HashSet<String>();
+
+		if (rule_id == zeroEndingrule.rule_id) {
+			if (base.length()>=zeroEndingrule.min_length)
+				modbases.add(base);			
+			return modbases;
+		}
+
+		if ((allow_after == null) | (zeroEndingrule.allow_after == null)) {
+			if (base.length()>=zeroEndingrule.min_length)
+				modbases.add(base);
+			return modbases;
+		}
+
+		if ((allow_after.isEmpty()) | (zeroEndingrule.allow_after.isEmpty())) {
+			if (base.length()>=zeroEndingrule.min_length)
+				modbases.add(base);
+			return modbases;
+		}
+
+		if (allow_after.intern() == zeroEndingrule.allow_after.intern()) {
+			if (base.length()>=zeroEndingrule.min_length)
+				modbases.add(base);
+			return modbases;
+		}
+
+		baseEnd = allow_after.split(";");
+		modEnd = zeroEndingrule.allow_after.split(";");
+
+		for (int i = 0; i < baseEnd.length; i++)
+			if (baseEnd[i].length() >= matchLength)
+				if (base.endsWith(baseEnd[i]))
+					if (baseEnd[i].length() == matchLength) {
+						modbase = base.substring(0, base.length() - baseEnd[i].length())
+								+ modEnd[i];
+						if (modbase.length()>=zeroEndingrule.min_length)						
+							modbases.add(modbase);
+					} else {
+						matchLength = baseEnd[i].length();
+						modbases = new HashSet<String>();
+						modbase = base.substring(0, base.length() - baseEnd[i].length())
+								+ modEnd[i];
+						if (modbase.length()>=zeroEndingrule.min_length)
+							modbases.add(modbase);
+					}
+		return modbases;
+	}
+
+	/**Check base against "minimal length", "allow after" and "deny after"
+	 * @param base
+	 * @return if base is valid according to ending rule
+	 */
+	private boolean checkBase(String base) {
 		int i;
 		String[] baseEnd;
 		boolean valid = true;
+		
+		if (base.length() < min_length)
+			return false;
+		
 		if (allow_after != null)
 			if (valid & !allow_after.isEmpty()) {
 				baseEnd = allow_after.split(";");
@@ -89,58 +174,11 @@ public class EndingRule {
 		return valid;
 	}
 
-	public Set<String> getZeroForms(String base, EndingRule zeroEndingrule) {
-		String[] baseEnd;
-		String[] modEnd;
-		int matchLength = 0;
-		String modbase;
-		Set<String> modbases = new HashSet<String>();
-
-		if (rule_id == zeroEndingrule.rule_id) {
-			modbases.add(base);
-			return modbases;
-		}
-
-		if ((allow_after == null) | (zeroEndingrule.allow_after == null)) {
-			modbases.add(base);
-			return modbases;
-		}
-
-		if ((allow_after.isEmpty()) | (zeroEndingrule.allow_after.isEmpty())) {
-			modbases.add(base);
-			return modbases;
-		}
-
-		if (allow_after.intern() == zeroEndingrule.allow_after.intern()) {
-			modbases.add(base);
-			return modbases;
-		}
-
-		baseEnd = allow_after.split(";");
-		modEnd = zeroEndingrule.allow_after.split(";");
-
-		for (int i = 0; i < baseEnd.length; i++)
-			if (baseEnd[i].length() >= matchLength)
-				if (base.endsWith(baseEnd[i]))
-					if (baseEnd[i].length() == matchLength) {
-						modbase = base.substring(0, base.length() - baseEnd[i].length())
-								+ modEnd[i];
-						modbases.add(modbase);
-					} else {
-						matchLength = baseEnd[i].length();
-						modbases = new HashSet<String>();
-						modbase = base.substring(0, base.length() - baseEnd[i].length())
-								+ modEnd[i];
-						modbases.add(modbase);
-					}
-		return modbases;
-	}
-
-	public String dropCharacterE(String base) {
+	private String dropCharacterE(String base) {
 		return dropCharacter(base, e_before, 'е', 'ь', "л");
 	}
 
-	public String dropCharacterO(String base) {
+	private String dropCharacterO(String base) {
 		return dropCharacter(base, o_before, 'о', 'ь', "");
 	}
 
