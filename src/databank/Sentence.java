@@ -787,17 +787,14 @@ public class Sentence {
 		ArrayList<SentenceWordform> substantiveList;
 		Iterator<SentenceWordform> substantiveIterator;
 		SentenceWordform substantiveWordform;
-		ArrayList<SentenceWordform> linkedAdjectiveList;
-		Iterator<SentenceWordform> linkedAdjectiveIterator;
-		SentenceWordform linkedAdjectiveWordform;
 
 		int relationType = SentenceWordRelation.attribute;
 		SentenceWordRelation wordRelation;
 		SentenceWordRelation curWordRelation;
-		SentenceWordRelation linkedWordRelation;
 
 		boolean found;
 		int curWordPos;
+		int curWordRelationId;
 
 		sentenceWordFilter = generateSentenceWordFilter(wordRelationList);
 
@@ -815,58 +812,46 @@ public class Sentence {
 			if ((substantiveWordform.wordPos > 1)
 					&& (!existWord1Relation(wordRelationList, substantiveWordform.wordPos,
 							substantiveWordform.type, relationType))) {
-				adjectiveList = getAdjectiveList(id, substantiveWordform.wordPos - 1,
-						String.valueOf(substantiveWordform.wcase), substantiveWordform.gender,
-						substantiveWordform.sing_pl, rating_tolerance);
-				adjectiveIterator = adjectiveList.iterator();
-				if (adjectiveIterator.hasNext()) {
-					adjectiveWordform = adjectiveIterator.next();
-					// mark, that adjective is dependent on substantive
-					if (!existWordRelation(wordRelationList, substantiveWordform,
-							adjectiveWordform, relationType, 0)) {
-						wordRelation = new SentenceWordRelation(++relationCount, 0, id,
-								substantiveWordform.wordPos, substantiveWordform.type,
-								substantiveWordform.wcase, substantiveWordform.gender,
-								substantiveWordform.sing_pl, adjectiveWordform.wordPos,
-								adjectiveWordform.type, adjectiveWordform.wcase,
-								adjectiveWordform.gender, adjectiveWordform.sing_pl, relationType);
-						wordRelationList.add(wordRelation);
-						movePrepositionRelation(wordRelation);
-
-						// mark any linked adjective
-						markLinkedWords(wordRelationList, wordRelation, adjectiveWordform,
-								substantiveWordform.wordPos);
-
-						// find leftmost dependent adjective
-						curWordRelation = getLastWordRelation(wordRelationList, wordRelation);
-						curWordPos = curWordRelation.word2Pos;
-
-						// start search only if leftmost dependent adjective is before substantive
-						found = curWordPos < wordRelation.word1Pos;
-
-						// try to find adjectives with the same properties to the left
-						curWordPos--;
-						while (found && (curWordPos > 0)) {
-							found = false;
-							linkedAdjectiveList = getAdjectiveList(id, curWordPos,
-									String.valueOf(substantiveWordform.wcase),
+				// start from substantive position
+				curWordPos = substantiveWordform.wordPos;
+				curWordRelationId = 0;
+				found = true;
+				// try to find adjectives with the same properties to the left
+				while (found && (curWordPos > 1)) {
+					found = false;
+					curWordPos--;
+					adjectiveList = getAdjectiveList(id, curWordPos,
+							String.valueOf(substantiveWordform.wcase), substantiveWordform.gender,
+							substantiveWordform.sing_pl, rating_tolerance);
+					adjectiveIterator = adjectiveList.iterator();
+					if (adjectiveIterator.hasNext()) {
+						found = true;
+						adjectiveWordform = adjectiveIterator.next();
+						// mark, that adjective is dependent on substantive
+						if (!existWordRelation(wordRelationList, substantiveWordform,
+								adjectiveWordform, relationType, curWordRelationId)) {
+							wordRelation = new SentenceWordRelation(++relationCount,
+									curWordRelationId, id, substantiveWordform.wordPos,
+									substantiveWordform.type, substantiveWordform.wcase,
 									substantiveWordform.gender, substantiveWordform.sing_pl,
-									rating_tolerance);
-							linkedAdjectiveIterator = linkedAdjectiveList.iterator();
-							if (linkedAdjectiveIterator.hasNext()) {
-								found = true;
-								linkedAdjectiveWordform = linkedAdjectiveIterator.next();
-								linkedWordRelation = new SentenceWordRelation(++relationCount,
-										curWordRelation, linkedAdjectiveWordform.wordPos,
-										linkedAdjectiveWordform.type,
-										linkedAdjectiveWordform.wcase,
-										linkedAdjectiveWordform.gender,
-										linkedAdjectiveWordform.sing_pl,
-										curWordRelation.relationType);
-								wordRelationList.add(linkedWordRelation);
-								movePrepositionRelation(linkedWordRelation);
-							}
-							curWordPos--;
+									adjectiveWordform.wordPos, adjectiveWordform.type,
+									adjectiveWordform.wcase, adjectiveWordform.gender,
+									adjectiveWordform.sing_pl, relationType);
+							wordRelationList.add(wordRelation);
+							movePrepositionRelation(wordRelation);
+
+							// mark any linked adjective
+							markLinkedWords(wordRelationList, wordRelation, adjectiveWordform,
+									substantiveWordform.wordPos);
+
+							// find leftmost dependent adjective
+							curWordRelation = getLastWordRelation(wordRelationList, wordRelation);
+							curWordRelationId = curWordRelation.id;
+							curWordPos = curWordRelation.word2Pos;
+
+							// start search only if leftmost dependent adjective is before
+							// substantive
+							found = curWordPos < wordRelation.word1Pos;
 						}
 					}
 				}
@@ -946,8 +931,9 @@ public class Sentence {
 		}
 	}
 
-	private void markLinkedWords(ArrayList<SentenceWordRelation> wordRelationList,
+	private boolean markLinkedWords(ArrayList<SentenceWordRelation> wordRelationList,
 			SentenceWordRelation wordRelation, SentenceWordform dependentWord, int wordPos) {
+		boolean found = false;
 		ArrayList<SentenceWordform> linkedWordList;
 		Iterator<SentenceWordform> linkedWordIterator;
 		SentenceWordform linkedWordform;
@@ -979,8 +965,10 @@ public class Sentence {
 						SentenceWordRelation.conjunction);
 				wordRelationList.add(conjunctionWordRelation);
 				markLinkedWords(wordRelationList, linkedWordRelation, linkedWordform, wordPos);
+				found = true;
 			}
 		}
+		return found;
 	}
 
 	private void movePrepositionRelation(SentenceWordRelation wordRelation) {
