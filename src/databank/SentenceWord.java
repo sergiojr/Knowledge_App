@@ -21,23 +21,6 @@ public class SentenceWord {
 		this.sing_pl_filter = sing_pl_filter;
 	}
 
-	public SentenceWord(SentenceWord fromSentenceWord) {
-		this.sentenceID = fromSentenceWord.sentenceID;
-		this.subsentenceID = fromSentenceWord.subsentenceID;
-		this.wordPos = fromSentenceWord.wordPos;
-		this.word = fromSentenceWord.word;
-		this.part = fromSentenceWord.part;
-		this.dep_word_pos = fromSentenceWord.dep_word_pos;
-		this.preposition_id = fromSentenceWord.preposition_id;
-		this.isPunctuation = fromSentenceWord.isPunctuation;
-		this.isName = fromSentenceWord.isName;
-		this.internal = fromSentenceWord.internal;
-		this.word_type_filter = fromSentenceWord.word_type_filter;
-		this.wcase_filter = fromSentenceWord.wcase_filter;
-		this.gender_filter = fromSentenceWord.gender_filter;
-		this.sing_pl_filter = fromSentenceWord.sing_pl_filter;
-	}
-
 	public int sentenceID;
 	public int subsentenceID;
 	public int wordPos;
