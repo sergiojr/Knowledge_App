@@ -24,7 +24,13 @@ public class WordProcessor {
 
 	public static int substantive = 1; // существительное
 	public static int verb = 2; // глагол
+	public static int verb_infinitive = 0; //инфининтив
+	public static int verb_active = 1; //действительная форма глагола
+	public static int verb_adverbial_participle = 2; //деепричастие
 	public static int adjective = 3; // прилагательное
+	public static int adjetive_positive  = 0; //позитивная форма прилагательного
+	public static int adjective_adverb = 1; //наречие, образованное от прилагательного
+	public static int adjective_short = 2; //прилагательное в сокращенной форме
 	public static int numeral = 4; // числительное
 	public static int pronoun = 50; // местоимение
 	public static int particle = 97; // частица
@@ -32,6 +38,9 @@ public class WordProcessor {
 	public static int conjunction = 99; // союз
 	public static int preposition = 100; // предлог
 	public static int punctuation = 200; // знак препинания
+	
+
+	
 
 	public WordProcessor(String word, boolean isPunctuation, boolean isName, DataBank databank,
 			Vocabulary vocabulary) throws Exception {
