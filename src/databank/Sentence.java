@@ -14,7 +14,7 @@ public class Sentence {
 	private String sentence;
 	private ArrayList<SentenceWord> sentenceWordList;
 	private ArrayList<SentenceWordform> sentenceWordformList;
-	ArrayList<SentenceWordRelation> wordRelationList;
+	HashSet<SentenceWordRelation> wordRelationList;
 	private SentenceWordFilter[] sentenceWordFilter;
 	ArrayList<SentenceWordLink> wordLinkList;
 
@@ -47,7 +47,7 @@ public class Sentence {
 
 	public void parse() {
 		// System.out.println(id);
-		wordRelationList = new ArrayList<SentenceWordRelation>();
+		wordRelationList = new HashSet<SentenceWordRelation>();
 		wordLinkList = new ArrayList<SentenceWordLink>();
 		ArrayList<SentenceWord> sentenceParts;
 		ArrayList<SentenceWord> conjunctions;
@@ -391,17 +391,20 @@ public class Sentence {
 			// собираем существительные или прилагательные на позиции за предлогом не в именительном
 			// падеже
 			substantiveList = getSubstantiveList(id,
-					getNextIndependentWordPos(prepositionWordform.wordPos), ">1", "", 0, 0, 1);
+					getNextIndependentWordPos(prepositionWordform.wordPos), ">1", "", 0, 0,
+					rating_tolerance);
 			if (!substantiveList.isEmpty()) {
 				substantiveIterator = substantiveList.iterator();
-				if (substantiveIterator.hasNext()) {
+				while (substantiveIterator.hasNext()) {
 					substantiveWordform = substantiveIterator.next();
 					if (!existWordRelation(wordRelationList, substantiveWordform,
 							prepositionWordform, relationType, 0)) {
 						substantive = getSentenceWord(sentenceWordList, substantiveWordform.wordPos);
 						substantive.preposition_id = prepositionWordform.word_id;
 						wordRelation = new SentenceWordRelation(++relationCount, 0, id,
-								substantive.wordPos, 0, 0, 0, 0, prepositionWordform.wordPos,
+								substantiveWordform.wordPos, substantiveWordform.type,
+								substantiveWordform.wcase, substantiveWordform.gender,
+								substantiveWordform.sing_pl, prepositionWordform.wordPos,
 								prepositionWordform.type, prepositionWordform.wcase,
 								prepositionWordform.gender, prepositionWordform.sing_pl,
 								relationType);
@@ -795,7 +798,7 @@ public class Sentence {
 		int relationType = SentenceWordRelation.attribute;
 		SentenceWordRelation wordRelation;
 		SentenceWordRelation curWordRelation;
-		ArrayList<SentenceWordRelation> curWordRelationList = new ArrayList<SentenceWordRelation>();
+		HashSet<SentenceWordRelation> curWordRelationList = new HashSet<SentenceWordRelation>();
 
 		boolean found;
 		int curWordPos;
@@ -853,7 +856,6 @@ public class Sentence {
 											adjectiveWordform.gender, adjectiveWordform.sing_pl,
 											relationType);
 									curWordRelationList.add(wordRelation);
-									movePrepositionRelation(wordRelation);
 
 									// mark any linked adjective
 									markLinkedWords(curWordRelationList, wordRelation,
@@ -875,6 +877,7 @@ public class Sentence {
 			}
 		}
 		cleanWordRelationList(curWordRelationList, relationType);
+		movePrepositionRelations(curWordRelationList, wordRelationList);
 		wordRelationList.addAll(curWordRelationList);
 		changeWordRelationStatus(relationType);
 	}
@@ -949,7 +952,7 @@ public class Sentence {
 		}
 	}
 
-	private boolean markLinkedWords(ArrayList<SentenceWordRelation> wordRelationList,
+	private boolean markLinkedWords(HashSet<SentenceWordRelation> wordRelationList,
 			SentenceWordRelation wordRelation, SentenceWordform dependentWord, int wordPos) {
 		boolean found = false;
 		ArrayList<SentenceWordform> linkedWordList;
@@ -967,21 +970,25 @@ public class Sentence {
 			if ((wordRelation.word1Pos != linkedWordform.wordPos)
 					&& !existWordRelation(wordRelationList, wordRelation, linkedWordform,
 							wordRelation.relationType)) {
-				if (linkedWordform.wcase > 0)
-					linkedWordRelation = new SentenceWordRelation(++relationCount, wordRelation,
-							linkedWordform.wordPos, linkedWordform.type, linkedWordform.wcase,
-							linkedWordform.gender, linkedWordform.sing_pl,
-							wordRelation.relationType);
-				else
-					linkedWordRelation = new SentenceWordRelation(++relationCount, wordRelation,
-							linkedWordform.wordPos, linkedWordform.type, 0, 0, 0,
-							wordRelation.relationType);
-				wordRelationList.add(linkedWordRelation);
+
 				conjunctionWordform = getConjunction(dependentWord.wordPos, linkedWordform.wordPos);
 				conjunctionWordRelation = new SentenceWordRelation(++relationCount, wordRelation,
 						conjunctionWordform.wordPos, conjunctionWordform.type, 0, 0, 0,
 						SentenceWordRelation.conjunction);
 				wordRelationList.add(conjunctionWordRelation);
+
+				if (linkedWordform.wcase > 0)
+					linkedWordRelation = new SentenceWordRelation(++relationCount,
+							conjunctionWordRelation, linkedWordform.wordPos, linkedWordform.type,
+							linkedWordform.wcase, linkedWordform.gender, linkedWordform.sing_pl,
+							wordRelation.relationType);
+				else
+					linkedWordRelation = new SentenceWordRelation(++relationCount,
+							conjunctionWordRelation, linkedWordform.wordPos, linkedWordform.type,
+							0, 0, 0, wordRelation.relationType);
+
+				wordRelationList.add(linkedWordRelation);
+
 				markLinkedWords(wordRelationList, linkedWordRelation, linkedWordform, wordPos);
 				found = true;
 			}
@@ -989,13 +996,86 @@ public class Sentence {
 		return found;
 	}
 
-	private void movePrepositionRelation(SentenceWordRelation wordRelation) {
+	private void movePrepositionRelations(HashSet<SentenceWordRelation> attributeWordRelations,
+			HashSet<SentenceWordRelation> wordRelations) {
+		// Preposition relation was originally created for every possible wordform that is on the
+		// next position in sentence. So there are several preposition relations for different
+		// properties for type, wcase, gender, sing_pl. On the other hand attribute relations can
+		// impose stricter rules. So we search for attribute relation for word that has preposition
+		// relation and if we find any we delete preposition relations that doesn't have similar
+		// properties.
+
 		int relationType = SentenceWordRelation.preposition;
-		for (SentenceWordRelation prepWordRelation : wordRelationList)
-			if ((prepWordRelation.relationType == relationType)
-					&& (wordRelation.sentenceID == prepWordRelation.sentenceID)
-					&& (wordRelation.word2Pos == prepWordRelation.word1Pos))
-				prepWordRelation.word1Pos = wordRelation.word1Pos;
+		boolean foundPos;
+		boolean foundMatch;
+		HashSet<SentenceWordRelation> removeWordRelations = new HashSet<SentenceWordRelation>();
+		HashSet<SentenceWordRelation> dependentWordRelations = new HashSet<SentenceWordRelation>();
+		SentenceWordRelation mainAttributeWordRelation;
+		SentenceWordRelation dependentWordRelation;
+
+		for (SentenceWordRelation prepWordRelation : wordRelations)
+			if (prepWordRelation.relationType == relationType) {
+				foundPos = false;
+				foundMatch = false;
+				for (SentenceWordRelation attributeWordRelation : attributeWordRelations)
+					if ((attributeWordRelation.sentenceID == prepWordRelation.sentenceID)
+							&& (attributeWordRelation.word2Pos == prepWordRelation.word1Pos)) {
+						foundPos = true;
+						if ((attributeWordRelation.word2Case == prepWordRelation.word1Case)
+								&& (attributeWordRelation.word2Type == prepWordRelation.word1Type)
+								&& (attributeWordRelation.word2Gender == prepWordRelation.word1Gender)
+								&& (attributeWordRelation.word2Sing_Pl == prepWordRelation.word1Sing_Pl)) {
+							foundMatch = true;
+							// If we found match we need to propogate preposition relations along
+							// the attribute relation chain
+							mainAttributeWordRelation = getFirstWordRelation(
+									attributeWordRelations, attributeWordRelation);
+							// create preposition relation for main Substantive
+							if (!existWord1Relation(wordRelations, mainAttributeWordRelation,
+									prepWordRelation, relationType)) {
+								dependentWordRelation = new SentenceWordRelation(++relationCount,
+										mainAttributeWordRelation.id, id,
+										mainAttributeWordRelation.word1Pos,
+										mainAttributeWordRelation.word1Type,
+										mainAttributeWordRelation.word1Case,
+										mainAttributeWordRelation.word1Gender,
+										mainAttributeWordRelation.word1Sing_Pl,
+										prepWordRelation.word2Pos, prepWordRelation.word2Type,
+										prepWordRelation.word2Case, prepWordRelation.word2Gender,
+										prepWordRelation.word2Sing_Pl, relationType);
+								dependentWordRelations.add(dependentWordRelation);
+							}
+							// create preposition relation for each part of dependency chain
+							for (SentenceWordRelation dependentAttributeWordRelation : getDependencyChain(
+									attributeWordRelations, mainAttributeWordRelation)) {
+								if ((dependentAttributeWordRelation.relationType == SentenceWordRelation.attribute)
+										&& !existWord2Relation(wordRelations,
+												dependentAttributeWordRelation, prepWordRelation,
+												relationType)) {
+									dependentWordRelation = new SentenceWordRelation(
+											++relationCount, dependentAttributeWordRelation.id, id,
+											dependentAttributeWordRelation.word2Pos,
+											dependentAttributeWordRelation.word2Type,
+											dependentAttributeWordRelation.word2Case,
+											dependentAttributeWordRelation.word2Gender,
+											dependentAttributeWordRelation.word2Sing_Pl,
+											prepWordRelation.word2Pos, prepWordRelation.word2Type,
+											prepWordRelation.word2Case,
+											prepWordRelation.word2Gender,
+											prepWordRelation.word2Sing_Pl, relationType);
+									dependentWordRelations.add(dependentWordRelation);
+								}
+
+							}
+						}
+					}
+				if (foundPos && !foundMatch)
+					removeWordRelations.add(prepWordRelation);
+			}
+
+		for (SentenceWordRelation removeWordRelation : removeWordRelations)
+			wordRelations.remove(removeWordRelation);
+		wordRelations.addAll(dependentWordRelations);
 	}
 
 	private void changeWordRelationStatus(int relationType) {
@@ -1010,7 +1090,7 @@ public class Sentence {
 	 * @param wordRelationList
 	 * @param relationType
 	 */
-	private void cleanWordRelationList(ArrayList<SentenceWordRelation> wordRelationList,
+	private void cleanWordRelationList(HashSet<SentenceWordRelation> wordRelationList,
 			int relationType) {
 		ArrayList<SentenceWordRelation> removeWordRelationList = new ArrayList<SentenceWordRelation>();
 		ArrayList<SentenceWordRelation> chainRelationList;
@@ -1049,7 +1129,7 @@ public class Sentence {
 	 * @param wordRelationList
 	 * @param wordRelation
 	 */
-	private void removeWordRelation(ArrayList<SentenceWordRelation> wordRelationList,
+	private void removeWordRelation(HashSet<SentenceWordRelation> wordRelationList,
 			SentenceWordRelation wordRelation) {
 		for (SentenceWordRelation curWordRelation : getDependencyChain(wordRelationList,
 				wordRelation))
@@ -1057,7 +1137,7 @@ public class Sentence {
 	}
 
 	private ArrayList<SentenceWordRelation> getDependencyChain(
-			ArrayList<SentenceWordRelation> wordRelationList, SentenceWordRelation wordRelation) {
+			HashSet<SentenceWordRelation> wordRelationList, SentenceWordRelation wordRelation) {
 		ArrayList<SentenceWordRelation> result = new ArrayList<SentenceWordRelation>();
 		if (wordRelation.id == 0)
 			return result;
@@ -1078,12 +1158,12 @@ public class Sentence {
 		return result;
 	}
 
-	private int calcDependencyLength(ArrayList<SentenceWordRelation> wordRelationList,
+	private int calcDependencyLength(HashSet<SentenceWordRelation> wordRelationList,
 			SentenceWordRelation wordRelation) {
 		return getDependencyChain(wordRelationList, wordRelation).size();
 	}
 
-	private boolean isDependentRelation(ArrayList<SentenceWordRelation> wordRelationList,
+	private boolean isDependentRelation(HashSet<SentenceWordRelation> wordRelationList,
 			SentenceWordRelation wordRelation, int depID) {
 		if (depID == 0 | wordRelation.id == 0)
 			return false;
@@ -1105,7 +1185,7 @@ public class Sentence {
 	}
 
 	private SentenceWordRelation getLastWordRelation(
-			ArrayList<SentenceWordRelation> wordRelationList, SentenceWordRelation wordRelation) {
+			HashSet<SentenceWordRelation> wordRelationList, SentenceWordRelation wordRelation) {
 		SentenceWordRelation result = wordRelation;
 		if (wordRelation.id == 0)
 			return null;
@@ -1121,9 +1201,36 @@ public class Sentence {
 		return result;
 	}
 
-	private int getLastWordRelationID(ArrayList<SentenceWordRelation> wordRelationList,
+	private SentenceWordRelation getFirstWordRelation(
+			HashSet<SentenceWordRelation> wordRelationList, SentenceWordRelation wordRelation) {
+		SentenceWordRelation result = wordRelation;
+		if (wordRelation.id == 0)
+			return null;
+
+		boolean found = true;
+		while (found && result.depID != 0) {
+			found = false;
+			for (SentenceWordRelation curWordRelation : wordRelationList)
+				if (result.depID == curWordRelation.id) {
+					found = true;
+					result = curWordRelation;
+				}
+		}
+		return result;
+	}
+
+	private int getLastWordRelationID(HashSet<SentenceWordRelation> wordRelationList,
 			SentenceWordRelation wordRelation) {
 		SentenceWordRelation lastWordRelation = getLastWordRelation(wordRelationList, wordRelation);
+		if (lastWordRelation == null)
+			return 0;
+		else
+			return lastWordRelation.id;
+	}
+
+	private int getFirstWordRelationID(HashSet<SentenceWordRelation> wordRelationList,
+			SentenceWordRelation wordRelation) {
+		SentenceWordRelation lastWordRelation = getFirstWordRelation(wordRelationList, wordRelation);
 		if (lastWordRelation == null)
 			return 0;
 		else
@@ -1151,8 +1258,8 @@ public class Sentence {
 		return false;
 	}
 
-	private boolean existWord1Relation(ArrayList<SentenceWordRelation> wordRelationList,
-			int wordPos, int type, int relationType) {
+	private boolean existWord1Relation(HashSet<SentenceWordRelation> wordRelationList, int wordPos,
+			int type, int relationType) {
 		for (SentenceWordRelation wordRelation : wordRelationList) {
 			// if exist WordRelation where Word1 has different type and type is not zero
 			if ((wordRelation.sentenceID == id) && (wordRelation.word1Pos == wordPos)
@@ -1165,19 +1272,28 @@ public class Sentence {
 		return false;
 	}
 
-	private boolean existWordRelation(ArrayList<SentenceWordRelation> wordRelationList,
+	private boolean existWordRelation(HashSet<SentenceWordRelation> wordRelationList,
 			SentenceWordform word1Form, SentenceWordform word2Form, int relationType,
 			int depRelationID) {
+		boolean existType = false;
+		boolean foundType = false;
 		for (SentenceWordRelation wordRelation : wordRelationList) {
-			// if exist WordRelation where Word2 has different type and type is not zero
+			// collect information if there are type restrictions and if Word2 meets them
 			if ((wordRelation.status == 2) && (wordRelation.sentenceID == id)
 					&& (wordRelation.word1Pos == word2Form.wordPos)
-					&& (wordRelation.word1Type != word2Form.type) && (wordRelation.word1Type != 0))
-				return true;
+					&& (wordRelation.word1Type != 0)) {
+				existType = true;
+				if (wordRelation.word1Type == word2Form.type)
+					foundType = true;
+			}
+
 			if ((wordRelation.status == 2) && (wordRelation.sentenceID == id)
 					&& (wordRelation.word2Pos == word2Form.wordPos)
-					&& (wordRelation.word2Type != word2Form.type) && (wordRelation.word2Type != 0))
-				return true;
+					&& (wordRelation.word2Type != 0)) {
+				existType = true;
+				if (wordRelation.word2Type == word2Form.type)
+					foundType = true;
+			}
 			// if exist wordRelation where Word1 is related to different Word2 and has the same
 			// relationType and dependent Relation
 			if ((wordRelation.sentenceID == id) && (wordRelation.word1Pos == word1Form.wordPos)
@@ -1204,21 +1320,32 @@ public class Sentence {
 							&& (wordRelation.word2Gender == word2Form.gender) && (wordRelation.word2Sing_Pl == word2Form.sing_pl))))
 				return true;
 		}
+		if (existType)
+			return !foundType;
 		return false;
 	}
 
-	private boolean existWordRelation(ArrayList<SentenceWordRelation> wordRelationList,
+	private boolean existWordRelation(HashSet<SentenceWordRelation> wordRelationList,
 			SentenceWordRelation mainWordRelation, SentenceWordform word2Form, int relationType) {
+		boolean existType = false;
+		boolean foundType = false;
 		for (SentenceWordRelation wordRelation : wordRelationList) {
-			// if exist WordRelation where Word2 has different type
+			// collect information if there are type restrictions and if Word2 meets them
 			if ((wordRelation.status == 2) && (wordRelation.sentenceID == id)
 					&& (wordRelation.word1Pos == word2Form.wordPos)
-					&& (wordRelation.word1Type != word2Form.type) && (wordRelation.word1Type != 0))
-				return true;
+					&& (wordRelation.word1Type != 0)) {
+				existType = true;
+				if (wordRelation.word1Type == word2Form.type)
+					foundType = true;
+			}
 			if ((wordRelation.status == 2) && (wordRelation.sentenceID == id)
 					&& (wordRelation.word2Pos == word2Form.wordPos)
-					&& (wordRelation.word2Type != word2Form.type) && (wordRelation.word2Type != 0))
-				return true;
+					&& (wordRelation.word2Type != 0)) {
+				existType = true;
+				if (wordRelation.word2Type == word2Form.type)
+					foundType = true;
+
+			}
 			// if exist wordRelation where Word1 is related to different Word2 and has the same
 			// relationType and dependent Relation
 			if ((wordRelation.sentenceID == id)
@@ -1250,16 +1377,146 @@ public class Sentence {
 					&& (wordRelation.word2Type == word2Form.type)
 					&& ((word2Form.wcase == 0) | ((wordRelation.word2Case == word2Form.wcase)
 							&& (wordRelation.word2Gender == word2Form.gender) && (wordRelation.word2Sing_Pl == word2Form.sing_pl)))
-					&& ((wordRelation.depID == 0) | (mainWordRelation.id == 0) | (getLastWordRelationID(
-							wordRelationList, wordRelation) == getLastWordRelationID(
+					&& ((wordRelation.depID == 0) | (mainWordRelation.id == 0) | (getFirstWordRelationID(
+							wordRelationList, wordRelation) == getFirstWordRelationID(
 							wordRelationList, mainWordRelation))))
 				return true;
 		}
+		if (existType)
+			return !foundType;
+		return false;
+	}
+
+	private boolean existWord1Relation(HashSet<SentenceWordRelation> wordRelationList,
+			SentenceWordRelation mainWordRelation, SentenceWordRelation dependentWordRelation,
+			int relationType) {
+		boolean existType = false;
+		boolean foundType = false;
+		for (SentenceWordRelation wordRelation : wordRelationList) {
+			// collect information if there are type restrictions and if Word2 meets them
+			if ((wordRelation.status == 2) && (wordRelation.sentenceID == id)
+					&& (wordRelation.word1Pos == dependentWordRelation.word2Pos)
+					&& (wordRelation.word1Type != 0)) {
+				existType = true;
+				if (wordRelation.word1Type == dependentWordRelation.word2Type)
+					foundType = true;
+			}
+			if ((wordRelation.status == 2) && (wordRelation.sentenceID == id)
+					&& (wordRelation.word2Pos == dependentWordRelation.word2Pos)
+					&& (wordRelation.word2Type != 0)) {
+				existType = true;
+				if (wordRelation.word2Type == dependentWordRelation.word2Type)
+					foundType = true;
+			}
+			// if exist wordRelation where Word1 is related to different Word2 and has the same
+			// relationType and dependent Relation
+			if ((wordRelation.sentenceID == id)
+					&& (wordRelation.word1Pos == mainWordRelation.word1Pos)
+					&& (wordRelation.word2Pos != dependentWordRelation.word2Pos)
+					&& (wordRelation.relationType == relationType)
+					&& (wordRelation.depID == mainWordRelation.id))
+				return true;
+			// if exist wordRelation where Word2 is related to different Word1
+			if ((wordRelation.status == 2)
+					&& (wordRelation.sentenceID == id)
+					&& (wordRelation.word2Pos == dependentWordRelation.word2Pos)
+					&& (wordRelation.word1Pos != mainWordRelation.word1Pos)
+					&& ((wordRelation.relationType != SentenceWordRelation.preposition) | (wordRelation.relationType != relationType)))
+				return true;
+			// if exist wordRelation in WordRelation dependency chain with the same Word1 and Word2
+			if ((wordRelation.sentenceID == id)
+					&& (wordRelation.word1Pos == mainWordRelation.word1Pos)
+					&& (wordRelation.word2Pos == dependentWordRelation.word2Pos)
+					&& (isDependentRelation(wordRelationList, wordRelation, mainWordRelation.id)))
+				return true;
+
+			// if exist wordRelation with the same Word1 and Word2
+			if ((wordRelation.sentenceID == id)
+					&& (wordRelation.relationType == relationType)
+					&& (wordRelation.word1Pos == mainWordRelation.word1Pos)
+					&& (wordRelation.word1Type == mainWordRelation.word1Type)
+					&& ((mainWordRelation.word1Case == 0) | ((wordRelation.word1Case == mainWordRelation.word1Case)
+							&& (wordRelation.word1Gender == mainWordRelation.word1Gender) && (wordRelation.word1Sing_Pl == mainWordRelation.word1Sing_Pl)))
+					&& (wordRelation.word2Pos == dependentWordRelation.word2Pos)
+					&& (wordRelation.word2Type == dependentWordRelation.word2Type)
+					&& ((dependentWordRelation.word2Case == 0) | ((wordRelation.word2Case == dependentWordRelation.word2Case)
+							&& (wordRelation.word2Gender == dependentWordRelation.word2Gender) && (wordRelation.word2Sing_Pl == dependentWordRelation.word2Sing_Pl)))
+					&& ((wordRelation.depID == 0) | (mainWordRelation.id == 0) | (getFirstWordRelationID(
+							wordRelationList, wordRelation) == getFirstWordRelationID(
+							wordRelationList, mainWordRelation))))
+				return true;
+		}
+		if (existType)
+			return !foundType;
+		return false;
+	}
+
+	private boolean existWord2Relation(HashSet<SentenceWordRelation> wordRelationList,
+			SentenceWordRelation mainWordRelation, SentenceWordRelation dependentWordRelation,
+			int relationType) {
+		boolean existType = false;
+		boolean foundType = false;
+		for (SentenceWordRelation wordRelation : wordRelationList) {
+			// collect information if there are type restrictions and if Word2 meets them
+			if ((wordRelation.status == 2) && (wordRelation.sentenceID == id)
+					&& (wordRelation.word1Pos == dependentWordRelation.word2Pos)
+					&& (wordRelation.word1Type != 0)) {
+				existType = true;
+				if (wordRelation.word1Type == dependentWordRelation.word2Type)
+					foundType = true;
+			}
+			if ((wordRelation.status == 2) && (wordRelation.sentenceID == id)
+					&& (wordRelation.word2Pos == dependentWordRelation.word2Pos)
+					&& (wordRelation.word2Type != 0)) {
+				existType = true;
+				if (wordRelation.word2Type == dependentWordRelation.word2Type)
+					foundType = true;
+			}
+			// if exist wordRelation where Word1 is related to different Word2 and has the same
+			// relationType and dependent Relation
+			if ((wordRelation.sentenceID == id)
+					&& (wordRelation.word1Pos == mainWordRelation.word1Pos)
+					&& (wordRelation.word2Pos != dependentWordRelation.word2Pos)
+					&& (wordRelation.relationType == relationType)
+					&& (wordRelation.depID == mainWordRelation.id))
+				return true;
+			// if exist wordRelation where Word2 is related to different Word1
+			if ((wordRelation.status == 2)
+					&& (wordRelation.sentenceID == id)
+					&& (wordRelation.word2Pos == dependentWordRelation.word2Pos)
+					&& (wordRelation.word1Pos != mainWordRelation.word1Pos)
+					&& ((wordRelation.relationType != SentenceWordRelation.preposition) | (wordRelation.relationType != relationType)))
+				return true;
+			// if exist wordRelation in WordRelation dependency chain with the same Word1 and Word2
+			if ((wordRelation.sentenceID == id)
+					&& (wordRelation.word1Pos == mainWordRelation.word1Pos)
+					&& (wordRelation.word2Pos == dependentWordRelation.word2Pos)
+					&& (isDependentRelation(wordRelationList, wordRelation, mainWordRelation.id)))
+				return true;
+
+			// if exist wordRelation with the same Word1 and Word2
+			if ((wordRelation.sentenceID == id)
+					&& (wordRelation.relationType == relationType)
+					&& (wordRelation.word1Pos == mainWordRelation.word2Pos)
+					&& (wordRelation.word1Type == mainWordRelation.word2Type)
+					&& ((mainWordRelation.word2Case == 0) | ((wordRelation.word1Case == mainWordRelation.word2Case)
+							&& (wordRelation.word1Gender == mainWordRelation.word2Gender) && (wordRelation.word1Sing_Pl == mainWordRelation.word2Sing_Pl)))
+					&& (wordRelation.word2Pos == dependentWordRelation.word2Pos)
+					&& (wordRelation.word2Type == dependentWordRelation.word2Type)
+					&& ((dependentWordRelation.word2Case == 0) | ((wordRelation.word2Case == dependentWordRelation.word2Case)
+							&& (wordRelation.word2Gender == dependentWordRelation.word2Gender) && (wordRelation.word2Sing_Pl == dependentWordRelation.word2Sing_Pl)))
+					&& ((wordRelation.depID == 0) | (mainWordRelation.id == 0) | (getFirstWordRelationID(
+							wordRelationList, wordRelation) == getFirstWordRelationID(
+							wordRelationList, mainWordRelation))))
+				return true;
+		}
+		if (existType)
+			return !foundType;
 		return false;
 	}
 
 	private ArrayList<SentenceWord> generateSentenceParts(
-			ArrayList<SentenceWordRelation> wordRelationList) {
+			HashSet<SentenceWordRelation> wordRelationList) {
 		ArrayList<SentenceWord> sentenceParts = new ArrayList<SentenceWord>();
 		ArrayList<SentenceWord> mainSentenceParts = new ArrayList<SentenceWord>();
 		SentenceWord sentencePart;
@@ -1285,7 +1542,7 @@ public class Sentence {
 	}
 
 	private SentenceWordFilter[] generateSentenceWordFilter(
-			ArrayList<SentenceWordRelation> wordRelationList) {
+			HashSet<SentenceWordRelation> wordRelationList) {
 		SentenceWordFilter[] sentenceWordFilter = new SentenceWordFilter[wordCount + 1];
 		for (SentenceWordRelation wordRelation : wordRelationList) {
 			if (sentenceWordFilter[wordRelation.word1Pos] == null)
@@ -1406,7 +1663,8 @@ public class Sentence {
 		ArrayList<SentenceWordform> linkedWords = new ArrayList<SentenceWordform>();
 		for (SentenceWordLink wordLink : wordLinkList)
 			if ((id == wordLink.sentenceID)
-					&& ((wordPos == wordLink.wordPos) | (wordPos == wordLink.linkWordPos))) {
+					&& ((wordPos == wordLink.wordPos) | (wordPos == wordLink.linkWordPos))
+					&& (wcase == wordLink.wcase)) {
 				if (wordPos == wordLink.wordPos)
 					tempWordPos = wordLink.linkWordPos;
 				else
@@ -1540,7 +1798,7 @@ public class Sentence {
 	}
 
 	private boolean existIndirectDependence(int word1Pos, int word2Pos,
-			ArrayList<SentenceWordRelation> wordRelationList) {
+			HashSet<SentenceWordRelation> wordRelationList) {
 		SentenceWordRelation wordRelation;
 		int depWordPos = word2Pos;
 		do {
@@ -1555,7 +1813,7 @@ public class Sentence {
 	}
 
 	private SentenceWordRelation getDependentWordRelation(int wordPos,
-			ArrayList<SentenceWordRelation> wordRelationList) {
+			HashSet<SentenceWordRelation> wordRelationList) {
 		for (SentenceWordRelation wordRelation : wordRelationList)
 			if (wordRelation.word2Pos == wordPos)
 				return wordRelation;

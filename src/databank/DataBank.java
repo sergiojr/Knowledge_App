@@ -1029,6 +1029,10 @@ public class DataBank {
 			part = filter.substring(1);
 			return (value > Integer.valueOf(part));
 		}
+		
+//		if (Integer.valueOf(part)==0)
+//			return true;
+		
 		return (value == Integer.valueOf(part));
 	}
 
@@ -1099,7 +1103,7 @@ public class DataBank {
 		}
 	}
 
-	public void saveSentenceWordRelationList(ArrayList<SentenceWordRelation> wordRelationList) {
+	public void saveSentenceWordRelationList(HashSet<SentenceWordRelation> wordRelationList) {
 		try {
 			establishConnection();
 			PreparedStatement prep = conn

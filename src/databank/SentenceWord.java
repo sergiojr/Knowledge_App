@@ -39,25 +39,25 @@ public class SentenceWord {
 	public String sing_pl_filter;
 	SentenceWordform sentenceWordform;
 
-	public void addValuestoFilters(SentenceWordform sentenceWordform) {
-		word_type_filter = addValueToFilter(sentenceWordform.type, word_type_filter);
-		wcase_filter = addValueToFilter(sentenceWordform.wcase, wcase_filter);
-		gender_filter = addValueToFilter(sentenceWordform.gender, gender_filter);
-		sing_pl_filter = addValueToFilter(sentenceWordform.sing_pl, sing_pl_filter);
+	private void addValuestoFilters(SentenceWordform sentenceWordform) {
+		word_type_filter = addValueToFilter(sentenceWordform.type, word_type_filter,true);
+		wcase_filter = addValueToFilter(sentenceWordform.wcase, wcase_filter,true);
+		gender_filter = addValueToFilter(sentenceWordform.gender, gender_filter,false);
+		sing_pl_filter = addValueToFilter(sentenceWordform.sing_pl, sing_pl_filter,false);
 	}
 
 	public void addValuestoFilters(SentenceWordRelation wordRelation, int wordSelector) {
 		if (wordSelector == 1) {
-			word_type_filter = addValueToFilter(wordRelation.word1Type, word_type_filter);
-			wcase_filter = addValueToFilter(wordRelation.word1Case, wcase_filter);
-			gender_filter = addValueToFilter(wordRelation.word1Gender, gender_filter);
-			sing_pl_filter = addValueToFilter(wordRelation.word1Sing_Pl, sing_pl_filter);
+			word_type_filter = addValueToFilter(wordRelation.word1Type, word_type_filter,true);
+			wcase_filter = addValueToFilter(wordRelation.word1Case, wcase_filter,true);
+			gender_filter = addValueToFilter(wordRelation.word1Gender, gender_filter,false);
+			sing_pl_filter = addValueToFilter(wordRelation.word1Sing_Pl, sing_pl_filter,false);
 		}
 		if (wordSelector == 2) {
-			word_type_filter = addValueToFilter(wordRelation.word2Type, word_type_filter);
-			wcase_filter = addValueToFilter(wordRelation.word2Case, wcase_filter);
-			gender_filter = addValueToFilter(wordRelation.word2Gender, gender_filter);
-			sing_pl_filter = addValueToFilter(wordRelation.word2Sing_Pl, sing_pl_filter);
+			word_type_filter = addValueToFilter(wordRelation.word2Type, word_type_filter,true);
+			wcase_filter = addValueToFilter(wordRelation.word2Case, wcase_filter,true);
+			gender_filter = addValueToFilter(wordRelation.word2Gender, gender_filter,false);
+			sing_pl_filter = addValueToFilter(wordRelation.word2Sing_Pl, sing_pl_filter,false);
 		}
 
 	}
@@ -67,12 +67,15 @@ public class SentenceWord {
 				0, "", "", "", "", 0, 0);
 	}
 
-	private String addValueToFilter(int value, String filter) {
+	private String addValueToFilter(int value, String filter, boolean strict) {
 		String result = filter;
+
+		if (!strict)
+			if (value == 0)
+				result = new String();
+
 		if (value > 0) {
 			if (result == null)
-				result = new String();
-			if (result.isEmpty())
 				result = String.valueOf(value);
 			else if (!DataBank.checkFilter(value, result)) {
 				result = result + '|' + String.valueOf(value);
@@ -84,6 +87,10 @@ public class SentenceWord {
 	public boolean filterMatch(String externalFilter) {
 		if (wcase_filter == null)
 			return false;
+
+		if (wcase_filter.isEmpty())
+			return false;
+
 		String[] splitFilter = wcase_filter.split("\\|");
 		for (String wcaseString : splitFilter) {
 			int wcase = Integer.valueOf(wcaseString);
