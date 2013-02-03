@@ -8,7 +8,7 @@ public class SentenceWordRelationGraph {
 	private int sentenceID;
 	private int maxWordPos;
 
-	public SentenceWordRelationGraph(int newSentenceID,int newMaxWordPos) {
+	public SentenceWordRelationGraph(int newSentenceID, int newMaxWordPos) {
 		sentenceID = newSentenceID;
 		maxWordPos = newMaxWordPos;
 		sentenceWordRelationSet = new HashSet<SentenceWordRelation>();
@@ -45,19 +45,6 @@ public class SentenceWordRelationGraph {
 			}
 		}
 		return sentenceWordFilter;
-	}
-
-	public boolean existWord1Relation(int wordPos, int type, int relationType) {
-		for (SentenceWordRelation wordRelation : sentenceWordRelationSet) {
-			// if exist WordRelation where Word1 has different type and type is not zero
-			if ((wordRelation.sentenceID == sentenceID) && (wordRelation.word1Pos == wordPos)
-					&& (wordRelation.word1Type != type) && (wordRelation.word1Type != 0))
-				return true;
-			if ((wordRelation.sentenceID == sentenceID) && (wordRelation.word2Pos == wordPos)
-					&& (wordRelation.word2Type != type) && (wordRelation.word2Type != 0))
-				return true;
-		}
-		return false;
 	}
 
 	public boolean existWordRelation(SentenceWordRelation wordRelation) {
@@ -116,10 +103,7 @@ public class SentenceWordRelationGraph {
 					&& (curWordRelation.word2Type == wordRelation.word2Type)
 					&& ((wordRelation.word2Case == 0) | ((curWordRelation.word2Case == wordRelation.word2Case)
 							&& (curWordRelation.word2Gender == wordRelation.word2Gender) && (curWordRelation.word2Sing_Pl == wordRelation.word2Sing_Pl)))
-					&& ((curWordRelation.depID == 0) | (wordRelation.depID == 0) |
-					// (getFirstWordRelationID(wordRelationList, curWordRelation) ==
-					// getFirstWordRelationID(wordRelationList, wordRelation))
-					(curWordRelation.depID == wordRelation.depID)))
+					&& ((curWordRelation.depID == 0) | (wordRelation.depID == 0) | (curWordRelation.depID == wordRelation.depID)))
 				return true;
 		}
 		if (existType)
@@ -299,6 +283,15 @@ public class SentenceWordRelationGraph {
 		return false;
 	}
 
+	public int getPrepositionWordPos(int wordPos) {
+		int relationType = SentenceWordRelation.preposition;
+		for (SentenceWordRelation wordRelation : sentenceWordRelationSet)
+			if ((wordRelation.sentenceID == sentenceID) && (wordRelation.word1Pos == wordPos)
+					&& (wordRelation.relationType == relationType))
+				return wordRelation.word2Pos;
+		return 0;
+	}
+
 	public SentenceWordRelation getMainVerbRelation(int wordPos) {
 		for (SentenceWordRelation wordRelation : sentenceWordRelationSet)
 			if ((wordRelation.sentenceID == sentenceID) && (wordRelation.word2Pos == wordPos)
@@ -351,7 +344,7 @@ public class SentenceWordRelationGraph {
 	public int getNextIndependentWordPos(int wordPos) {
 		SentenceWordRelation depWordRelation;
 		int curWordPos = wordPos + 1;
-		while (curWordPos < maxWordPos) {
+		while (curWordPos <= maxWordPos) {
 			depWordRelation = getDependentWordRelation(curWordPos);
 			if (depWordRelation == null)
 				return curWordPos;

@@ -27,42 +27,83 @@ public class SentenceWordRelation {
 	static int negative = 101;
 	static int preposition = 102;
 
-	public SentenceWordRelation(int id, SentenceWordRelation wordRelation, int word2Pos, int word2Type,
+	public SentenceWordRelation(int id, int depID, int sentenceID, int word1Pos, int word1Type,
+			int word1Case, int word1Gender, int word1Sing_Pl, int word2Pos, int word2Type,
 			int word2Case, int word2Gender, int word2Sing_Pl, int relationType) {
-		this.id = id;
-		this.depID = wordRelation.id;
-		this.sentenceID = wordRelation.sentenceID;
-		this.word1Pos = wordRelation.word1Pos;
-		this.word1Type = wordRelation.word1Type;
-		this.word1Case = wordRelation.word1Case;
-		this.word1Gender = wordRelation.word1Gender;
-		this.word1Sing_Pl = wordRelation.word1Sing_Pl;
-		this.word2Pos = word2Pos;
-		this.word2Type = word2Type;
-		this.word2Case = word2Case;
-		this.word2Gender = word2Gender;
-		this.word2Sing_Pl = word2Sing_Pl;
-		this.relationType = relationType;
-		this.status=1;
-	}
-
-	public SentenceWordRelation(int id, int depID, int sentenceID, int word1Pos, int word1Type, int word1Case,
-			int word1Gender, int word1Sing_Pl, int word2Pos, int word2Type, int word2Case, int word2Gender,
-			int word2Sing_Pl, int relationType) {
 		this.id = id;
 		this.depID = depID;
 		this.sentenceID = sentenceID;
 		this.word1Pos = word1Pos;
 		this.word1Type = word1Type;
-		this.word1Case = word1Case;
-		this.word1Gender = word1Gender;
-		this.word1Sing_Pl = word1Sing_Pl;
 		this.word2Pos = word2Pos;
 		this.word2Type = word2Type;
-		this.word2Case = word2Case;
-		this.word2Gender = word2Gender;
-		this.word2Sing_Pl = word2Sing_Pl;
+
+		if (relationType == verbAdverb) {
+			this.word1Case = 0;
+			this.word1Gender = 0;
+			this.word1Sing_Pl = 0;
+			this.word2Case = 0;
+			this.word2Gender = 0;
+			this.word2Sing_Pl = 0;
+		} else if (relationType == adverbAttribute) {
+			this.word1Case = 0;
+			this.word1Gender = 0;
+			this.word1Sing_Pl = 0;
+			this.word2Case = 0;
+			this.word2Gender = 0;
+			this.word2Sing_Pl = 0;
+		} else if (relationType == verbSubstantive) {
+			this.word1Case = 0;
+			this.word1Gender = 0;
+			this.word1Sing_Pl = 0;
+			this.word2Case = word2Case;
+			this.word2Gender = word2Gender;
+			this.word2Sing_Pl = word2Sing_Pl;
+		} else if (relationType == verbInfinitive) {
+			this.word1Case = word1Case;
+			this.word1Gender = word1Gender;
+			this.word1Sing_Pl = word1Sing_Pl;
+			this.word2Case = 0;
+			this.word2Gender = 0;
+			this.word2Sing_Pl = 0;
+		} else if (relationType == negative) {
+			this.word1Case = 0;
+			this.word1Gender = 0;
+			this.word1Sing_Pl = 0;
+			this.word2Case = word2Case;
+			this.word2Gender = word2Gender;
+			this.word2Sing_Pl = word2Sing_Pl;
+		} else {
+			this.word1Case = word1Case;
+			this.word1Gender = word1Gender;
+			this.word1Sing_Pl = word1Sing_Pl;
+			this.word2Case = word2Case;
+			this.word2Gender = word2Gender;
+			this.word2Sing_Pl = word2Sing_Pl;
+		}
+
 		this.relationType = relationType;
-		this.status=1;
+		this.status = 1;
 	}
+
+	public SentenceWordRelation(int id, SentenceWordRelation wordRelation,
+			SentenceWordform wordform2, int relationType) {
+		this(id, wordRelation.id, wordRelation.sentenceID, wordRelation.word1Pos,
+				wordRelation.word1Type, wordRelation.word1Case, wordRelation.word1Gender,
+				wordRelation.word1Sing_Pl, wordform2.wordPos, wordform2.type, wordform2.wcase,
+				wordform2.gender, wordform2.sing_pl, relationType);
+	}
+
+	public SentenceWordRelation(int id, int depID, SentenceWordform wordform1,
+			SentenceWordform wordform2, int relationType) {
+		this(id, depID, wordform1.sentenceID, wordform1.wordPos, wordform1.type, wordform1.wcase,
+				wordform1.gender, wordform1.sing_pl, wordform2.wordPos, wordform2.type,
+				wordform2.wcase, wordform2.gender, wordform2.sing_pl, relationType);
+	}
+
+	public SentenceWordRelation(int id, int depID, SentenceWordform wordform1, int relationType) {
+		this(id, depID, wordform1.sentenceID, wordform1.wordPos, wordform1.type, wordform1.wcase,
+				wordform1.gender, wordform1.sing_pl, 0, 0, 0, 0, 0, relationType);
+	}
+
 }

@@ -62,11 +62,6 @@ public class SentenceWord {
 
 	}
 
-	public SentenceWordform getSentenceWordform() {
-		return new SentenceWordform(sentenceID, subsentenceID, wordPos, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, "", "", "", "", 0, 0);
-	}
-
 	private String addValueToFilter(int value, String filter, boolean strict) {
 		String result = filter;
 
