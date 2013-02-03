@@ -1,5 +1,6 @@
 package databank;
 
+import java.util.HashMap;
 import java.util.HashSet;
 
 public class SentenceWordRelationGraph {
@@ -7,19 +8,49 @@ public class SentenceWordRelationGraph {
 	private HashSet<SentenceWordRelation> sentenceWordRelationSet;
 	private int sentenceID;
 	private int maxWordPos;
+	private int relationCount;
 
 	public SentenceWordRelationGraph(int newSentenceID, int newMaxWordPos) {
 		sentenceID = newSentenceID;
 		maxWordPos = newMaxWordPos;
 		sentenceWordRelationSet = new HashSet<SentenceWordRelation>();
+		relationCount = 0;
 	}
 
-	public void add(SentenceWordRelation wordRelation) {
+	public boolean add(SentenceWordRelation wordRelation) {
+		if (existWordRelation(wordRelation))
+			return false;
+
+		if (wordRelation.id == 0)
+			wordRelation.id = ++relationCount;
+
 		sentenceWordRelationSet.add(wordRelation);
+		return true;
 	}
 
 	public void addAll(SentenceWordRelationGraph curWordRelationGraph) {
-		sentenceWordRelationSet.addAll(curWordRelationGraph.getSet());
+		HashMap<Integer, Integer> idMapping = new HashMap<Integer, Integer>();
+		for (SentenceWordRelation wordRelation : curWordRelationGraph.getSet()) {
+			if (wordRelation.id != 0) {
+				if (idMapping.containsKey(wordRelation.id))
+					wordRelation.id = idMapping.get(wordRelation.id);
+				else {
+					idMapping.put(wordRelation.id, ++relationCount);
+					wordRelation.id = relationCount;
+				}
+			}
+
+			if (wordRelation.depID != 0) {
+				if (idMapping.containsKey(wordRelation.depID))
+					wordRelation.depID = idMapping.get(wordRelation.depID);
+				else {
+					idMapping.put(wordRelation.depID, ++relationCount);
+					wordRelation.depID = relationCount;
+				}
+			}
+
+			sentenceWordRelationSet.add(wordRelation);
+		}
 	}
 
 	public void remove(SentenceWordRelation wordRelation) {
@@ -48,26 +79,7 @@ public class SentenceWordRelationGraph {
 	}
 
 	public boolean existWordRelation(SentenceWordRelation wordRelation) {
-		boolean existType = false;
-		boolean foundType = false;
 		for (SentenceWordRelation curWordRelation : sentenceWordRelationSet) {
-			// collect information if there are type restrictions and if Word2 meets them
-			if ((curWordRelation.status == 2)
-					&& (curWordRelation.sentenceID == wordRelation.sentenceID)
-					&& (curWordRelation.word1Pos == wordRelation.word2Pos)
-					&& (curWordRelation.word1Type != 0)) {
-				existType = true;
-				if (curWordRelation.word1Type == wordRelation.word2Type)
-					foundType = true;
-			}
-			if ((curWordRelation.status == 2)
-					&& (curWordRelation.sentenceID == wordRelation.sentenceID)
-					&& (curWordRelation.word2Pos == wordRelation.word2Pos)
-					&& (curWordRelation.word2Type != 0)) {
-				existType = true;
-				if (curWordRelation.word2Type == wordRelation.word2Type)
-					foundType = true;
-			}
 			// if exist wordRelation where Word1 is related to different Word2 and has the same
 			// relationType and dependent Relation
 			if ((curWordRelation.sentenceID == wordRelation.sentenceID)
@@ -97,17 +109,17 @@ public class SentenceWordRelationGraph {
 					&& (curWordRelation.relationType == wordRelation.relationType)
 					&& (curWordRelation.word1Pos == wordRelation.word1Pos)
 					&& (curWordRelation.word1Type == wordRelation.word1Type)
-					&& ((wordRelation.word1Case == 0) | ((curWordRelation.word1Case == wordRelation.word1Case)
-							&& (curWordRelation.word1Gender == wordRelation.word1Gender) && (curWordRelation.word1Sing_Pl == wordRelation.word1Sing_Pl)))
+					&& (curWordRelation.word1Case == wordRelation.word1Case)
+					&& (curWordRelation.word1Gender == wordRelation.word1Gender)
+					&& (curWordRelation.word1Sing_Pl == wordRelation.word1Sing_Pl)
 					&& (curWordRelation.word2Pos == wordRelation.word2Pos)
 					&& (curWordRelation.word2Type == wordRelation.word2Type)
-					&& ((wordRelation.word2Case == 0) | ((curWordRelation.word2Case == wordRelation.word2Case)
-							&& (curWordRelation.word2Gender == wordRelation.word2Gender) && (curWordRelation.word2Sing_Pl == wordRelation.word2Sing_Pl)))
+					&& (curWordRelation.word2Case == wordRelation.word2Case)
+					&& (curWordRelation.word2Gender == wordRelation.word2Gender)
+					&& (curWordRelation.word2Sing_Pl == wordRelation.word2Sing_Pl)
 					&& ((curWordRelation.depID == 0) | (wordRelation.depID == 0) | (curWordRelation.depID == wordRelation.depID)))
 				return true;
 		}
-		if (existType)
-			return !foundType;
 		return false;
 	}
 
@@ -166,8 +178,6 @@ public class SentenceWordRelationGraph {
 
 	public SentenceWordRelation getFirstWordRelation(SentenceWordRelation wordRelation) {
 		SentenceWordRelation result = wordRelation;
-		if (wordRelation.id == 0)
-			return null;
 
 		boolean found = true;
 		while (found && result.depID != 0) {
@@ -181,8 +191,7 @@ public class SentenceWordRelationGraph {
 		return result;
 	}
 
-	public int movePrepositionRelations(SentenceWordRelationGraph attributeWordRelations,
-			int relationCount) {
+	public void movePrepositionRelations(SentenceWordRelationGraph attributeWordRelations) {
 		// Preposition relation was originally created for every possible wordform that is on the
 		// next position in sentence. So there are several preposition relations for different
 		// properties for type, wcase, gender, sing_pl. On the other hand attribute relations can
@@ -265,8 +274,6 @@ public class SentenceWordRelationGraph {
 		for (SentenceWordRelation removeWordRelation : removeWordRelations)
 			sentenceWordRelationSet.remove(removeWordRelation);
 		sentenceWordRelationSet.addAll(dependentWordRelations);
-
-		return relationCount;
 	}
 
 	public void changeWordRelationStatus(int relationType) {
@@ -412,5 +419,4 @@ public class SentenceWordRelationGraph {
 		}
 		return false;
 	}
-
 }

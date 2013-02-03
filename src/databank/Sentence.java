@@ -21,7 +21,6 @@ public class Sentence {
 
 	private int id;
 	private int type;
-	private int relationCount;
 	private ArrayList<ArrayList<Integer>> division;
 	private DataBank databank;
 	private Vocabulary vocabulary;
@@ -33,7 +32,6 @@ public class Sentence {
 		this.id = id;
 		this.sentence = sentence;
 		this.sentenceWordList = sentenceWordList;
-		this.relationCount = 0;
 	}
 
 	public void save() {
@@ -395,12 +393,9 @@ public class Sentence {
 				substantiveIterator = substantiveList.iterator();
 				while (substantiveIterator.hasNext()) {
 					substantiveWordform = substantiveIterator.next();
-					wordRelation = new SentenceWordRelation(relationCount + 1, 0,
-							substantiveWordform, prepositionWordform, relationType);
-					if (!wordRelationGraph.existWordRelation(wordRelation)) {
-						wordRelationGraph.add(wordRelation);
-						relationCount++;
-					}
+					wordRelation = new SentenceWordRelation(0, 0, substantiveWordform,
+							prepositionWordform, relationType);
+					wordRelationGraph.add(wordRelation);
 				}
 			} else {
 				// проверяем, есть ли другие подходящие словоформы кроме предлога
@@ -409,8 +404,8 @@ public class Sentence {
 				prepAlternativeIterator = prepAlternativeList.iterator();
 				while (prepAlternativeIterator.hasNext()) {
 					prepAlternativeWordform = prepAlternativeIterator.next();
-					wordRelation = new SentenceWordRelation(++relationCount, 0,
-							prepAlternativeWordform, relationType);
+					wordRelation = new SentenceWordRelation(0, 0, prepAlternativeWordform,
+							relationType);
 					wordRelationGraph.add(wordRelation);
 				}
 			}
@@ -440,12 +435,9 @@ public class Sentence {
 			nextWordformIterator = nextWordforms.iterator();
 			while (nextWordformIterator.hasNext()) {
 				nextWordform = nextWordformIterator.next();
-				wordRelation = new SentenceWordRelation(relationCount + 1, 0, nextWordform,
-						negativeWordform, relationType);
-				if (!wordRelationGraph.existWordRelation(wordRelation)) {
-					wordRelationGraph.add(wordRelation);
-					relationCount++;
-				}
+				wordRelation = new SentenceWordRelation(0, 0, nextWordform, negativeWordform,
+						relationType);
+				wordRelationGraph.add(wordRelation);
 			}
 		}
 		wordRelationGraph.changeWordRelationStatus(relationType);
@@ -490,12 +482,9 @@ public class Sentence {
 			substantiveIterator = substantiveList.iterator();
 			while (substantiveIterator.hasNext()) {
 				substantiveWordform = substantiveIterator.next();
-				wordRelation = new SentenceWordRelation(relationCount + 1, 0, numeralPartWordform,
+				wordRelation = new SentenceWordRelation(0, 0, numeralPartWordform,
 						substantiveWordform, relationType);
-				if (!wordRelationGraph.existWordRelation(wordRelation)) {
-					wordRelationGraph.add(wordRelation);
-					relationCount++;
-				}
+				wordRelationGraph.add(wordRelation);
 			}
 		}
 		wordRelationGraph.changeWordRelationStatus(relationType);
@@ -527,12 +516,9 @@ public class Sentence {
 			genetiveSubstantiveIterator = genetiveSubstantiveList.iterator();
 			if (genetiveSubstantiveIterator.hasNext()) {
 				genetiveSubstantiveWordform = genetiveSubstantiveIterator.next();
-				wordRelation = new SentenceWordRelation(relationCount + 1, 0,
-						mainSubstantiveWordform, genetiveSubstantiveWordform, relationType);
-				if (!wordRelationGraph.existWordRelation(wordRelation)) {
-					wordRelationGraph.add(wordRelation);
-					relationCount++;
-				}
+				wordRelation = new SentenceWordRelation(0, 0, mainSubstantiveWordform,
+						genetiveSubstantiveWordform, relationType);
+				wordRelationGraph.add(wordRelation);
 			}
 		}
 		wordRelationGraph.changeWordRelationStatus(relationType);
@@ -564,14 +550,10 @@ public class Sentence {
 			infinitiveIterator = infinitiveList.iterator();
 			while (infinitiveIterator.hasNext()) {
 				infinitiveWordform = infinitiveIterator.next();
-				wordRelation = new SentenceWordRelation(++relationCount, 0, verbWordform,
-						infinitiveWordform, relationType);
-				if (!wordRelationGraph.existWordRelation(wordRelation)) {
-					wordRelationGraph.add(wordRelation);
-					relationCount++;
-					markLinkedWords(wordRelationGraph, wordRelation, infinitiveWordform,
-							verbWordform.wordPos);
-				}
+				wordRelation = new SentenceWordRelation(0, 0, verbWordform, infinitiveWordform,
+						relationType);
+				if (wordRelationGraph.add(wordRelation))
+					markLinkedWords(wordRelationGraph, wordRelation, infinitiveWordform);
 			}
 		}
 		wordRelationGraph.changeWordRelationStatus(relationType);
@@ -607,14 +589,10 @@ public class Sentence {
 			adverbsIterator = adverbList.iterator();
 			while (adverbsIterator.hasNext()) {
 				adverbWordform = adverbsIterator.next();
-				wordRelation = new SentenceWordRelation(relationCount + 1, 0, verbWordform,
-						adverbWordform, relationType);
-				if (!wordRelationGraph.existWordRelation(wordRelation)) {
-					wordRelationGraph.add(wordRelation);
-					relationCount++;
-					markLinkedWords(wordRelationGraph, wordRelation, adverbWordform,
-							verbWordform.wordPos);
-				}
+				wordRelation = new SentenceWordRelation(0, 0, verbWordform, adverbWordform,
+						relationType);
+				if (wordRelationGraph.add(wordRelation))
+					markLinkedWords(wordRelationGraph, wordRelation, adverbWordform);
 			}
 		}
 		wordRelationGraph.cleanWordRelationList(relationType);
@@ -672,14 +650,11 @@ public class Sentence {
 						substantiveIterator = substantiveList.iterator();
 						while (substantiveIterator.hasNext()) {
 							substantiveWordform = substantiveIterator.next();
-							wordRelation = new SentenceWordRelation(relationCount + 1, 0,
-									verbWordform, substantiveWordform, relationType);
-							if ((!wordRelationGraph.existWordRelation(wordRelation))) {
-								wordRelationGraph.add(wordRelation);
-								relationCount++;
+							wordRelation = new SentenceWordRelation(0, 0, verbWordform,
+									substantiveWordform, relationType);
+							if (wordRelationGraph.add(wordRelation))
 								markLinkedWords(wordRelationGraph, wordRelation,
-										substantiveWordform, verbWordform.wordPos);
-							}
+										substantiveWordform);
 						}
 					}
 			}
@@ -716,14 +691,10 @@ public class Sentence {
 				adverbsIterator = adverbList.iterator();
 				if (adverbsIterator.hasNext()) {
 					adverbWordform = adverbsIterator.next();
-					wordRelation = new SentenceWordRelation(relationCount + 1, 0,
-							attributeWordform, adverbWordform, relationType);
-					if (!wordRelationGraph.existWordRelation(wordRelation)) {
-						wordRelationGraph.add(wordRelation);
-						relationCount++;
-						markLinkedWords(wordRelationGraph, wordRelation, adverbWordform,
-								attributeWordform.wordPos);
-					}
+					wordRelation = new SentenceWordRelation(0, 0, attributeWordform,
+							adverbWordform, relationType);
+					if (wordRelationGraph.add(wordRelation))
+						markLinkedWords(wordRelationGraph, wordRelation, adverbWordform);
 				}
 			}
 		}
@@ -788,16 +759,13 @@ public class Sentence {
 							found = true;
 							adjectiveWordform = adjectiveIterator.next();
 							// mark, that adjective is dependent on substantive
-							wordRelation = new SentenceWordRelation(relationCount + 1,
-									curWordRelationId, substantiveWordform, adjectiveWordform,
-									relationType);
+							wordRelation = new SentenceWordRelation(0, curWordRelationId,
+									substantiveWordform, adjectiveWordform, relationType);
 							if (!wordRelationGraph.existWordRelation(wordRelation)
-									&& !curWordRelationGraph.existWordRelation(wordRelation)) {
-								curWordRelationGraph.add(wordRelation);
-								relationCount++;
+									&& curWordRelationGraph.add(wordRelation)) {
 								// mark any linked adjective
 								markLinkedWords(curWordRelationGraph, wordRelation,
-										adjectiveWordform, substantiveWordform.wordPos);
+										adjectiveWordform);
 
 								// find leftmost dependent adjective
 								curWordRelation = curWordRelationGraph
@@ -815,8 +783,7 @@ public class Sentence {
 			}
 		}
 		curWordRelationGraph.cleanWordRelationList(relationType);
-		relationCount = wordRelationGraph.movePrepositionRelations(curWordRelationGraph,
-				relationCount);
+		wordRelationGraph.movePrepositionRelations(curWordRelationGraph);
 		wordRelationGraph.addAll(curWordRelationGraph);
 		wordRelationGraph.changeWordRelationStatus(relationType);
 	}
@@ -892,7 +859,7 @@ public class Sentence {
 	}
 
 	private void markLinkedWords(SentenceWordRelationGraph wordRelationGraph,
-			SentenceWordRelation wordRelation, SentenceWordform dependentWord, int wordPos) {
+			SentenceWordRelation wordRelation, SentenceWordform dependentWord) {
 		ArrayList<SentenceWordform> linkedWordList;
 		Iterator<SentenceWordform> linkedWordIterator;
 		SentenceWordform linkedWordform;
@@ -900,7 +867,6 @@ public class Sentence {
 		SentenceWordRelation linkedWordRelation;
 		SentenceWordRelation conjunctionWordRelation;
 		boolean createConjunctionRelation;
-		int curRelationCount;
 		HashMap<Integer, SentenceWordRelation> conjunctionWordRelationbyWordPos = new HashMap<Integer, SentenceWordRelation>();
 		linkedWordList = getLinkedWordList(dependentWord.wordPos, dependentWord.type,
 				dependentWord.subtype, dependentWord.wcase, dependentWord.person,
@@ -908,15 +874,14 @@ public class Sentence {
 		linkedWordIterator = linkedWordList.iterator();
 		while (linkedWordIterator.hasNext()) {
 			linkedWordform = linkedWordIterator.next();
-			curRelationCount = relationCount;
 			if (wordRelation.word1Pos != linkedWordform.wordPos) {
 				createConjunctionRelation = !conjunctionWordRelationbyWordPos
 						.containsKey(linkedWordform.wordPos);
 				if (createConjunctionRelation) {
 					conjunctionWordform = getConjunction(dependentWord.wordPos,
 							linkedWordform.wordPos);
-					conjunctionWordRelation = new SentenceWordRelation(++curRelationCount,
-							wordRelation, conjunctionWordform, SentenceWordRelation.conjunction);
+					conjunctionWordRelation = new SentenceWordRelation(0, wordRelation,
+							conjunctionWordform, SentenceWordRelation.conjunction);
 					// temporary add conjunctionWordRelation to create dependency chain for
 					// linkedWordRelation
 					wordRelationGraph.add(conjunctionWordRelation);
@@ -924,16 +889,14 @@ public class Sentence {
 					conjunctionWordRelation = conjunctionWordRelationbyWordPos
 							.get(linkedWordform.wordPos);
 
-				linkedWordRelation = new SentenceWordRelation(++curRelationCount,
-						conjunctionWordRelation, linkedWordform, wordRelation.relationType);
+				linkedWordRelation = new SentenceWordRelation(0, conjunctionWordRelation,
+						linkedWordform, wordRelation.relationType);
 
-				if (!wordRelationGraph.existWordRelation(linkedWordRelation)) {
+				if (wordRelationGraph.add(linkedWordRelation)) {
 					if (createConjunctionRelation)
 						conjunctionWordRelationbyWordPos.put(linkedWordform.wordPos,
 								conjunctionWordRelation);
-					wordRelationGraph.add(linkedWordRelation);
-					relationCount = curRelationCount;
-					markLinkedWords(wordRelationGraph, linkedWordRelation, linkedWordform, wordPos);
+					markLinkedWords(wordRelationGraph, linkedWordRelation, linkedWordform);
 				} else if (createConjunctionRelation)
 					wordRelationGraph.remove(conjunctionWordRelation);
 			}
