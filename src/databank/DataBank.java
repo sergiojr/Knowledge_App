@@ -946,11 +946,11 @@ public class DataBank {
 			query.addCustomOrdering(new CustomSql("rating"), OrderObject.Dir.DESCENDING);
 			ResultSet rs = stat.executeQuery(query.validate().toString());
 			while (rs.next()) {
-				if (DataBank.checkFilter(rs.getInt("type"), rs.getString("word_type_filter"))
-						& DataBank.checkFilter(rs.getInt("wcase"), rs.getString("wcase_filter"))
-						& DataBank.checkFilter(rs.getInt("gender"), rs.getString("gender_filter"))
-						& DataBank
-								.checkFilter(rs.getInt("sing_pl"), rs.getString("sing_pl_filter")))
+//				if (DataBank.checkFilter(rs.getInt("type"), rs.getString("word_type_filter"))
+//						& DataBank.checkFilter(rs.getInt("wcase"), rs.getString("wcase_filter"))
+//						& DataBank.checkFilter(rs.getInt("gender"), rs.getString("gender_filter"))
+//						& DataBank
+//								.checkFilter(rs.getInt("sing_pl"), rs.getString("sing_pl_filter")))
 					sentenceParts.add(new SentenceWordform(sentence_id,
 							rs.getInt("subsentence_id"), rs.getInt("word_pos"), rs.getInt("type"),
 							rs.getInt("subtype"), rs.getInt("wcase"), rs.getInt("gender"), rs
@@ -1002,39 +1002,6 @@ public class DataBank {
 		return bc;
 	}
 
-	static public boolean checkFilter(int value, String filter) {
-		boolean result = false;
-		if (filter == null)
-			return true;
-		if (filter.isEmpty())
-			return true;
-		String[] splitFilter = filter.split("\\|");
-		for (int i = 0; i < splitFilter.length; i++) {
-			result = result | checkBinaryFilter(value, splitFilter[i]);
-		}
-		return result;
-	}
-
-	static private boolean checkBinaryFilter(int value, String filter) {
-		String part = filter;
-		if (filter.startsWith("<>")) {
-			part = filter.substring(2);
-			return (value != Integer.valueOf(part));
-		}
-		if (filter.startsWith("<")) {
-			part = filter.substring(1);
-			return (value < Integer.valueOf(part));
-		}
-		if (filter.startsWith(">")) {
-			part = filter.substring(1);
-			return (value > Integer.valueOf(part));
-		}
-		
-//		if (Integer.valueOf(part)==0)
-//			return true;
-		
-		return (value == Integer.valueOf(part));
-	}
 
 	public void saveSentenceParts(ArrayList<SentenceWord> sentenceParts) {
 		try {

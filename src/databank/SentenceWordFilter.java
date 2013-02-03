@@ -38,10 +38,45 @@ public class SentenceWordFilter {
 		if (value > 0) {
 			if (result == null)
 				result = String.valueOf(value);
-			else if (!DataBank.checkFilter(value, result)) {
+			else if (!checkFilter(value, result)) {
 				result = result + '|' + String.valueOf(value);
 			}
 		}
 		return result;
 	}
+	
+	static public boolean checkFilter(int value, String filter) {
+		boolean result = false;
+		if (filter == null)
+			return true;
+		if (filter.isEmpty())
+			return true;
+		String[] splitFilter = filter.split("\\|");
+		for (int i = 0; i < splitFilter.length; i++) {
+			result = result | checkBinaryFilter(value, splitFilter[i]);
+		}
+		return result;
+	}
+
+	static private boolean checkBinaryFilter(int value, String filter) {
+		String part = filter;
+		if (filter.startsWith("<>")) {
+			part = filter.substring(2);
+			return (value != Integer.valueOf(part));
+		}
+		if (filter.startsWith("<")) {
+			part = filter.substring(1);
+			return (value < Integer.valueOf(part));
+		}
+		if (filter.startsWith(">")) {
+			part = filter.substring(1);
+			return (value > Integer.valueOf(part));
+		}
+		
+//		if (Integer.valueOf(part)==0)
+//			return true;
+		
+		return (value == Integer.valueOf(part));
+	}
+
 }

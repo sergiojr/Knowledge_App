@@ -73,6 +73,7 @@ public class Sentence {
 		// find best wordform for each SentenceWord in sentenceWordList
 		sentenceWordFilter = wordRelationGraph.generateSentenceWordFilter();
 		for (SentenceWord sentenceWord : sentenceWordList) {
+			sentenceWord.setFilters(sentenceWordFilter[sentenceWord.wordPos]);
 			ArrayList<SentenceWordform> tempWordformList = getSentencePartList("",
 					sentenceWord.wordPos, "", "", 0, 0, "", "", rating_tolerance);
 			Iterator<SentenceWordform> iterator = tempWordformList.iterator();
@@ -81,8 +82,8 @@ public class Sentence {
 			}
 		}
 
-		// update filter values and "preposition_id" in sentenceWordList
-		generateSentenceParts(wordRelationGraph);
+		// fill "dep_id" and "preposition_id" in sentenceWordList
+		generateSentenceParts();
 
 		division = divideSentence();
 		if (division != null)
@@ -903,27 +904,24 @@ public class Sentence {
 		}
 	}
 
-	private ArrayList<SentenceWord> generateSentenceParts(
-			SentenceWordRelationGraph wordRelationGraph) {
+	private ArrayList<SentenceWord> generateSentenceParts() {
 		ArrayList<SentenceWord> sentenceParts = new ArrayList<SentenceWord>();
 		SentenceWord sentencePart1;
 		SentenceWord sentencePart2;
 		for (SentenceWordRelation wordRelation : wordRelationGraph.getSet()) {
-			sentencePart1 = getSentenceWord(sentenceWordList, wordRelation.word1Pos);
-			sentencePart1.addValuestoFilters(wordRelation, 1);
-			if (!sentenceParts.contains(sentencePart1))
-				sentenceParts.add(sentencePart1);
 			if (wordRelation.word2Pos != 0) {
 				sentencePart2 = getSentenceWord(sentenceWordList, wordRelation.word2Pos);
-				sentencePart2.addValuestoFilters(wordRelation, 2);
 				sentencePart2.dep_word_pos = wordRelation.word1Pos;
-				if (wordRelation.relationType == SentenceWordRelation.preposition)
+				if (wordRelation.relationType == SentenceWordRelation.preposition) {
+					sentencePart1 = getSentenceWord(sentenceWordList, wordRelation.word1Pos);
 					sentencePart1.preposition_id = sentencePart2.sentenceWordform.word_id;
+					if (!sentenceParts.contains(sentencePart1))
+						sentenceParts.add(sentencePart1);
+				}
 				if (!sentenceParts.contains(sentencePart2))
 					sentenceParts.add(sentencePart2);
 			}
 		}
-
 		return sentenceParts;
 	}
 
@@ -1040,26 +1038,23 @@ public class Sentence {
 					&& ((100 - sentenceWordform.rating) <= (100 - sentenceWordform.maxrating)
 							* rating_tolerance)
 					&& (sentenceWordform.rating * rating_tolerance >= sentenceWordform.maxrating)
-					&& DataBank.checkFilter(sentenceWordform.wcase, wcaseFilter)
-					&& DataBank.checkFilter(sentenceWordform.person, personFilter)
+					&& SentenceWordFilter.checkFilter(sentenceWordform.wcase, wcaseFilter)
+					&& SentenceWordFilter.checkFilter(sentenceWordform.person, personFilter)
 					&& (gender == 0 | sentenceWordform.gender == 0 | sentenceWordform.gender == gender)
 					&& (sing_pl == 0 | sentenceWordform.sing_pl == 0 | sentenceWordform.sing_pl == sing_pl)
-					&& DataBank.checkFilter(sentenceWordform.type, typeFilter)
-					&& DataBank.checkFilter(sentenceWordform.subtype, subtypeFilter)) {
+					&& SentenceWordFilter.checkFilter(sentenceWordform.type, typeFilter)
+					&& SentenceWordFilter.checkFilter(sentenceWordform.subtype, subtypeFilter)) {
 				sentenceWord = getSentenceWord(sentenceWordList, sentenceWordform.wordPos);
-				// if (((sentenceWordform.wcase != 1) | ((sentenceWordform.wcase == 1) &
-				// (sentenceWord.preposition_id == 0)))
-				// && DataBank.checkFilter(sentenceWord.subsentenceID, subsentenceFilter))
-				if (DataBank.checkFilter(sentenceWord.subsentenceID, subsentenceFilter))
+				if (SentenceWordFilter.checkFilter(sentenceWord.subsentenceID, subsentenceFilter))
 					if (sentenceWordFilter[sentenceWordform.wordPos] == null)
 						result.add(sentenceWordform);
-					else if (DataBank.checkFilter(sentenceWordform.type,
+					else if (SentenceWordFilter.checkFilter(sentenceWordform.type,
 							sentenceWordFilter[sentenceWordform.wordPos].typeFilter)
-							&& DataBank.checkFilter(sentenceWordform.wcase,
+							&& SentenceWordFilter.checkFilter(sentenceWordform.wcase,
 									sentenceWordFilter[sentenceWordform.wordPos].wcaseFilter)
-							&& DataBank.checkFilter(sentenceWordform.gender,
+							&& SentenceWordFilter.checkFilter(sentenceWordform.gender,
 									sentenceWordFilter[sentenceWordform.wordPos].genderFilter)
-							&& DataBank.checkFilter(sentenceWordform.sing_pl,
+							&& SentenceWordFilter.checkFilter(sentenceWordform.sing_pl,
 									sentenceWordFilter[sentenceWordform.wordPos].sing_plFilter))
 						result.add(sentenceWordform);
 			}
@@ -1076,14 +1071,15 @@ public class Sentence {
 							* rating_tolerance)
 					&& (sentenceWordform.rating * rating_tolerance >= sentenceWordform.maxrating)
 					&& (sentenceWordform.wcase == 1)
-					&& DataBank.checkFilter(sentenceWordform.person, personFilter)
+					&& SentenceWordFilter.checkFilter(sentenceWordform.person, personFilter)
 					&& (gender == 0 | sentenceWordform.gender == 0 | sentenceWordform.gender == gender)
 					&& (sing_pl == 0 | sentenceWordform.sing_pl == 0 | sentenceWordform.sing_pl == sing_pl)) {
 				sentenceWord = getSentenceWord(sentenceWordList, sentenceWordform.wordPos);
 				if ((!wordRelationGraph.existDependence(sentenceWordform.wordPos,
 						SentenceWordRelation.preposition))
 						&& (sentenceWord.dep_word_pos == 0)
-						&& DataBank.checkFilter(sentenceWord.subsentenceID, subsentenceFilter))
+						&& SentenceWordFilter.checkFilter(sentenceWord.subsentenceID,
+								subsentenceFilter))
 					result.add(sentenceWordform);
 			}
 		return result;
@@ -1101,14 +1097,15 @@ public class Sentence {
 					&& (sentenceWordform.wcase == 0)
 					&& (sentenceWordform.type == 2)
 					&& (sentenceWordform.subtype == 1)
-					&& DataBank.checkFilter(sentenceWordform.person, personFilter)
+					&& SentenceWordFilter.checkFilter(sentenceWordform.person, personFilter)
 					&& (gender == 0 | sentenceWordform.gender == 0 | sentenceWordform.gender == gender)
 					&& (sing_pl == 0 | sentenceWordform.sing_pl == 0 | sentenceWordform.sing_pl == sing_pl)) {
 				sentenceWord = getSentenceWord(sentenceWordList, sentenceWordform.wordPos);
 				if (!wordRelationGraph.existDependence(sentenceWordform.wordPos,
 						SentenceWordRelation.preposition)
 				// if ((sentenceWord.preposition_id == 0)
-						&& DataBank.checkFilter(sentenceWord.subsentenceID, subsentenceFilter))
+						&& SentenceWordFilter.checkFilter(sentenceWord.subsentenceID,
+								subsentenceFilter))
 					result.add(sentenceWordform);
 			}
 		return result;
