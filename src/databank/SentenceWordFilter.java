@@ -7,6 +7,7 @@ public class SentenceWordFilter {
 	String wcaseFilter;
 	String genderFilter;
 	String sing_plFilter;
+	String animateFilter;
 
 	public SentenceWordFilter(int sentenceID, int wordPos) {
 		this.sentenceID = sentenceID;
@@ -19,12 +20,14 @@ public class SentenceWordFilter {
 			wcaseFilter = addValueToFilter(wordRelation.word1Case, wcaseFilter,true);
 			genderFilter = addValueToFilter(wordRelation.word1Gender, genderFilter,false);
 			sing_plFilter = addValueToFilter(wordRelation.word1Sing_Pl, sing_plFilter,false);
+			animateFilter = addValueToFilter(wordRelation.word1Animate, animateFilter,false);
 		}
 		if (wordSelector == 2) {
 			typeFilter = addValueToFilter(wordRelation.word2Type, typeFilter,true);
 			wcaseFilter = addValueToFilter(wordRelation.word2Case, wcaseFilter,true);
 			genderFilter = addValueToFilter(wordRelation.word2Gender, genderFilter,false);
 			sing_plFilter = addValueToFilter(wordRelation.word2Sing_Pl, sing_plFilter,false);
+			animateFilter = addValueToFilter(wordRelation.word2Animate, animateFilter,false);			
 		}
 	}
 

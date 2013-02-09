@@ -24,7 +24,7 @@ public class Knowledge_App {
 		curTime = startTime;
 		databank = new PostgresDataBank("knowledge");
 		databank.initDB();
-		vocabulary = new Vocabulary (databank);
+		vocabulary = new Vocabulary(databank);
 
 		System.out.print("Parsing Text...");
 		parseSources();
@@ -32,7 +32,7 @@ public class Knowledge_App {
 		endTime = System.currentTimeMillis();
 		System.out.println("Complete in " + minutes(endTime - curTime) + " minutes.");
 		curTime = endTime;
-		
+
 		System.out.print("Parse Sentences...");
 		parseSentences();
 		databank.saveWordformRelationStats();
@@ -114,8 +114,9 @@ public class Knowledge_App {
 						if (!curInput.isEmpty()) {
 							sentenceText = sentenceText + " " + curInput;
 							sentenceWordList.add(new SentenceWord(0, 0, 0, new WordProcessor(
-									curInput, isPunctuation, isName, databank, vocabulary).getWord(), 0, 0, 0,
-									isPunctuation, isName, false, "", "", "", ""));
+									curInput, isPunctuation, isName, databank, vocabulary)
+									.getWord(), 0, 0, 0, isPunctuation, isName, false, "", "", "",
+									"", ""));
 						}
 						isName = false;
 						if (!isPunctuation)
@@ -133,8 +134,8 @@ public class Knowledge_App {
 									isSentenceEnd = true;
 							if ((isSentenceEnd) | (newlinecount > 1)) {
 								if (save)
-									new Sentence(databank, vocabulary, 0, sentenceText, sentenceWordList)
-											.save();
+									new Sentence(databank, vocabulary, 0, sentenceText,
+											sentenceWordList).save();
 								sentenceWordList = new ArrayList<SentenceWord>();
 								sentenceText = new String();
 								isSentenceEnd = false;
@@ -158,8 +159,8 @@ public class Knowledge_App {
 			if (!curInput.isEmpty()) {
 				sentenceText = sentenceText + " " + curInput;
 				sentenceWordList.add(new SentenceWord(0, 0, 0, new WordProcessor(curInput,
-						isPunctuation, isName, databank, vocabulary).getWord(), 0, 0, 0, isPunctuation, isName, false,
-						"", "", "", ""));
+						isPunctuation, isName, databank, vocabulary).getWord(), 0, 0, 0,
+						isPunctuation, isName, false, "", "", "", "", ""));
 			}
 			if (!sentenceText.isEmpty()) {
 				if (save)
@@ -168,7 +169,6 @@ public class Knowledge_App {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-
 	}
 
 	private void parseSentences() {

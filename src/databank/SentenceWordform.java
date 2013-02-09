@@ -2,7 +2,7 @@ package databank;
 
 public class SentenceWordform {
 	public SentenceWordform(int sentenceID, int subsentenceID, int wordPos, int type,
-			int subtype, int wcase, int gender, int person, int sing_pl, int word_id, int rule_id,
+			int subtype, int wcase, int gender, int person, int sing_pl, int animate, int word_id, int rule_id,
 			int dep_word_pos, int preposition_id, String word_type_filter, String wcase_filter,
 			String gender_filter, String sing_pl_filter, int rating, int maxrating) {
 		this.sentenceID = sentenceID;
@@ -14,6 +14,7 @@ public class SentenceWordform {
 		this.gender = gender;
 		this.person = person;
 		this.sing_pl = sing_pl;
+		this.animate = animate;
 		this.word_id = word_id;
 		this.rule_id = rule_id;
 		this.dep_word_pos = dep_word_pos;
@@ -35,6 +36,7 @@ public class SentenceWordform {
 	public int gender;
 	public int person;
 	public int sing_pl;
+	public int animate;
 	public int word_id;
 	public int rule_id;
 	public int dep_word_pos;

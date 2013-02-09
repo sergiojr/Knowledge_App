@@ -4,7 +4,7 @@ public class SentenceWord {
 	public SentenceWord(int sentenceID, int subsentenceID, int wordPos, String word, int part,
 			int dep_word_pos, int preposition_id, boolean isPunctuation, boolean isName,
 			boolean internal, String word_type_filter, String wcase_filter, String gender_filter,
-			String sing_pl_filter) {
+			String sing_pl_filter,String animate_filter) {
 		this.sentenceID = sentenceID;
 		this.subsentenceID = subsentenceID;
 		this.wordPos = wordPos;
@@ -19,6 +19,7 @@ public class SentenceWord {
 		this.wcase_filter = wcase_filter;
 		this.gender_filter = gender_filter;
 		this.sing_pl_filter = sing_pl_filter;
+		this.animate_filter = animate_filter;
 	}
 
 	public int sentenceID;
@@ -37,6 +38,7 @@ public class SentenceWord {
 	String wcase_filter;
 	String gender_filter;
 	String sing_pl_filter;
+	String animate_filter;
 	SentenceWordform sentenceWordform;
 	
 	public void setFilters(SentenceWordFilter wordFilter){
@@ -45,6 +47,7 @@ public class SentenceWord {
 			wcase_filter=wordFilter.wcaseFilter;				
 			gender_filter=wordFilter.genderFilter;
 			sing_pl_filter=wordFilter.sing_plFilter;
+			animate_filter=wordFilter.animateFilter;
 		}
 	}
 }

@@ -75,7 +75,7 @@ public class Sentence {
 		for (SentenceWord sentenceWord : sentenceWordList) {
 			sentenceWord.setFilters(sentenceWordFilter[sentenceWord.wordPos]);
 			ArrayList<SentenceWordform> tempWordformList = getSentencePartList("",
-					sentenceWord.wordPos, "", "", 0, 0, "", "", rating_tolerance);
+					sentenceWord.wordPos, "", "", 0, 0, 0, "", "", rating_tolerance);
 			Iterator<SentenceWordform> iterator = tempWordformList.iterator();
 			if (iterator.hasNext()) {
 				sentenceWord.sentenceWordform = iterator.next();
@@ -378,7 +378,7 @@ public class Sentence {
 		sentenceWordFilter = wordRelationGraph.generateSentenceWordFilter();
 
 		// получить список предлогов
-		prepositionList = getSentencePartList("", 0, "", "", 0, 0,
+		prepositionList = getSentencePartList("", 0, "", "", 0, 0, 0,
 				String.valueOf(WordProcessor.preposition), "", 1);
 		prepositionIterator = prepositionList.iterator();
 
@@ -389,7 +389,7 @@ public class Sentence {
 			// падеже
 			substantiveList = getSubstantiveList(id,
 					wordRelationGraph.getNextIndependentWordPos(prepositionWordform.wordPos), ">1",
-					"", 0, 0, rating_tolerance);
+					"", 0, 0, 0, rating_tolerance);
 			if (!substantiveList.isEmpty()) {
 				substantiveIterator = substantiveList.iterator();
 				while (substantiveIterator.hasNext()) {
@@ -401,7 +401,7 @@ public class Sentence {
 			} else {
 				// проверяем, есть ли другие подходящие словоформы кроме предлога
 				prepAlternativeList = getSentencePartList("", prepositionWordform.wordPos, "", "",
-						0, 0, "<>" + String.valueOf(WordProcessor.preposition), "", 1);
+						0, 0, 0, "<>" + String.valueOf(WordProcessor.preposition), "", 1);
 				prepAlternativeIterator = prepAlternativeList.iterator();
 				while (prepAlternativeIterator.hasNext()) {
 					prepAlternativeWordform = prepAlternativeIterator.next();
@@ -462,7 +462,7 @@ public class Sentence {
 		sentenceWordFilter = wordRelationGraph.generateSentenceWordFilter();
 
 		// получить список числительных
-		numeralList = getSentencePartList("", 0, ">0", ">0", 0, 0,
+		numeralList = getSentencePartList("", 0, ">0", ">0", 0, 0, 0,
 				String.valueOf(WordProcessor.numeral), "", rating_tolerance);
 		numeralIterator = numeralList.iterator();
 
@@ -478,7 +478,7 @@ public class Sentence {
 				sing_pl = numeral.getBaseSingPl();
 			}
 			substantiveList = getSubstantiveList(id, numeralPartWordform.wordPos + 1,
-					String.valueOf(wcase), ">0", numeralPartWordform.gender, sing_pl,
+					String.valueOf(wcase), ">0", numeralPartWordform.gender, sing_pl, 0,
 					rating_tolerance);
 			substantiveIterator = substantiveList.iterator();
 			while (substantiveIterator.hasNext()) {
@@ -505,7 +505,7 @@ public class Sentence {
 		sentenceWordFilter = wordRelationGraph.generateSentenceWordFilter();
 
 		// получить существительные
-		mainSubstantiveList = getSubstantiveList(id, 0, ">0", ">0", 0, 0, 1);
+		mainSubstantiveList = getSubstantiveList(id, 0, ">0", ">0", 0, 0, 0, 1);
 		mainSubstantiveIterator = mainSubstantiveList.iterator();
 
 		// для каждого существительного в родительном падеже получить предшествующее существительное
@@ -513,7 +513,7 @@ public class Sentence {
 			mainSubstantiveWordform = mainSubstantiveIterator.next();
 			genetiveSubstantiveList = getSubstantiveList(id,
 					wordRelationGraph.getNextIndependentWordPos(mainSubstantiveWordform.wordPos),
-					"2", ">0", 0, 0, 1);
+					"2", ">0", 0, 0, 0, 1);
 			genetiveSubstantiveIterator = genetiveSubstantiveList.iterator();
 			if (genetiveSubstantiveIterator.hasNext()) {
 				genetiveSubstantiveWordform = genetiveSubstantiveIterator.next();
@@ -646,8 +646,8 @@ public class Sentence {
 					if (wordRelationGraph.existDependence(curWordPos,
 							SentenceWordRelation.preposition)
 							| (getSubstantiveList(id, curWordPos, "1", personFilter, mainGender,
-									mainSing_Pl, 1).isEmpty())) {
-						substantiveList = getSubstantiveList(id, curWordPos, ">1", ">0", 0, 0, 1);
+									mainSing_Pl, 0, 1).isEmpty())) {
+						substantiveList = getSubstantiveList(id, curWordPos, ">1", ">0", 0, 0, 0, 1);
 						substantiveIterator = substantiveList.iterator();
 						while (substantiveIterator.hasNext()) {
 							substantiveWordform = substantiveIterator.next();
@@ -678,7 +678,7 @@ public class Sentence {
 		sentenceWordFilter = wordRelationGraph.generateSentenceWordFilter();
 
 		// получить прилагательные и местоимения прилагательные
-		attributeList = getAdjectiveList(id, 0, ">0", 0, 0, 1);
+		attributeList = getAdjectiveList(id, 0, ">0", 0, 0, 0, 1);
 		attributeIterator = attributeList.iterator();
 
 		// для каждого прилагательного получить предшествующие наречия
@@ -727,7 +727,7 @@ public class Sentence {
 		// find possible substantives
 		// possible substantive: wordform that has an substantive as a word
 		// with maximal rating
-		substantiveList = getSubstantiveList(id, 0, ">0", ">0", 0, 0, rating_tolerance);
+		substantiveList = getSubstantiveList(id, 0, ">0", ">0", 0, 0, 0, rating_tolerance);
 		substantiveIterator = substantiveList.iterator();
 
 		// find possible adjectives that have common form with substantive
@@ -754,7 +754,7 @@ public class Sentence {
 						adjectiveList = getAdjectiveList(id, curWordPos,
 								String.valueOf(substantiveWordform.wcase),
 								substantiveWordform.gender, substantiveWordform.sing_pl,
-								rating_tolerance);
+								substantiveWordform.animate, rating_tolerance);
 						adjectiveIterator = adjectiveList.iterator();
 						if (adjectiveIterator.hasNext()) {
 							found = true;
@@ -926,44 +926,44 @@ public class Sentence {
 	}
 
 	private ArrayList<SentenceWordform> getAdjectiveList(int sentence_id, int wordPos,
-			String wcaseFilter, int gender, int sing_pl, double rating_tolerance) {
-		return getSentencePartList("", wordPos, wcaseFilter, "0", gender, sing_pl, "", "",
+			String wcaseFilter, int gender, int sing_pl, int animate, double rating_tolerance) {
+		return getSentencePartList("", wordPos, wcaseFilter, "0", gender, sing_pl, animate, "", "",
 				rating_tolerance);
 	}
 
 	private ArrayList<SentenceWordform> getAdverbList(int sentence_id, int wordPos) {
 		ArrayList<SentenceWordform> adverbList = new ArrayList<SentenceWordform>();
-		adverbList.addAll(getSentencePartList("", wordPos, "", "", 0, 0,
+		adverbList.addAll(getSentencePartList("", wordPos, "", "", 0, 0, 0,
 				String.valueOf(WordProcessor.adjective),
 				String.valueOf(WordProcessor.adjective_adverb), 1));
-		adverbList.addAll(getSentencePartList("", wordPos, "", "", 0, 0,
+		adverbList.addAll(getSentencePartList("", wordPos, "", "", 0, 0, 0,
 				String.valueOf(WordProcessor.adverb), "", 1));
 		return adverbList;
 	}
 
 	private ArrayList<SentenceWordform> getSubstantiveList(int sentence_id, int wordPos,
-			String wcaseFilter, String personFilter, int gender, int sing_pl,
+			String wcaseFilter, String personFilter, int gender, int sing_pl, int animate,
 			double rating_tolerance) {
-		return getSentencePartList("", wordPos, wcaseFilter, personFilter, gender, sing_pl, "", "",
-				rating_tolerance);
+		return getSentencePartList("", wordPos, wcaseFilter, personFilter, gender, sing_pl,
+				animate, "", "", rating_tolerance);
 	}
 
 	private ArrayList<SentenceWordform> getVerbList(int sentence_id, String subsentenceFilter,
 			int wordPos, String subtypeFilter) {
-		return getSentencePartList(subsentenceFilter, wordPos, "", "", 0, 0,
+		return getSentencePartList(subsentenceFilter, wordPos, "", "", 0, 0, 0,
 				String.valueOf(WordProcessor.verb), subtypeFilter, 1);
 	}
 
 	private ArrayList<SentenceWordform> getPrevWordforms(int sentence_id, int wordPos,
 			double rating_tolerance) {
 		return getSentencePartList("", wordRelationGraph.getPrevIndependentWordPos(wordPos), "",
-				"", 0, 0, "", "", rating_tolerance);
+				"", 0, 0, 0, "", "", rating_tolerance);
 	}
 
 	private ArrayList<SentenceWordform> getNextWordforms(int sentence_id, int wordPos,
 			double rating_tolerance) {
 		return getSentencePartList("", wordRelationGraph.getNextIndependentWordPos(wordPos), "",
-				"", 0, 0, "", "", rating_tolerance);
+				"", 0, 0, 0, "", "", rating_tolerance);
 	}
 
 	private ArrayList<SentenceWordform> getLinkedWordList(int wordPos, int type, int subtype,
@@ -981,15 +981,15 @@ public class Sentence {
 				// существительные и местоимения существительные
 				if ((wcase > 0) & (person > 0))
 					linkedWords.addAll(getSentencePartList("", tempWordPos, String.valueOf(wcase),
-							">0", 0, 0, "", "", 1));
+							">0", 0, 0, 0, "", "", 1));
 				// прилагательные и местоимения прилагательные
 				if ((wcase > 0) & (person == 0))
 					linkedWords.addAll(getSentencePartList("", tempWordPos, String.valueOf(wcase),
-							String.valueOf(person), gender, sing_pl, "", "", 1));
+							String.valueOf(person), gender, sing_pl, 0, "", "", 1));
 				// прочие
 				if ((wcase == 0) && (type == wordLink.type) && (subtype == wordLink.subtype))
 					linkedWords.addAll(getSentencePartList("", tempWordPos, String.valueOf(wcase),
-							String.valueOf(person), gender, sing_pl, String.valueOf(type),
+							String.valueOf(person), gender, sing_pl, 0, String.valueOf(type),
 							String.valueOf(subtype), 1));
 			}
 
@@ -1002,7 +1002,8 @@ public class Sentence {
 					&& ((wordPos == wordLink.wordPos) && (linkWordPos == wordLink.linkWordPos))
 					| ((wordPos == wordLink.linkWordPos) && (linkWordPos == wordLink.wordPos)))
 				return new SentenceWordform(id, 0, wordLink.conjunctionWordPos,
-						WordProcessor.conjunction, 0, 0, 0, 0, 0, 0, 0, 0, 0, "", "", "", "", 0, 0);
+						WordProcessor.conjunction, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "", "", "", "", 0,
+						0);
 		return null;
 	}
 
@@ -1019,14 +1020,14 @@ public class Sentence {
 		String negative = databank.getSetup().getNegative();
 		for (SentenceWord sentenceWord : sentenceWordList)
 			if (sentenceWord.word.equals(negative))
-				result.addAll(getSentencePartList("", sentenceWord.wordPos, "", "", 0, 0,
+				result.addAll(getSentencePartList("", sentenceWord.wordPos, "", "", 0, 0, 0,
 						String.valueOf(WordProcessor.particle), "", 1));
 		return result;
 	}
 
 	private ArrayList<SentenceWordform> getSentencePartList(String subsentenceFilter, int wordPos,
-			String wcaseFilter, String personFilter, int gender, int sing_pl, String typeFilter,
-			String subtypeFilter, double rating_tolerance) {
+			String wcaseFilter, String personFilter, int gender, int sing_pl, int animate,
+			String typeFilter, String subtypeFilter, double rating_tolerance) {
 		ArrayList<SentenceWordform> result = new ArrayList<SentenceWordform>();
 
 		if (wordPos < 0)
@@ -1042,6 +1043,7 @@ public class Sentence {
 					&& SentenceWordFilter.checkFilter(sentenceWordform.person, personFilter)
 					&& (gender == 0 | sentenceWordform.gender == 0 | sentenceWordform.gender == gender)
 					&& (sing_pl == 0 | sentenceWordform.sing_pl == 0 | sentenceWordform.sing_pl == sing_pl)
+					&& (animate == 0 | sentenceWordform.animate == 0 | sentenceWordform.animate == animate)
 					&& SentenceWordFilter.checkFilter(sentenceWordform.type, typeFilter)
 					&& SentenceWordFilter.checkFilter(sentenceWordform.subtype, subtypeFilter)) {
 				sentenceWord = getSentenceWord(sentenceWordList, sentenceWordform.wordPos);
@@ -1055,7 +1057,9 @@ public class Sentence {
 							&& SentenceWordFilter.checkFilter(sentenceWordform.gender,
 									sentenceWordFilter[sentenceWordform.wordPos].genderFilter)
 							&& SentenceWordFilter.checkFilter(sentenceWordform.sing_pl,
-									sentenceWordFilter[sentenceWordform.wordPos].sing_plFilter))
+									sentenceWordFilter[sentenceWordform.wordPos].sing_plFilter)
+							&& SentenceWordFilter.checkFilter(sentenceWordform.animate,
+									sentenceWordFilter[sentenceWordform.wordPos].animateFilter))
 						result.add(sentenceWordform);
 			}
 		return result;

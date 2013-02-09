@@ -376,8 +376,8 @@ public class DataBank {
 					curRelationStats = new HashSet<EndingRuleStat>();
 					result.put(curWordform, curRelationStats);
 				}
-				curRelationStats.add(new EndingRuleStat(rs.getInt("type"), rs.getInt("wcase"), rs.getInt("gender"), rs
-						.getInt("sing_pl"), rs.getInt("wordform_count")));
+				curRelationStats.add(new EndingRuleStat(rs.getInt("type"), rs.getInt("wcase"), rs
+						.getInt("gender"), rs.getInt("sing_pl"), rs.getInt("wordform_count")));
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -500,9 +500,10 @@ public class DataBank {
 			endingrules.add(new EndingRule(ending, rs.getInt("rule_no"),
 					rs.getInt("rule_variance"), rs.getInt("type"), rs.getInt("subtype"), rs
 							.getInt("rule_id"), rs.getInt("wcase"), rs.getInt("gender"), rs
-							.getInt("sing_pl"), rs.getInt("person"), rs.getString("allow_after"),
-					rs.getString("deny_after"), rs.getString("e_before"), rs.getString("o_before"),
-					rs.getInt("min_length")));
+							.getInt("sing_pl"), rs.getInt("animate"), rs.getInt("person"), rs
+							.getString("allow_after"), rs.getString("deny_after"), rs
+							.getString("e_before"), rs.getString("o_before"), rs
+							.getInt("min_length")));
 		}
 		rs.close();
 		stat.close();
@@ -540,9 +541,9 @@ public class DataBank {
 				zeroEndingrule = new EndingRule(rs.getString("ending"), rs.getInt("rule_no"),
 						rs.getInt("rule_variance"), rs.getInt("type"), rs.getInt("subtype"),
 						rs.getInt("rule_id"), rs.getInt("wcase"), rs.getInt("gender"),
-						rs.getInt("sing_pl"), rs.getInt("person"), rs.getString("allow_after"),
-						rs.getString("deny_after"), rs.getString("e_before"),
-						rs.getString("o_before"), rs.getInt("min_length"));
+						rs.getInt("sing_pl"), rs.getInt("animate"), rs.getInt("person"),
+						rs.getString("allow_after"), rs.getString("deny_after"),
+						rs.getString("e_before"), rs.getString("o_before"), rs.getInt("min_length"));
 				zeroEndingruleByRuleNo.put(new Integer(ruleNo), zeroEndingrule);
 			}
 			rs.close();
@@ -556,39 +557,40 @@ public class DataBank {
 	private EndingRule getEndingRule(boolean fixed, int rule) {
 		int ruleNo;
 		EndingRule endingRule = null;
-		
+
 		if (fixed)
-			ruleNo=-rule;
+			ruleNo = -rule;
 		else
-			ruleNo=rule;
-		
+			ruleNo = rule;
+
 		if (endingRulesByRuleNo == null)
 			endingRulesByRuleNo = new HashMap<Integer, EndingRule>();
 		endingRule = endingRulesByRuleNo.get(new Integer(ruleNo));
 		if (endingRule != null)
-			return endingRule;		
-		
+			return endingRule;
+
 		String query;
 		if (fixed)
-			query = "select base_form as ending,wcase,gender,person,sing_pl, type,-type as rule_no,0 as rule_variance "
+			query = "select base_form as ending,wcase,gender,person,sing_pl, animate, type,-type as rule_no,0 as rule_variance "
 					+ "from fixed_words where rule_id=" + rule;
 		else
-			query = "select ending,wcase,gender,person,sing_pl,type,rule_no,rule_variance "
+			query = "select ending,wcase,gender,person,sing_pl,animate, type,rule_no,rule_variance "
 					+ "from ending_rules where rule_id=" + rule;
 
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
 			ResultSet rs = stat.executeQuery(query);
-			if (rs.next()){
+			if (rs.next()) {
 				endingRule = new EndingRule(rs.getString("ending"), rule, rs.getInt("wcase"),
-						rs.getInt("gender"), rs.getInt("sing_pl"), rs.getInt("person"),
-						rs.getInt("type"), rs.getInt("rule_no"), rs.getInt("rule_variance"));
+						rs.getInt("gender"), rs.getInt("sing_pl"), rs.getInt("animate"),
+						rs.getInt("person"), rs.getInt("type"), rs.getInt("rule_no"),
+						rs.getInt("rule_variance"));
 				endingRulesByRuleNo.put(new Integer(ruleNo), endingRule);
 			}
 			rs.close();
 			stat.close();
-	
+
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -946,20 +948,19 @@ public class DataBank {
 			query.addCustomOrdering(new CustomSql("rating"), OrderObject.Dir.DESCENDING);
 			ResultSet rs = stat.executeQuery(query.validate().toString());
 			while (rs.next()) {
-//				if (DataBank.checkFilter(rs.getInt("type"), rs.getString("word_type_filter"))
-//						& DataBank.checkFilter(rs.getInt("wcase"), rs.getString("wcase_filter"))
-//						& DataBank.checkFilter(rs.getInt("gender"), rs.getString("gender_filter"))
-//						& DataBank
-//								.checkFilter(rs.getInt("sing_pl"), rs.getString("sing_pl_filter")))
-					sentenceParts.add(new SentenceWordform(sentence_id,
-							rs.getInt("subsentence_id"), rs.getInt("word_pos"), rs.getInt("type"),
-							rs.getInt("subtype"), rs.getInt("wcase"), rs.getInt("gender"), rs
-									.getInt("person"), rs.getInt("sing_pl"), rs.getInt("word_id"),
-							rs.getInt("rule_id"), rs.getInt("dep_word_pos"), rs
-									.getInt("preposition_id"), rs.getString("word_type_filter"), rs
-									.getString("wcase_filter"), rs.getString("gender_filter"), rs
-									.getString("sing_pl_filter"), rs.getInt("rating"), rs
-									.getInt("maxrating")));
+				// if (DataBank.checkFilter(rs.getInt("type"), rs.getString("word_type_filter"))
+				// & DataBank.checkFilter(rs.getInt("wcase"), rs.getString("wcase_filter"))
+				// & DataBank.checkFilter(rs.getInt("gender"), rs.getString("gender_filter"))
+				// & DataBank
+				// .checkFilter(rs.getInt("sing_pl"), rs.getString("sing_pl_filter")))
+				sentenceParts.add(new SentenceWordform(sentence_id, rs.getInt("subsentence_id"), rs
+						.getInt("word_pos"), rs.getInt("type"), rs.getInt("subtype"), rs
+						.getInt("wcase"), rs.getInt("gender"), rs.getInt("person"), rs
+						.getInt("sing_pl"), rs.getInt("animate"), rs.getInt("word_id"), rs
+						.getInt("rule_id"), rs.getInt("dep_word_pos"), rs.getInt("preposition_id"),
+						rs.getString("word_type_filter"), rs.getString("wcase_filter"), rs
+								.getString("gender_filter"), rs.getString("sing_pl_filter"), rs
+								.getInt("rating"), rs.getInt("maxrating")));
 			}
 			rs.close();
 			stat.close();
@@ -1002,14 +1003,13 @@ public class DataBank {
 		return bc;
 	}
 
-
 	public void saveSentenceParts(ArrayList<SentenceWord> sentenceParts) {
 		try {
 			establishConnection();
 			PreparedStatement prep = conn.prepareStatement("UPDATE sentence_word "
 					+ "SET type=?,word_id=?,rule_id=?,dep_word_pos=?,preposition_id=?,"
 					+ "word_type_filter=?, wcase_filter=?, gender_filter=?, sing_pl_filter=?, "
-					+ "subsentence_id=?, internal=? " + "WHERE sentence_id=? and word_pos=?");
+					+ "animate_filter=?, subsentence_id=?, internal=? " + "WHERE sentence_id=? and word_pos=?");
 			for (SentenceWord sentencePart : sentenceParts) {
 				int word_id;
 				int rule_id;
@@ -1029,10 +1029,11 @@ public class DataBank {
 				prep.setString(7, sentencePart.wcase_filter);
 				prep.setString(8, sentencePart.gender_filter);
 				prep.setString(9, sentencePart.sing_pl_filter);
-				prep.setInt(10, sentencePart.subsentenceID);
-				prep.setBoolean(11, sentencePart.internal);
-				prep.setInt(12, sentencePart.sentenceID);
-				prep.setInt(13, sentencePart.wordPos);
+				prep.setString(10, sentencePart.animate_filter);
+				prep.setInt(11, sentencePart.subsentenceID);
+				prep.setBoolean(12, sentencePart.internal);
+				prep.setInt(13, sentencePart.sentenceID);
+				prep.setInt(14, sentencePart.wordPos);
 				prep.addBatch();
 			}
 			conn.setAutoCommit(false);
@@ -1138,7 +1139,7 @@ public class DataBank {
 						.getBoolean("punctuation"), rs.getBoolean("name"), rs
 						.getBoolean("internal"), rs.getString("word_type_filter"), rs
 						.getString("wcase_filter"), rs.getString("gender_filter"), rs
-						.getString("sing_pl_filter")));
+						.getString("sing_pl_filter"),rs.getString("animate_filter")));
 			}
 			rs.close();
 			stat.close();

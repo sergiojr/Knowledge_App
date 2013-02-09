@@ -112,11 +112,13 @@ public class SentenceWordRelationGraph {
 					&& (curWordRelation.word1Case == wordRelation.word1Case)
 					&& (curWordRelation.word1Gender == wordRelation.word1Gender)
 					&& (curWordRelation.word1Sing_Pl == wordRelation.word1Sing_Pl)
+					&& (curWordRelation.word1Animate == wordRelation.word1Animate)
 					&& (curWordRelation.word2Pos == wordRelation.word2Pos)
 					&& (curWordRelation.word2Type == wordRelation.word2Type)
 					&& (curWordRelation.word2Case == wordRelation.word2Case)
 					&& (curWordRelation.word2Gender == wordRelation.word2Gender)
 					&& (curWordRelation.word2Sing_Pl == wordRelation.word2Sing_Pl)
+					&& (curWordRelation.word2Animate == wordRelation.word2Animate)
 					&& ((curWordRelation.depID == 0) | (wordRelation.depID == 0) | (curWordRelation.depID == wordRelation.depID)))
 				return true;
 		}
@@ -233,9 +235,11 @@ public class SentenceWordRelationGraph {
 									mainAttributeWordRelation.word1Case,
 									mainAttributeWordRelation.word1Gender,
 									mainAttributeWordRelation.word1Sing_Pl,
+									mainAttributeWordRelation.word1Animate,
 									prepWordRelation.word2Pos, prepWordRelation.word2Type,
 									prepWordRelation.word2Case, prepWordRelation.word2Gender,
-									prepWordRelation.word2Sing_Pl, relationType);
+									prepWordRelation.word2Sing_Pl, prepWordRelation.word2Animate,
+									relationType);
 
 							if (!existWordRelation(dependentWordRelation)) {
 								dependentWordRelations.add(dependentWordRelation);
@@ -253,10 +257,12 @@ public class SentenceWordRelationGraph {
 											dependentAttributeWordRelation.word2Case,
 											dependentAttributeWordRelation.word2Gender,
 											dependentAttributeWordRelation.word2Sing_Pl,
+											dependentAttributeWordRelation.word2Animate,
 											prepWordRelation.word2Pos, prepWordRelation.word2Type,
 											prepWordRelation.word2Case,
 											prepWordRelation.word2Gender,
-											prepWordRelation.word2Sing_Pl, relationType);
+											prepWordRelation.word2Sing_Pl,
+											prepWordRelation.word2Animate, relationType);
 
 									if (!existWordRelation(dependentWordRelation)) {
 										dependentWordRelations.add(dependentWordRelation);
