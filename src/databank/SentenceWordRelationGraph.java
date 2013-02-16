@@ -18,6 +18,14 @@ public class SentenceWordRelationGraph {
 	}
 
 	public boolean add(SentenceWordRelation wordRelation) {
+		if (wordRelation.status == 0) {
+			if ((wordRelation.relationType == SentenceWordRelation.preposition)
+					&& (wordRelation.word1Pos < wordRelation.word2Pos))
+				return false;
+
+			wordRelation.status = 1;
+		}
+
 		if (existWordRelation(wordRelation))
 			return false;
 
@@ -84,6 +92,10 @@ public class SentenceWordRelationGraph {
 			// relationType and dependent Relation
 			if ((curWordRelation.sentenceID == wordRelation.sentenceID)
 					&& (curWordRelation.word1Pos == wordRelation.word1Pos)
+					&& (curWordRelation.word1Case == wordRelation.word1Case)
+					&& (curWordRelation.word1Gender == wordRelation.word1Gender)
+					&& (curWordRelation.word1Sing_Pl == wordRelation.word1Sing_Pl)
+					&& (curWordRelation.word1Animate == wordRelation.word1Animate)
 					&& (curWordRelation.word2Pos != wordRelation.word2Pos)
 					&& (curWordRelation.relationType == wordRelation.relationType)
 					&& (curWordRelation.depID == wordRelation.depID))
@@ -193,7 +205,7 @@ public class SentenceWordRelationGraph {
 		return result;
 	}
 
-	public void movePrepositionRelations(SentenceWordRelationGraph attributeWordRelations) {
+	public void movePrepositionRelations(SentenceWordRelationGraph curWordRelations) {
 		// Preposition relation was originally created for every possible wordform that is on the
 		// next position in sentence. So there are several preposition relations for different
 		// properties for type, wcase, gender, sing_pl. On the other hand attribute relations can
@@ -204,30 +216,40 @@ public class SentenceWordRelationGraph {
 		int relationType = SentenceWordRelation.preposition;
 		boolean foundPos;
 		boolean foundMatch;
+		HashSet<SentenceWordRelation> prepositionRelations = new HashSet<SentenceWordRelation>();
+		HashSet<SentenceWordRelation> newWordRelations = new HashSet<SentenceWordRelation>();
 		HashSet<SentenceWordRelation> removeWordRelations = new HashSet<SentenceWordRelation>();
-		HashSet<SentenceWordRelation> dependentWordRelations = new HashSet<SentenceWordRelation>();
 		SentenceWordRelation mainAttributeWordRelation;
 		SentenceWordRelation dependentWordRelation;
 
 		for (SentenceWordRelation prepWordRelation : sentenceWordRelationSet)
-			if (prepWordRelation.relationType == relationType) {
-				foundPos = false;
-				foundMatch = false;
-				for (SentenceWordRelation attributeWordRelation : attributeWordRelations.getSet())
-					if ((attributeWordRelation.sentenceID == prepWordRelation.sentenceID)
-							&& (attributeWordRelation.word2Pos == prepWordRelation.word1Pos)) {
-						foundPos = true;
-						if ((attributeWordRelation.word2Case == prepWordRelation.word1Case)
-								&& (attributeWordRelation.word2Type == prepWordRelation.word1Type)
-								&& (attributeWordRelation.word2Gender == prepWordRelation.word1Gender)
-								&& (attributeWordRelation.word2Sing_Pl == prepWordRelation.word1Sing_Pl)) {
-							foundMatch = true;
-							// If we found match we need to propogate preposition relations along
-							// the attribute relation chain
-							mainAttributeWordRelation = attributeWordRelations
-									.getFirstWordRelation(attributeWordRelation);
-							// create preposition relation for main Substantive
-							dependentWordRelation = new SentenceWordRelation(relationCount + 1,
+			if (prepWordRelation.relationType == relationType)
+				prepositionRelations.add(prepWordRelation);
+
+		for (SentenceWordRelation curWordRelation : curWordRelations.getSet())
+			if (curWordRelation.status == 1)
+				newWordRelations.add(curWordRelation);
+
+		for (SentenceWordRelation prepWordRelation : prepositionRelations) {
+			foundPos = false;
+			foundMatch = false;
+			for (SentenceWordRelation curWordRelation : newWordRelations)
+				if ((curWordRelation.sentenceID == prepWordRelation.sentenceID)
+						&& (curWordRelation.word2Pos == prepWordRelation.word1Pos)) {
+					foundPos = true;
+					if ((curWordRelation.word2Case == prepWordRelation.word1Case)
+							&& (curWordRelation.word2Type == prepWordRelation.word1Type)
+							// && (attributeWordRelation.word2Gender ==
+							// prepWordRelation.word1Gender)
+							&& (curWordRelation.word2Sing_Pl == prepWordRelation.word1Sing_Pl)) {
+						foundMatch = true;
+						// If we found match we need to propogate preposition relations along
+						// the attribute relation chain
+						mainAttributeWordRelation = curWordRelations
+								.getFirstWordRelation(curWordRelation);
+						// create preposition relation for main Substantive
+						if (mainAttributeWordRelation.word1Case > 0) {
+							dependentWordRelation = new SentenceWordRelation(0,
 									mainAttributeWordRelation.id,
 									mainAttributeWordRelation.sentenceID,
 									mainAttributeWordRelation.word1Pos,
@@ -240,46 +262,37 @@ public class SentenceWordRelationGraph {
 									prepWordRelation.word2Case, prepWordRelation.word2Gender,
 									prepWordRelation.word2Sing_Pl, prepWordRelation.word2Animate,
 									relationType);
+							add(dependentWordRelation);
+						}
+						// create preposition relation for each part of dependency chain
+						for (SentenceWordRelation dependentAttributeWordRelation : curWordRelations
+								.getDependencyChain(mainAttributeWordRelation)) {
+							if (dependentAttributeWordRelation.word2Case > 0) {
+								dependentWordRelation = new SentenceWordRelation(0,
+										dependentAttributeWordRelation.id,
+										dependentAttributeWordRelation.sentenceID,
+										dependentAttributeWordRelation.word2Pos,
+										dependentAttributeWordRelation.word2Type,
+										dependentAttributeWordRelation.word2Case,
+										dependentAttributeWordRelation.word2Gender,
+										dependentAttributeWordRelation.word2Sing_Pl,
+										dependentAttributeWordRelation.word2Animate,
+										prepWordRelation.word2Pos, prepWordRelation.word2Type,
+										prepWordRelation.word2Case, prepWordRelation.word2Gender,
+										prepWordRelation.word2Sing_Pl,
+										prepWordRelation.word2Animate, relationType);
 
-							if (!existWordRelation(dependentWordRelation)) {
-								dependentWordRelations.add(dependentWordRelation);
-								relationCount++;
-							}
-							// create preposition relation for each part of dependency chain
-							for (SentenceWordRelation dependentAttributeWordRelation : attributeWordRelations
-									.getDependencyChain(mainAttributeWordRelation)) {
-								if (dependentAttributeWordRelation.relationType == SentenceWordRelation.attribute) {
-									dependentWordRelation = new SentenceWordRelation(
-											relationCount + 1, dependentAttributeWordRelation.id,
-											dependentAttributeWordRelation.sentenceID,
-											dependentAttributeWordRelation.word2Pos,
-											dependentAttributeWordRelation.word2Type,
-											dependentAttributeWordRelation.word2Case,
-											dependentAttributeWordRelation.word2Gender,
-											dependentAttributeWordRelation.word2Sing_Pl,
-											dependentAttributeWordRelation.word2Animate,
-											prepWordRelation.word2Pos, prepWordRelation.word2Type,
-											prepWordRelation.word2Case,
-											prepWordRelation.word2Gender,
-											prepWordRelation.word2Sing_Pl,
-											prepWordRelation.word2Animate, relationType);
-
-									if (!existWordRelation(dependentWordRelation)) {
-										dependentWordRelations.add(dependentWordRelation);
-										relationCount++;
-									}
-								}
-
+								add(dependentWordRelation);
 							}
 						}
 					}
-				if (foundPos && !foundMatch)
-					removeWordRelations.add(prepWordRelation);
-			}
+				}
+			if (foundPos && !foundMatch)
+				removeWordRelations.add(prepWordRelation);
+		}
 
 		for (SentenceWordRelation removeWordRelation : removeWordRelations)
 			sentenceWordRelationSet.remove(removeWordRelation);
-		sentenceWordRelationSet.addAll(dependentWordRelations);
 	}
 
 	public void changeWordRelationStatus(int relationType) {
@@ -406,6 +419,15 @@ public class SentenceWordRelationGraph {
 		return getDependencyChain(wordRelation).size();
 	}
 
+	/**
+	 * Check if depID has wordRelation as indirect parent
+	 * 
+	 * @param wordRelation
+	 *            - parent SentenceWordRelation to check
+	 * @param depID
+	 *            - id of dependent SentenceWordRelation
+	 * @return "true" if there is chain of relations between depID and wordRelation
+	 */
 	private boolean isDependentRelation(SentenceWordRelation wordRelation, int depID) {
 		if (depID == 0 | wordRelation.id == 0)
 			return false;

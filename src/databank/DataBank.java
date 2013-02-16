@@ -1049,7 +1049,7 @@ public class DataBank {
 		try {
 			establishConnection();
 			PreparedStatement prep = conn.prepareStatement("insert into sentence_word_link values "
-					+ "(?,?,?,?,?,?,?,?,?)");
+					+ "(?,?,?,?,?,?,?,?,?,?)");
 			for (SentenceWordLink wordLink : wordLinkList) {
 				prep.setInt(1, wordLink.sentenceID);
 				prep.setInt(2, wordLink.wordPos);
@@ -1060,6 +1060,7 @@ public class DataBank {
 				prep.setInt(7, wordLink.person);
 				prep.setInt(8, wordLink.sing_pl);
 				prep.setInt(9, wordLink.subtype);
+				prep.setInt(10, wordLink.conjunctionWordPos);
 				prep.addBatch();
 			}
 			conn.setAutoCommit(false);
@@ -1076,7 +1077,7 @@ public class DataBank {
 			establishConnection();
 			PreparedStatement prep = conn
 					.prepareStatement("insert into sentence_word_relation values "
-							+ "(?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+							+ "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
 			for (SentenceWordRelation wordRelation : wordRelationList)
 				if (wordRelation.status == 2) {
 					prep.setInt(1, wordRelation.id);
@@ -1093,6 +1094,8 @@ public class DataBank {
 					prep.setInt(12, wordRelation.word2Gender);
 					prep.setInt(13, wordRelation.word2Sing_Pl);
 					prep.setInt(14, wordRelation.relationType);
+					prep.setInt(15,wordRelation.word1Animate);
+					prep.setInt(16,wordRelation.word2Animate);				
 					prep.addBatch();
 				}
 			conn.setAutoCommit(false);

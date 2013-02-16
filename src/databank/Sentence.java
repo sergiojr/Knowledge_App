@@ -639,28 +639,25 @@ public class Sentence {
 				else
 					personFilter = String.valueOf(verbWordform.person);
 				// для каждого глагола в действительной форме получить существительные не в
-				// именительном
-				// падеже
+				// именительном падеже
 				curWordPos = wordRelationGraph.getNextIndependentWordPos(verbWordform.wordPos);
-				if (curWordPos > 0)
-					if (wordRelationGraph.existDependence(curWordPos,
-							SentenceWordRelation.preposition)
-							| (getSubstantiveList(id, curWordPos, "1", personFilter, mainGender,
-									mainSing_Pl, 0, 1).isEmpty())) {
-						substantiveList = getSubstantiveList(id, curWordPos, ">1", ">0", 0, 0, 0, 1);
-						substantiveIterator = substantiveList.iterator();
-						while (substantiveIterator.hasNext()) {
-							substantiveWordform = substantiveIterator.next();
-							wordRelation = new SentenceWordRelation(0, 0, verbWordform,
-									substantiveWordform, relationType);
-							if (wordRelationGraph.add(wordRelation))
-								markLinkedWords(wordRelationGraph, wordRelation,
-										substantiveWordform);
-						}
+				if ((curWordPos > 0)
+						&& getSubstantiveList(id, curWordPos, "1", personFilter, mainGender,
+								mainSing_Pl, 0, 1).isEmpty()) {
+					substantiveList = getSubstantiveList(id, curWordPos, ">1", ">0", 0, 0, 0, 1);
+					substantiveIterator = substantiveList.iterator();
+					while (substantiveIterator.hasNext()) {
+						substantiveWordform = substantiveIterator.next();
+						wordRelation = new SentenceWordRelation(0, 0, verbWordform,
+								substantiveWordform, relationType);
+						if (wordRelationGraph.add(wordRelation))
+							markLinkedWords(wordRelationGraph, wordRelation, substantiveWordform);
 					}
+				}
 			}
 		}
 		wordRelationGraph.cleanWordRelationList(relationType);
+		wordRelationGraph.movePrepositionRelations(wordRelationGraph);
 		wordRelationGraph.changeWordRelationStatus(relationType);
 	}
 
@@ -784,8 +781,8 @@ public class Sentence {
 			}
 		}
 		curWordRelationGraph.cleanWordRelationList(relationType);
-		wordRelationGraph.movePrepositionRelations(curWordRelationGraph);
 		wordRelationGraph.addAll(curWordRelationGraph);
+		wordRelationGraph.movePrepositionRelations(curWordRelationGraph);
 		wordRelationGraph.changeWordRelationStatus(relationType);
 	}
 

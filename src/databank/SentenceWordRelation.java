@@ -65,12 +65,21 @@ public class SentenceWordRelation {
 			this.word1Sing_Pl = 0;
 			this.word1Animate = 0;
 			this.word2Case = word2Case;
-			this.word2Gender = word2Gender;
+			this.word2Gender = 0;
 			this.word2Sing_Pl = word2Sing_Pl;
 			this.word2Animate = word2Animate;
 		} else if (relationType == verbInfinitive) {
 			this.word1Case = word1Case;
 			this.word1Gender = word1Gender;
+			this.word1Sing_Pl = word1Sing_Pl;
+			this.word1Animate = word1Animate;
+			this.word2Case = 0;
+			this.word2Gender = 0;
+			this.word2Sing_Pl = 0;
+			this.word2Animate = 0;
+		} else if (relationType == preposition) {
+			this.word1Case = word1Case;
+			this.word1Gender = 0;
 			this.word1Sing_Pl = word1Sing_Pl;
 			this.word1Animate = word1Animate;
 			this.word2Case = 0;
@@ -98,7 +107,7 @@ public class SentenceWordRelation {
 		}
 
 		this.relationType = relationType;
-		this.status = 1;
+		this.status = 0;
 	}
 
 	public SentenceWordRelation(int id, SentenceWordRelation wordRelation,
