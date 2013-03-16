@@ -476,7 +476,7 @@ public class Vocabulary {
 		for (WordForm wordform : delayedSaveWordforms)
 			delayedSaveWords.add(getWord(wordform.wordID));
 
-		delayedSaveWords.addAll(updateWordformRelationIndex());
+		delayedSaveWords.addAll(UpdateWordRating(updateWordformRelationIndex()));
 
 		delayedSaveWords.addAll(UpdateWordRating(delayedSaveWords));
 
@@ -544,32 +544,43 @@ public class Vocabulary {
 	}
 
 	private HashSet<Word> updateWordformRelationIndex() {
-		if (wordformsByWordformstring==null)
+		if (wordformsByWordformstring == null)
 			return null;
-				
+
 		HashSet<Word> updatedWords = new HashSet<Word>();
 		HashMap<String, HashSet<EndingRuleStat>> wordformRelationStats = databank
 				.getWordformRelationStats();
-		for (String wordformString : wordformRelationStats.keySet()) {
-			HashSet<EndingRuleStat> endingRuleStats = wordformRelationStats.get(wordformString);
-			int totalCount = 0;
-			for (EndingRuleStat endingRuleStat : endingRuleStats)
-				totalCount += endingRuleStat.index;
-			for (EndingRuleStat endingRuleStat : endingRuleStats) {
-				HashSet<WordForm> wordforms = wordformsByWordformstring.get(wordformString);
-				if (wordforms != null)
-					for (WordForm wordform : wordforms) {
-						EndingRule endingrule = wordform.endingRule;
-						if ((endingrule.type == endingRuleStat.type)
+		boolean found;
+
+		for (Word word : words)
+			for (WordForm wordform : word.getWordforms()) {
+				HashSet<EndingRuleStat> endingRuleStats = wordformRelationStats
+						.get(wordform.wordForm);
+				if ((endingRuleStats != null) && !endingRuleStats.isEmpty()) {
+					int totalCount = 0;
+					for (EndingRuleStat endingRuleStat : endingRuleStats)
+						totalCount += endingRuleStat.index;
+					found = false;
+					EndingRule endingrule = wordform.endingRule;
+					for (EndingRuleStat endingRuleStat : endingRuleStats)
+						if ((!found) && (endingrule.type == endingRuleStat.type)
 								&& (endingrule.wcase == endingRuleStat.wcase)
 								&& (endingrule.gender == endingRuleStat.gender)
 								&& (endingrule.sing_pl == endingRuleStat.sing_pl)) {
 							wordform.setRelationIndex(((float) endingRuleStat.index) / totalCount);
-							updatedWords.add(getWord(wordform.wordID));
+							updatedWords.add(word);
+							found = true;
 						}
+
+					if (!found) {
+						//wordform.setRelationIndex(0);
+						updatedWords.add(word);
 					}
+				} else {
+					//wordform.setRelationIndex(0);
+					updatedWords.add(word);
+				}
 			}
-		}
 		return updatedWords;
 	}
 
