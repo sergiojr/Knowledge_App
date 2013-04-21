@@ -100,6 +100,16 @@ public class SentenceWordRelationGraph {
 					&& (curWordRelation.relationType == wordRelation.relationType)
 					&& (curWordRelation.depID == wordRelation.depID))
 				return true;
+
+			// if exist wordRelation where Word1 is dependent to different word and has the same
+			// relationType and dependent Relation
+			if ((curWordRelation.status == 2)
+					&& (curWordRelation.sentenceID == wordRelation.sentenceID)
+					&& (curWordRelation.word2Pos == wordRelation.word1Pos)
+					&& (curWordRelation.relationType == wordRelation.relationType)
+					&& (curWordRelation.depID == wordRelation.depID))
+				return true;
+
 			// if exist wordRelation where Word2 is related to different Word1
 			if ((curWordRelation.status == 2)
 					&& (curWordRelation.sentenceID == wordRelation.sentenceID)

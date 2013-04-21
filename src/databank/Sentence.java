@@ -12,6 +12,8 @@ public class Sentence {
 	// rating_tolerance - max allowed difference between (100-rating) and (100-maxraring) for
 	// wordform
 	static double rating_tolerance = 1.5;
+	static int forward = 1;
+	static int backward = -1;
 	private String sentence;
 	private ArrayList<SentenceWord> sentenceWordList;
 	private ArrayList<SentenceWordform> sentenceWordformList;
@@ -62,7 +64,8 @@ public class Sentence {
 		parseConjunctions();
 		parseAdverbsAttributes();
 		parsePrepositions();
-		parseAttributes();
+		parseAttributes(backward);
+		parseAttributes(forward);
 		parseConjunctions();
 		parseComplexPredicate();
 		parseAdverbs();
@@ -700,7 +703,7 @@ public class Sentence {
 		wordRelationGraph.changeWordRelationStatus(relationType);
 	}
 
-	private void parseAttributes() {
+	private void parseAttributes(int direction) {
 		ArrayList<SentenceWordform> adjectiveList;
 		Iterator<SentenceWordform> adjectiveIterator;
 		SentenceWordform adjectiveWordform;
@@ -718,6 +721,7 @@ public class Sentence {
 		int curWordPos;
 		int curWordRelationId;
 		int curPrepositionPos;
+		int adjPrepositionPos;
 
 		sentenceWordFilter = wordRelationGraph.generateSentenceWordFilter();
 
@@ -740,14 +744,18 @@ public class Sentence {
 				curWordRelationId = 0;
 				found = true;
 				// try to find adjectives with the same properties to the left
-				while (found && (curWordPos > 1)) {
+				while (found && (curWordPos > 1) && (curWordPos < sentenceWordList.size())) {
 					found = false;
 					// curWordPos--;
-					curWordPos = wordRelationGraph.getPrevIndependentWordPos(curWordPos);
-					if ((curPrepositionPos == 0)
-							| (curPrepositionPos == wordRelationGraph
-									.getPrepositionWordPos(curWordPos))) {
-						curPrepositionPos = wordRelationGraph.getPrepositionWordPos(curWordPos);
+					if (direction == forward)
+						curWordPos = wordRelationGraph.getNextIndependentWordPos(curWordPos);
+					else if (direction == backward)
+						curWordPos = wordRelationGraph.getPrevIndependentWordPos(curWordPos);
+					adjPrepositionPos = wordRelationGraph.getPrepositionWordPos(curWordPos);
+					if (((curPrepositionPos == 0) && (direction == backward))
+							| ((adjPrepositionPos == 0) && (direction == forward))
+							| (curPrepositionPos == adjPrepositionPos)) {
+						curPrepositionPos = adjPrepositionPos;
 						adjectiveList = getAdjectiveList(id, curWordPos,
 								String.valueOf(substantiveWordform.wcase),
 								substantiveWordform.gender, substantiveWordform.sing_pl,
@@ -773,7 +781,7 @@ public class Sentence {
 
 								// start search only if leftmost dependent adjective is before
 								// substantive
-								found = curWordPos < wordRelation.word1Pos;
+								found = (curWordPos - wordRelation.word1Pos) * direction > 0;
 							}
 						}
 					}
