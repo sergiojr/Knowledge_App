@@ -28,6 +28,8 @@ public class SentenceWordRelation {
 	static int conjunction = 100;
 	static int negative = 101;
 	static int preposition = 102;
+	static int subjectPredicate = 1001;
+	
 
 	public SentenceWordRelation(int id, int depID, int sentenceID, int word1Pos, int word1Type,
 			int word1Case, int word1Gender, int word1Sing_Pl, int word1Animate, int word2Pos,

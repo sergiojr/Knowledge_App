@@ -1,5 +1,7 @@
 package databank;
 
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -7,22 +9,27 @@ import java.util.Set;
 
 public class Vocabulary {
 	private DataBank databank;
-	private HashSet<Word> words;
-	private HashMap<Integer, Word> wordsById;
-	private HashMap<String, HashSet<Word>> wordsByBase;
-	private HashMap<String, HashSet<WordForm>> wordformsByWordformstring;
+	private ArrayList<Word> words;
+	private HashMap<String, ArrayList<Word>> wordsByBase;
+	private HashMap<String, ArrayList<WordForm>> wordformsByWordformstring;
 	private HashSet<Word> delayedSaveWords;
 	private HashSet<WordForm> delayedSaveWordforms;
 	private HashSet<WordWordRelation> delayedSaveWordWordRelations;
 	private int lastWordID;
+	private HashMap<String, ArrayList<EndingRule>> endingRulesByEnding;
+	private HashMap<String, ArrayList<WordForm>> fixedWordformsByWordformstring;
+	private HashSet<String> fixedOnlyForms;
+	private ArrayList<Transformation> transformations;
+	private ArrayList<ArrayList<Transformation>> transformationsById;
 
 	public Vocabulary(DataBank databank) {
 		this.databank = databank;
-		words = this.databank.getWords("", 0);
-		wordsById = new HashMap<Integer, Word>();
-		wordsByBase = new HashMap<String, HashSet<Word>>();
-		for (Word word : words)
+		words = new ArrayList<Word>();
+		wordsByBase = new HashMap<String, ArrayList<Word>>();
+
+		for (Word word : this.databank.getWords("", 0))
 			updateWordCache(word);
+
 		HashSet<WordForm> wordforms = this.databank.getWordforms(null);
 		for (WordForm wordform : wordforms)
 			getWord(wordform.wordID).addWordform(wordform);
@@ -60,25 +67,23 @@ public class Vocabulary {
 
 	public int getWordID(String baseForm, int type, int rule, int rule_variance, boolean complex,
 			int word1, int word2) {
-		HashSet<Word> wordSet = wordsByBase.get(baseForm);
+		ArrayList<Word> wordSet = wordsByBase.get(baseForm);
 		if (wordSet != null) {
-			Iterator<Word> iterator = wordSet.iterator();
-			Word word;
-			while (iterator.hasNext()) {
-				word = iterator.next();
+			for (Word word : wordSet)
 				if ((word.type == type) & (word.rule_no == rule)
 						& ((word.rule_variance == rule_variance) | (word.rule_variance == 0))
 						& (word.complex == complex) & (word.word1ID == word1)
 						& (word.word2ID == word2))
 					return word.id;
-			}
 		}
 		return 0;
 	}
 
 	public Word getWord(int id) {
-		Word word = wordsById.get(new Integer(id));
-		return word;
+		if (id > words.size() - 1)
+			return null;
+
+		return words.get(id);
 	}
 
 	public Word getWord(String baseForm, int type, int rule_no, int rule_variance, boolean complex,
@@ -87,7 +92,7 @@ public class Vocabulary {
 		if ((rule_variance < 0) & (save))
 			return null;
 
-		HashSet<Word> wordSet = wordsByBase.get(baseForm);
+		ArrayList<Word> wordSet = wordsByBase.get(baseForm);
 		wordSet = filterWordSet(type, rule_no, complex, word1ID, word2ID, wordSet);
 		for (Word tempWord : wordSet) {
 			if (rule_variance >= 0)
@@ -120,8 +125,8 @@ public class Vocabulary {
 				complex, word1ID, word2ID, save);
 	}
 
-	public HashSet<Word> getWords(String baseForm, int type, int rule_no, int rule_variance) {
-		HashSet<Word> wordsList = new HashSet<Word>();
+	public ArrayList<Word> getWords(String baseForm, int type, int rule_no, int rule_variance) {
+		ArrayList<Word> wordsList = new ArrayList<Word>();
 
 		if (baseForm == null)
 			return wordsList;
@@ -136,7 +141,7 @@ public class Vocabulary {
 			return wordsList;
 		}
 
-		HashSet<Word> tempWordsList = wordsByBase.get(baseForm);
+		ArrayList<Word> tempWordsList = wordsByBase.get(baseForm);
 
 		if (tempWordsList != null) {
 			if (type == 0 && rule_no == 0) {
@@ -152,9 +157,9 @@ public class Vocabulary {
 		return wordsList;
 	}
 
-	private HashSet<Word> filterWordSet(int type, int rule_no, boolean complex, int word1ID,
-			int word2ID, HashSet<Word> wordSet) {
-		HashSet<Word> result = new HashSet<Word>();
+	private ArrayList<Word> filterWordSet(int type, int rule_no, boolean complex, int word1ID,
+			int word2ID, ArrayList<Word> wordSet) {
+		ArrayList<Word> result = new ArrayList<Word>();
 		if (wordSet != null)
 			for (Word word : wordSet) {
 				if ((word.type == type) && (word.rule_no == rule_no) && (word.complex == complex)
@@ -165,15 +170,16 @@ public class Vocabulary {
 	}
 
 	private void updateWordCache(Word word) {
-		HashSet<Word> wordSet;
-		words.add(word);
-		wordsById.put(new Integer(word.id), word);
-		wordSet = wordsByBase.get(word.word);
+		while (word.id > words.size() - 1)
+			words.add(null);
+		words.set(word.id, word);
+
+		ArrayList<Word> wordSet = wordsByBase.get(word.word);
 		if (wordSet == null) {
-			wordSet = new HashSet<Word>();
+			wordSet = new ArrayList<Word>();
 			wordSet.add(word);
 			wordsByBase.put(word.word, wordSet);
-		} else
+		} else if (!wordSet.contains(word))
 			wordSet.add(word);
 	}
 
@@ -187,7 +193,7 @@ public class Vocabulary {
 		WordForm tempWordform = word.getWordform(rule_id, postfix);
 
 		if (tempWordform == null) {
-			tempWordform = new WordForm(wordform, word.id, endingrule, postfix);
+			tempWordform = new WordForm(wordform.intern(), word.id, endingrule, postfix);
 			word.addWordform(tempWordform);
 			HashSet<WordWordRelation> transformRelations = word.getWordRelations(1);
 			for (WordWordRelation transformRelation : transformRelations)
@@ -201,22 +207,22 @@ public class Vocabulary {
 								word.complex, word.word1ID, word.word2ID, false);
 						if (tempWord != null)
 							if (word.rule_variance != tempWord.rule_variance)
-								createWordform(tempWord, wordform, endingrule, postfix);
+								createWordform(tempWord, wordform.intern(), endingrule, postfix);
 					}
 		}
 		return tempWordform;
 	}
 
-	public void putWordformsByWordformstring(String wordform, HashSet<WordForm> wordforms) {
+	public void putWordformsByWordformstring(String wordform, ArrayList<WordForm> wordforms) {
 		if (wordformsByWordformstring == null)
-			wordformsByWordformstring = new HashMap<String, HashSet<WordForm>>();
+			wordformsByWordformstring = new HashMap<String, ArrayList<WordForm>>();
 
 		wordformsByWordformstring.put(wordform.intern(), wordforms);
 	}
 
-	public HashSet<WordForm> getWordformsByWordformstring(String wordform) {
+	public ArrayList<WordForm> getWordformsByWordformstring(String wordform) {
 		if (wordformsByWordformstring == null)
-			wordformsByWordformstring = new HashMap<String, HashSet<WordForm>>();
+			wordformsByWordformstring = new HashMap<String, ArrayList<WordForm>>();
 
 		return wordformsByWordformstring.get(wordform.intern());
 	}
@@ -236,13 +242,13 @@ public class Vocabulary {
 	}
 
 	private void checkTransormations(Word word) {
-		Set<Transformation> transformations;
+		ArrayList<Transformation> transformations;
 		Transformation transformation;
 		Word newWord;
 		int transformationType;
 		boolean isNewWord;
 
-		HashSet<Word> transformedWordsList;
+		ArrayList<Word> transformedWordsList;
 		Iterator<Word> transformedWordIterator;
 		Word transformedWord;
 		if (word.fixed)
@@ -252,7 +258,7 @@ public class Vocabulary {
 			return;
 
 		WordWordRelation transformationRelation;
-		transformations = databank.getTransformations();
+		transformations = getTransformations();
 		Iterator<Transformation> iterator = transformations.iterator();
 		while (iterator.hasNext()) {
 			transformation = iterator.next();
@@ -360,7 +366,7 @@ public class Vocabulary {
 		if (transformRelation.relationRefID == 0)
 			return;
 
-		Transformation transformation = databank.getTransformation(transformRelation.relationRefID,
+		Transformation transformation = getTransformation(transformRelation.relationRefID,
 				transformRelation.relationRefLine);
 		if (transformation == null)
 			return;
@@ -407,7 +413,6 @@ public class Vocabulary {
 		boolean forwardTransform = false;
 		boolean backwardTransform = false;
 		Word toWord;
-		WordForm fromWordform;
 		Word newWord = null;
 
 		int to_word_id = 0;
@@ -416,7 +421,7 @@ public class Vocabulary {
 		if (transformRelation.relationRefID == 0)
 			return;
 
-		Transformation transformation = databank.getTransformation(transformRelation.relationRefID,
+		Transformation transformation = getTransformation(transformRelation.relationRefID,
 				transformRelation.relationRefLine);
 		if (transformation == null)
 			return;
@@ -444,11 +449,9 @@ public class Vocabulary {
 		if ((sourceWord.rule_variance != toWord.rule_variance) & (toWord.rule_variance != 0))
 			return;
 
-		HashSet<WordForm> sourceWordforms = sourceWord.getWordforms();
+		ArrayList<WordForm> sourceWordforms = sourceWord.getWordforms();
 		if (sourceWordforms != null) {
-			Iterator<WordForm> iterator = sourceWordforms.iterator();
-			while (iterator.hasNext()) {
-				fromWordform = iterator.next();
+			for (WordForm fromWordform : sourceWordforms) {
 				if (toWord.getWordform(fromWordform.getRuleID(), fromWordform.postfix_id) == null) {
 					if (forwardTransform)
 						newWord = transformation.forwardTransformation(new Word(null, 0,
@@ -480,8 +483,10 @@ public class Vocabulary {
 
 		delayedSaveWords.addAll(UpdateWordRating(delayedSaveWords));
 
+//		System.out.print("SaveWord...");
 		databank.saveWord(delayedSaveWords);
 		databank.saveWordWordRelation(delayedSaveWordWordRelations);
+//		System.out.print("SaveWordform...");
 		databank.saveWordforms(delayedSaveWordforms);
 		delayedSaveWords.clear();
 		delayedSaveWordforms.clear();
@@ -532,8 +537,8 @@ public class Vocabulary {
 			}
 			if (isChanged) {
 				if (word.rating != 0)
-					updatedWordSet.add(word);
-				dependentWordSet.addAll(word.getDependentComplexWords());
+					updatedWordSet.add(word);				
+					dependentWordSet.addAll(word.getDependentComplexWords());
 			}
 		}
 
@@ -544,44 +549,168 @@ public class Vocabulary {
 	}
 
 	private HashSet<Word> updateWordformRelationIndex() {
-		if (wordformsByWordformstring == null)
-			return null;
-
 		HashSet<Word> updatedWords = new HashSet<Word>();
-		HashMap<String, HashSet<EndingRuleStat>> wordformRelationStats = databank
+		HashMap<String, ArrayList<EndingRuleStat>> wordformRelationStats = databank
 				.getWordformRelationStats();
 		boolean found;
 
 		for (Word word : words)
-			for (WordForm wordform : word.getWordforms()) {
-				HashSet<EndingRuleStat> endingRuleStats = wordformRelationStats
-						.get(wordform.wordForm);
-				if ((endingRuleStats != null) && !endingRuleStats.isEmpty()) {
-					int totalCount = 0;
-					for (EndingRuleStat endingRuleStat : endingRuleStats)
-						totalCount += endingRuleStat.index;
-					found = false;
-					EndingRule endingrule = wordform.endingRule;
-					for (EndingRuleStat endingRuleStat : endingRuleStats)
-						if ((!found) && (endingrule.type == endingRuleStat.type)
-								&& (endingrule.wcase == endingRuleStat.wcase)
-								&& (endingrule.gender == endingRuleStat.gender)
-								&& (endingrule.sing_pl == endingRuleStat.sing_pl)) {
-							wordform.setRelationIndex(((float) endingRuleStat.index) / totalCount);
-							updatedWords.add(word);
-							found = true;
-						}
+			if (word != null)
+				for (WordForm wordform : word.getWordforms()) {
+					ArrayList<EndingRuleStat> endingRuleStats = wordformRelationStats
+							.get(wordform.wordForm);
+					if ((endingRuleStats != null) && !endingRuleStats.isEmpty()) {
+						int totalCount = 0;
+						for (EndingRuleStat endingRuleStat : endingRuleStats)
+							totalCount += endingRuleStat.index;
+						found = false;
+						EndingRule endingrule = wordform.endingRule;
+						for (EndingRuleStat endingRuleStat : endingRuleStats)
+							if ((!found) && (endingrule.type == endingRuleStat.type)
+									&& (endingrule.wcase == endingRuleStat.wcase)
+									&& (endingrule.gender == endingRuleStat.gender)
+									&& (endingrule.sing_pl == endingRuleStat.sing_pl)) {
+								wordform.setRelationIndex(((float) endingRuleStat.index)
+										/ totalCount);
+								updatedWords.add(word);
+								found = true;
+							}
 
-					if (!found) {
-						//wordform.setRelationIndex(0);
+						if (!found) {
+							// wordform.setRelationIndex(0);
+							updatedWords.add(word);
+						}
+					} else {
+						// wordform.setRelationIndex(0);
 						updatedWords.add(word);
 					}
-				} else {
-					//wordform.setRelationIndex(0);
-					updatedWords.add(word);
 				}
-			}
 		return updatedWords;
 	}
 
+	public Set<EndingRule> getEndingRules(String ending, Postfix postfix, int complexWordIndex,
+			ComplexWordTemplate complexWordTemplate) throws SQLException {
+		if (endingRulesByEnding == null)
+			endingRulesByEnding = new HashMap<String, ArrayList<EndingRule>>();
+
+		ending = ending.intern();
+
+		boolean isMatch;
+
+		if (!endingRulesByEnding.containsKey(ending))
+			endingRulesByEnding.put(ending, databank.getEndingRules(ending, null, 0, null));
+
+		HashSet<EndingRule> matchedEndingRules = new HashSet<EndingRule>();
+
+		for (EndingRule endingRule : endingRulesByEnding.get(ending)) {
+			isMatch = true;
+			if (postfix != null) {
+				if (postfix.type > 0)
+					isMatch = isMatch && (endingRule.type == postfix.type);
+				if (postfix.tense > 0)
+					isMatch = isMatch && (endingRule.tense == postfix.tense);
+				if (postfix.rule_no > 0)
+					isMatch = isMatch && (endingRule.rule_no == postfix.rule_no);
+			}
+
+			if (isMatch && (complexWordIndex == 1) && (complexWordTemplate != null)) {
+				if (complexWordTemplate.word1_type > 0)
+					isMatch = isMatch && (endingRule.type == complexWordTemplate.word1_type);
+				if (complexWordTemplate.word1_subtype > 0)
+					isMatch = isMatch && (endingRule.subtype == complexWordTemplate.word1_subtype);
+				if (complexWordTemplate.word1_wcase > 0)
+					isMatch = isMatch && (endingRule.wcase == complexWordTemplate.word1_wcase);
+				if (complexWordTemplate.word1_sing_pl > 0)
+					isMatch = isMatch && (endingRule.sing_pl == complexWordTemplate.word1_sing_pl);
+			}
+
+			if (isMatch && (complexWordIndex == 2) && (complexWordTemplate != null)) {
+				if (complexWordTemplate.word2_type > 0)
+					isMatch = isMatch && (endingRule.type == complexWordTemplate.word2_type);
+				if (complexWordTemplate.word2_subtype > 0)
+					isMatch = isMatch && (endingRule.subtype == complexWordTemplate.word2_subtype);
+				if (complexWordTemplate.word2_wcase > 0)
+					isMatch = isMatch && (endingRule.wcase == complexWordTemplate.word2_wcase);
+				if (complexWordTemplate.word2_sing_pl > 0)
+					isMatch = isMatch && (endingRule.sing_pl == complexWordTemplate.word2_sing_pl);
+			}
+			if (isMatch)
+				matchedEndingRules.add(endingRule);
+		}
+
+		return matchedEndingRules;
+	}
+
+	public ArrayList<WordForm> getFixedWordForms(String wordformstring, Postfix postfix)
+			throws SQLException {
+		boolean isMatch;
+		Word word;
+
+		if (fixedWordformsByWordformstring == null)
+			fixedWordformsByWordformstring = new HashMap<String, ArrayList<WordForm>>();
+
+		wordformstring = wordformstring.intern();
+		if (fixedWordformsByWordformstring.get(wordformstring) == null)
+			fixedWordformsByWordformstring.put(wordformstring,
+					databank.getFixedWordForms(this, wordformstring, databank.getPostfix(0)));
+
+		ArrayList<WordForm> wordforms = new ArrayList<WordForm>();
+
+		for (WordForm wordform : fixedWordformsByWordformstring.get(wordformstring)) {
+			word = getWord(wordform.wordID);
+			isMatch = true;
+
+			if (postfix != null) {
+				if (postfix.type > 0)
+					isMatch = isMatch && (word.type == postfix.type);
+				// if (postfix.tense > 0)
+				// query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new
+				// CustomSql(
+				// "tense"), postfix.tense));
+			}
+
+			if (isMatch)
+				wordforms.add(createWordform(word, wordformstring + postfix.postfix,
+						wordform.endingRule, postfix.id));
+		}
+		return wordforms;
+	}
+
+	public boolean isOnlyFixedForm(String lcWord) {
+		if (fixedOnlyForms == null)
+			fixedOnlyForms = databank.getFixesOnlyForms();
+
+		return fixedOnlyForms.contains(lcWord.intern());
+	}
+
+	private ArrayList<Transformation> getTransformations() {
+		ArrayList<Transformation> tempTransformations;
+		if (transformations == null) {
+			transformations = databank.getTransformations();
+			transformationsById = new ArrayList<ArrayList<Transformation>>();
+			for (Transformation transformation : transformations) {
+				while (transformationsById.size() - 1 < transformation.id)
+					transformationsById.add(null);
+
+				tempTransformations = transformationsById.get(transformation.id);
+
+				if (tempTransformations == null)
+					tempTransformations = new ArrayList<Transformation>();
+				tempTransformations.add(transformation);
+				transformationsById.set(transformation.id, tempTransformations);
+			}
+		}
+		return transformations;
+	}
+
+	private Transformation getTransformation(int relationRefID, int relationRefLine) {
+		if (transformations == null)
+			getTransformations();
+
+		for (Transformation transformation : transformationsById.get(relationRefID)) {
+			if (transformation.line == relationRefLine)
+				return transformation;
+		}
+		return null;
+	}
 }

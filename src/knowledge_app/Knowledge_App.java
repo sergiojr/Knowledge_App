@@ -24,10 +24,20 @@ public class Knowledge_App {
 		curTime = startTime;
 		databank = new PostgresDataBank("knowledge");
 		databank.initDB();
+		
+		System.out.print("Loading Vocabulary from DB...");
 		vocabulary = new Vocabulary(databank);
+		endTime = System.currentTimeMillis();
+		System.out.println("Complete in " + minutes(endTime - curTime) + " minutes.");
+		curTime = endTime;
 
 		System.out.print("Parsing Text...");
 		parseSources();
+		endTime = System.currentTimeMillis();
+		System.out.println("Complete in " + minutes(endTime - curTime) + " minutes.");
+		curTime = endTime;
+		
+		System.out.print("Saving Vocabulary to DB...");
 		vocabulary.save();
 		endTime = System.currentTimeMillis();
 		System.out.println("Complete in " + minutes(endTime - curTime) + " minutes.");

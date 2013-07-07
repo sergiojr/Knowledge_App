@@ -144,6 +144,16 @@ public class Sentence {
 		return false;
 	}
 
+	/**
+	 * Generate possible subsentence combinations that have best subject-predicate pairs
+	 * 
+	 * @param conjunctions
+	 *            - list of conjuntions that can be between subjects
+	 * @param curSubsentence
+	 *            - list of subsentence IDs in current sentence
+	 * @return ArrayList of primitive sentences that are detected in sentence, each primitive
+	 *         sentence represented by ArrayList of its subjects and predicates
+	 */
 	private ArrayList<ArrayList<SentenceWord>> parseSubsentence(
 			ArrayList<SentenceWord> conjunctions, ArrayList<Integer> curSubsentence) {
 		String subsentenceFilter;
@@ -1159,6 +1169,11 @@ public class Sentence {
 		return result;
 	}
 
+	/**
+	 * Divide sentence into linear parts (subsentences) between adjacent punctuations
+	 * 
+	 * @return ArrayList of subsentence IDs
+	 */
 	private ArrayList<ArrayList<Integer>> divideSentence() {
 		ArrayList<ArrayList<Integer>> division = new ArrayList<ArrayList<Integer>>();
 		ArrayList<Integer> curSubsentence = new ArrayList<Integer>();
@@ -1200,6 +1215,13 @@ public class Sentence {
 		return filter;
 	}
 
+	/**
+	 * Gather Collection of ArrayLists to a single ArrayList
+	 * 
+	 * @param arraylist
+	 *            - Collection of ArrayLists
+	 * @return ArrayList that contains all the elements of ArrayList in input Collection
+	 */
 	private ArrayList<SentenceWord> gather(ArrayList<ArrayList<SentenceWord>> arraylist) {
 		ArrayList<SentenceWord> result = new ArrayList<SentenceWord>();
 		Iterator<ArrayList<SentenceWord>> iterator;

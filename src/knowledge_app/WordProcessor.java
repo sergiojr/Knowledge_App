@@ -1,6 +1,7 @@
 package knowledge_app;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -14,7 +15,6 @@ import databank.Word;
 import databank.WordForm;
 
 public class WordProcessor {
-	private HashSet<WordForm> wordforms;
 	private DataBank databank;
 	private Vocabulary vocabulary;
 	private boolean isPunctuation;
@@ -24,13 +24,13 @@ public class WordProcessor {
 
 	public static int substantive = 1; // существительное
 	public static int verb = 2; // глагол
-	public static int verb_infinitive = 0; //инфининтив
-	public static int verb_active = 1; //действительная форма глагола
-	public static int verb_adverbial_participle = 2; //деепричастие
+	public static int verb_infinitive = 0; // инфининтив
+	public static int verb_active = 1; // действительная форма глагола
+	public static int verb_adverbial_participle = 2; // деепричастие
 	public static int adjective = 3; // прилагательное
-	public static int adjetive_positive  = 0; //позитивная форма прилагательного
-	public static int adjective_adverb = 1; //наречие, образованное от прилагательного
-	public static int adjective_short = 2; //прилагательное в сокращенной форме
+	public static int adjective_positive = 0; // позитивная форма прилагательного
+	public static int adjective_adverb = 1; // наречие, образованное от прилагательного
+	public static int adjective_short = 2; // прилагательное в сокращенной форме
 	public static int numeral = 4; // числительное
 	public static int pronoun = 50; // местоимение
 	public static int particle = 97; // частица
@@ -38,9 +38,6 @@ public class WordProcessor {
 	public static int conjunction = 99; // союз
 	public static int preposition = 100; // предлог
 	public static int punctuation = 200; // знак препинания
-	
-
-	
 
 	public WordProcessor(String word, boolean isPunctuation, boolean isName, DataBank databank,
 			Vocabulary vocabulary) throws Exception {
@@ -59,11 +56,11 @@ public class WordProcessor {
 		Word emptyWord;
 		String lcWord = word.toLowerCase().intern();
 		String tempWord;
-		wordforms = vocabulary.getWordformsByWordformstring(lcWord);
+		ArrayList<WordForm> wordforms = vocabulary.getWordformsByWordformstring(lcWord);
 		if (wordforms == null) {
-			wordforms = databank.getFixedWordForms(vocabulary, lcWord, databank.getPostfix(0));
+			wordforms = vocabulary.getFixedWordForms(lcWord, databank.getPostfix(0));
 			if (!wordforms.isEmpty())
-				if (databank.isOnlyFixedForm(lcWord))
+				if (vocabulary.isOnlyFixedForm(lcWord))
 					return;
 			postfixes = databank.getPostfixes();
 			Iterator<Postfix> iterator = postfixes.iterator();
@@ -71,8 +68,8 @@ public class WordProcessor {
 				postfix = iterator.next();
 				if (lcWord.endsWith(postfix.getPostfix())) {
 					tempWord = lcWord.substring(0, lcWord.length() - postfix.getPostfix().length());
-					wordforms.addAll(databank.getFixedWordForms(vocabulary, tempWord, postfix));
-					if (databank.isOnlyFixedForm(tempWord))
+					wordforms.addAll(vocabulary.getFixedWordForms(tempWord, postfix));
+					if (vocabulary.isOnlyFixedForm(tempWord))
 						return;
 					wordforms.addAll(parseEnding(tempWord, postfix, 0, null));
 				}
@@ -146,10 +143,10 @@ public class WordProcessor {
 	private Set<WordForm> getEndingWordForms(String ending, String base, Postfix postfix,
 			int complexWordIndex, ComplexWordTemplate complexWordTemplate) throws SQLException {
 		Set<WordForm> wordforms = new HashSet<WordForm>();
-		//look through list of ending rules with selected ending
-		for (EndingRule endingrule : databank.getEndingRules(ending, postfix, complexWordIndex,
+		// look through list of ending rules with selected ending
+		for (EndingRule endingrule : vocabulary.getEndingRules(ending, postfix, complexWordIndex,
 				complexWordTemplate))
-			//for each ending rule get list of base forms
+			// for each ending rule get list of base forms
 			for (String modbase : endingrule.getBaseForms(base,
 					databank.getZeroEndingrule(endingrule)))
 				if (databank.checkBase(modbase, endingrule)) {
@@ -167,4 +164,5 @@ public class WordProcessor {
 	public boolean isName() {
 		return isName;
 	}
+
 }

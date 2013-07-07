@@ -1,9 +1,9 @@
 package databank;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 
 public class Word {
-	DataBank databank;
 	boolean fixed;
 	int id;
 	String word;
@@ -13,15 +13,14 @@ public class Word {
 	boolean complex;
 	int word1ID;
 	int word2ID;
-	HashSet<Integer> ruleVariance;
+	ArrayList<Integer> ruleVariance;
 	int rating;
-	private HashSet<WordForm> wordforms;
-	private HashSet<WordWordRelation> wordRelations;
-	private HashSet<Word> dependentComplexWords;
+	private ArrayList<WordForm> wordforms;
+	private ArrayList<WordWordRelation> wordRelations;
+	private ArrayList<Word> dependentComplexWords;
 
 	public Word(DataBank databank, int id, String word, int type, int rule_no, int rule_variance,
 			boolean complex, int word1ID, int word2ID, int rating) {
-		this.databank = databank;
 		this.id = id;
 		this.word = word;
 		this.type = type;
@@ -34,9 +33,9 @@ public class Word {
 		this.fixed = (this.rule_no < 0);
 		if (databank != null)
 			this.ruleVariance = databank.getRuleVariance(rule_no);
-		this.wordforms = new HashSet<WordForm>();
-		this.wordRelations = new HashSet<WordWordRelation>();
-		this.dependentComplexWords = new HashSet<Word>();
+		this.wordforms = new ArrayList<WordForm>();
+		this.wordRelations = null;
+		this.dependentComplexWords = null;
 	}
 
 	public int getId() {
@@ -55,37 +54,56 @@ public class Word {
 	}
 
 	public void addWordform(WordForm wordform) {
-		if (id == wordform.wordID)
+		if ((id == wordform.wordID) && (!wordforms.contains(wordform)))
 			wordforms.add(wordform);
 	}
 
-	public HashSet<WordForm> getWordforms() {
+	public ArrayList<WordForm> getWordforms() {
 		return wordforms;
 	}
 
 	public void addWordWordRelation(WordWordRelation wordRelation) {
-		if (id == wordRelation.parentWordID | id == wordRelation.wordID)
+		if (wordRelations==null)
+			wordRelations = new ArrayList<WordWordRelation>();
+		
+		if ((id == wordRelation.parentWordID | id == wordRelation.wordID)
+				&& (!wordRelations.contains(wordRelation)))
 			wordRelations.add(wordRelation);
 	}
 
 	public HashSet<WordWordRelation> getWordRelations(int relationType) {
 		HashSet<WordWordRelation> result = new HashSet<WordWordRelation>();
+		
+		if (wordRelations==null)
+			return result;
+		
 		for (WordWordRelation wordRelation : wordRelations)
 			if (relationType < 0 | relationType == wordRelation.relationType)
 				result.add(wordRelation);
 		return result;
 	}
-	
-	public void addDependentComplexWord(Word word){
-		dependentComplexWords.add(word);
+
+	public void addDependentComplexWord(Word word) {
+		if (dependentComplexWords == null)
+			dependentComplexWords = new ArrayList<Word>();
+
+		if (!dependentComplexWords.contains(word))
+			dependentComplexWords.add(word);
 	}
-	
-	public HashSet<Word> getDependentComplexWords(){
+
+	public ArrayList<Word> getDependentComplexWords() {
+		if (dependentComplexWords==null)
+			return new ArrayList<Word>();
+		
 		return dependentComplexWords;
 	}
 
 	public int getWordRelationDiversity() {
-		HashSet<Integer> wordRelationRefIDs = new HashSet<Integer>();
+		if (wordRelations==null)
+			return 0;
+		
+		HashSet<Integer> wordRelationRefIDs = new HashSet<Integer>();		
+		
 		for (WordWordRelation wordRelation : wordRelations)
 			if (wordRelation.relationType == 2)
 				wordRelationRefIDs.add(wordRelation.relationRefID);
@@ -105,8 +123,8 @@ public class Word {
 
 	public float getRelationIndex() {
 		float result = 0.0f;
-		for (WordForm wordform: wordforms)
-			result+=wordform.relationIndex;
+		for (WordForm wordform : wordforms)
+			result += wordform.relationIndex;
 		return result;
 	}
 }
