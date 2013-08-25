@@ -23,8 +23,8 @@ public class EndingRule {
 	int min_length;
 
 	public EndingRule(String ending, int rule_no, int rule_variance, int type, int subtype,
-			int rule_id, int wcase, int gender, int sing_pl, int tense, int animate, int person, String allow_after, String deny_after,
-			String e_before, String o_before, int min_length) {
+			int rule_id, int wcase, int gender, int sing_pl, int tense, int animate, int person,
+			String allow_after, String deny_after, String e_before, String o_before, int min_length) {
 		this.ending = ending;
 		this.rule_no = rule_no;
 		this.rule_variance = rule_variance;
@@ -44,9 +44,9 @@ public class EndingRule {
 		this.min_length = min_length;
 	}
 
-	public EndingRule(String ending, int rule_id, int wcase, int gender, int sing_pl, int animate, int person, int type, int rule_no,
-			int rule_variance) {
-		this.ending=ending;
+	public EndingRule(String ending, int rule_id, int wcase, int gender, int sing_pl, int animate,
+			int person, int type, int rule_no, int rule_variance) {
+		this.ending = ending;
 		this.rule_id = rule_id;
 		this.type = type;
 		this.rule_no = rule_no;
@@ -65,8 +65,10 @@ public class EndingRule {
 	}
 
 	/**
-	 * @param base - original base (could contain variable suffixes)
-	 * @param zeroEndingrule - EndingRule for base form
+	 * @param base
+	 *            - original base (could contain variable suffixes)
+	 * @param zeroEndingrule
+	 *            - EndingRule for base form
 	 * @return possible base forms from non-base form
 	 */
 	public Set<String> getBaseForms(String base, EndingRule zeroEndingrule) {
@@ -76,13 +78,13 @@ public class EndingRule {
 		if (checkBase(base)) {
 			modbases = getZeroForms(base, zeroEndingrule);
 			bases.addAll(modbases);
-	
+
 			modbase = dropCharacterE(base);
 			if (modbase != null) {
 				modbases = getZeroForms(modbase, zeroEndingrule);
 				bases.addAll(modbases);
 			}
-	
+
 			modbase = dropCharacterO(base);
 			if (modbase != null) {
 				modbases = getZeroForms(modbase, zeroEndingrule);
@@ -100,25 +102,25 @@ public class EndingRule {
 		Set<String> modbases = new HashSet<String>();
 
 		if (rule_id == zeroEndingrule.rule_id) {
-			if (base.length()>=zeroEndingrule.min_length)
-				modbases.add(base);			
+			if (base.length() >= zeroEndingrule.min_length)
+				modbases.add(base);
 			return modbases;
 		}
 
 		if ((allow_after == null) | (zeroEndingrule.allow_after == null)) {
-			if (base.length()>=zeroEndingrule.min_length)
+			if (base.length() >= zeroEndingrule.min_length)
 				modbases.add(base);
 			return modbases;
 		}
 
 		if ((allow_after.isEmpty()) | (zeroEndingrule.allow_after.isEmpty())) {
-			if (base.length()>=zeroEndingrule.min_length)
+			if (base.length() >= zeroEndingrule.min_length)
 				modbases.add(base);
 			return modbases;
 		}
 
 		if (allow_after.intern() == zeroEndingrule.allow_after.intern()) {
-			if (base.length()>=zeroEndingrule.min_length)
+			if (base.length() >= zeroEndingrule.min_length)
 				modbases.add(base);
 			return modbases;
 		}
@@ -132,20 +134,22 @@ public class EndingRule {
 					if (baseEnd[i].length() == matchLength) {
 						modbase = base.substring(0, base.length() - baseEnd[i].length())
 								+ modEnd[i];
-						if (modbase.length()>=zeroEndingrule.min_length)						
+						if (modbase.length() >= zeroEndingrule.min_length)
 							modbases.add(modbase);
 					} else {
 						matchLength = baseEnd[i].length();
 						modbases = new HashSet<String>();
 						modbase = base.substring(0, base.length() - baseEnd[i].length())
 								+ modEnd[i];
-						if (modbase.length()>=zeroEndingrule.min_length)
+						if (modbase.length() >= zeroEndingrule.min_length)
 							modbases.add(modbase);
 					}
 		return modbases;
 	}
 
-	/**Check base against "minimal length", "allow after" and "deny after"
+	/**
+	 * Check base against "minimal length", "allow after" and "deny after"
+	 * 
 	 * @param base
 	 * @return if base is valid according to ending rule
 	 */
@@ -153,10 +157,10 @@ public class EndingRule {
 		int i;
 		String[] baseEnd;
 		boolean valid = true;
-		
+
 		if (base.length() < min_length)
 			return false;
-		
+
 		if (allow_after != null)
 			if (valid & !allow_after.isEmpty()) {
 				baseEnd = allow_after.split(";");

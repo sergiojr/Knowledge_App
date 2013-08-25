@@ -24,7 +24,7 @@ public class Knowledge_App {
 		curTime = startTime;
 		databank = new PostgresDataBank("knowledge");
 		databank.initDB();
-		
+
 		System.out.print("Loading Vocabulary from DB...");
 		vocabulary = new Vocabulary(databank);
 		endTime = System.currentTimeMillis();
@@ -36,7 +36,7 @@ public class Knowledge_App {
 		endTime = System.currentTimeMillis();
 		System.out.println("Complete in " + minutes(endTime - curTime) + " minutes.");
 		curTime = endTime;
-		
+
 		System.out.print("Saving Vocabulary to DB...");
 		vocabulary.save();
 		endTime = System.currentTimeMillis();
@@ -64,12 +64,12 @@ public class Knowledge_App {
 		DataSource dataSource;
 		dataSource = databank.getNextDataSource();
 		while (dataSource != null) {
-			parseText(dataSource.getFilePath(), dataSource.getAction() > 1);
+			parseText(dataSource.getID(), dataSource.getFilePath(), dataSource.getAction() > 1);
 			dataSource = databank.getNextDataSource();
 		}
 	}
 
-	private void parseText(String filePath, boolean save) {
+	private void parseText(int sourceID, String filePath, boolean save) {
 		int bufferSize = 65536;
 		char[] cbuf = new char[bufferSize];
 		String sentenceText;
@@ -123,10 +123,10 @@ public class Knowledge_App {
 						// add current block to sentence
 						if (!curInput.isEmpty()) {
 							sentenceText = sentenceText + " " + curInput;
-							sentenceWordList.add(new SentenceWord(0, 0, 0, new WordProcessor(
-									curInput, isPunctuation, isName, databank, vocabulary)
-									.getWord(), 0, 0, 0, isPunctuation, isName, false, "", "", "",
-									"", ""));
+							sentenceWordList.add(new SentenceWord(sourceID, 0, 0, 0,
+									new WordProcessor(curInput, isPunctuation, isName, databank,
+											vocabulary).getWord(), 0, 0, 0, isPunctuation, isName,
+									false, "", "", "", "", ""));
 						}
 						isName = false;
 						if (!isPunctuation)
@@ -144,7 +144,7 @@ public class Knowledge_App {
 									isSentenceEnd = true;
 							if ((isSentenceEnd) | (newlinecount > 1)) {
 								if (save)
-									new Sentence(databank, vocabulary, 0, sentenceText,
+									new Sentence(databank, vocabulary, sourceID, 0, sentenceText,
 											sentenceWordList).save();
 								sentenceWordList = new ArrayList<SentenceWord>();
 								sentenceText = new String();
@@ -168,13 +168,14 @@ public class Knowledge_App {
 			// add current block to sentence
 			if (!curInput.isEmpty()) {
 				sentenceText = sentenceText + " " + curInput;
-				sentenceWordList.add(new SentenceWord(0, 0, 0, new WordProcessor(curInput,
-						isPunctuation, isName, databank, vocabulary).getWord(), 0, 0, 0,
+				sentenceWordList.add(new SentenceWord(sourceID, 0, 0, 0, new WordProcessor(
+						curInput, isPunctuation, isName, databank, vocabulary).getWord(), 0, 0, 0,
 						isPunctuation, isName, false, "", "", "", "", ""));
 			}
 			if (!sentenceText.isEmpty()) {
 				if (save)
-					new Sentence(databank, vocabulary, 0, sentenceText, sentenceWordList).save();
+					new Sentence(databank, vocabulary, sourceID, 0, sentenceText, sentenceWordList)
+							.save();
 			}
 		} catch (Exception e) {
 			e.printStackTrace();

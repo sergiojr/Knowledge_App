@@ -483,10 +483,10 @@ public class Vocabulary {
 
 		delayedSaveWords.addAll(UpdateWordRating(delayedSaveWords));
 
-//		System.out.print("SaveWord...");
+		// System.out.print("SaveWord...");
 		databank.saveWord(delayedSaveWords);
 		databank.saveWordWordRelation(delayedSaveWordWordRelations);
-//		System.out.print("SaveWordform...");
+		// System.out.print("SaveWordform...");
 		databank.saveWordforms(delayedSaveWordforms);
 		delayedSaveWords.clear();
 		delayedSaveWordforms.clear();
@@ -537,8 +537,8 @@ public class Vocabulary {
 			}
 			if (isChanged) {
 				if (word.rating != 0)
-					updatedWordSet.add(word);				
-					dependentWordSet.addAll(word.getDependentComplexWords());
+					updatedWordSet.add(word);
+				dependentWordSet.addAll(word.getDependentComplexWords());
 			}
 		}
 

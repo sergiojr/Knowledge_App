@@ -37,11 +37,11 @@ public class PostgresDataBank extends DataBank {
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
-			stat.executeUpdate("delete from sentence_word_relation");
-			stat.executeUpdate("delete from sentence_word_link");
-			stat.executeUpdate("delete from sentence_word;");
+			// stat.executeUpdate("delete from sentence_word_relation");
+			// stat.executeUpdate("delete from sentence_word_link");
+			// stat.executeUpdate("delete from sentence_word;");
 			stat.executeUpdate("delete from sentences;");
-//			stat.executeUpdate("delete from words;");
+			// stat.executeUpdate("delete from words;");
 			stat.close();
 		} catch (Exception e) {
 			e.printStackTrace();

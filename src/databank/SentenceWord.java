@@ -1,10 +1,11 @@
 package databank;
 
 public class SentenceWord {
-	public SentenceWord(int sentenceID, int subsentenceID, int wordPos, String word, int part,
-			int dep_word_pos, int preposition_id, boolean isPunctuation, boolean isName,
+	public SentenceWord(int sourceID, int sentenceID, int subsentenceID, int wordPos, String word,
+			int part, int dep_word_pos, int preposition_id, boolean isPunctuation, boolean isName,
 			boolean internal, String word_type_filter, String wcase_filter, String gender_filter,
-			String sing_pl_filter,String animate_filter) {
+			String sing_pl_filter, String animate_filter) {
+		this.sourceID = sourceID;
 		this.sentenceID = sentenceID;
 		this.subsentenceID = subsentenceID;
 		this.wordPos = wordPos;
@@ -22,6 +23,7 @@ public class SentenceWord {
 		this.animate_filter = animate_filter;
 	}
 
+	public int sourceID;
 	public int sentenceID;
 	public int subsentenceID;
 	public int wordPos;
@@ -40,14 +42,14 @@ public class SentenceWord {
 	String sing_pl_filter;
 	String animate_filter;
 	SentenceWordform sentenceWordform;
-	
-	public void setFilters(SentenceWordFilter wordFilter){
-		if (wordFilter!=null){
-			word_type_filter=wordFilter.typeFilter;
-			wcase_filter=wordFilter.wcaseFilter;				
-			gender_filter=wordFilter.genderFilter;
-			sing_pl_filter=wordFilter.sing_plFilter;
-			animate_filter=wordFilter.animateFilter;
+
+	public void setFilters(SentenceWordFilter wordFilter) {
+		if (wordFilter != null) {
+			word_type_filter = wordFilter.typeFilter;
+			wcase_filter = wordFilter.wcaseFilter;
+			gender_filter = wordFilter.genderFilter;
+			sing_pl_filter = wordFilter.sing_plFilter;
+			animate_filter = wordFilter.animateFilter;
 		}
 	}
 }

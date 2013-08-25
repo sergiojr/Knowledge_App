@@ -16,18 +16,18 @@ public class SentenceWordFilter {
 
 	public void addValuestoFilters(SentenceWordRelation wordRelation, int wordSelector) {
 		if (wordSelector == 1) {
-			typeFilter = addValueToFilter(wordRelation.word1Type, typeFilter,true);
-			wcaseFilter = addValueToFilter(wordRelation.word1Case, wcaseFilter,true);
-			genderFilter = addValueToFilter(wordRelation.word1Gender, genderFilter,false);
-			sing_plFilter = addValueToFilter(wordRelation.word1Sing_Pl, sing_plFilter,false);
-			animateFilter = addValueToFilter(wordRelation.word1Animate, animateFilter,false);
+			typeFilter = addValueToFilter(wordRelation.word1Type, typeFilter, true);
+			wcaseFilter = addValueToFilter(wordRelation.word1Case, wcaseFilter, true);
+			genderFilter = addValueToFilter(wordRelation.word1Gender, genderFilter, false);
+			sing_plFilter = addValueToFilter(wordRelation.word1Sing_Pl, sing_plFilter, false);
+			animateFilter = addValueToFilter(wordRelation.word1Animate, animateFilter, false);
 		}
 		if (wordSelector == 2) {
-			typeFilter = addValueToFilter(wordRelation.word2Type, typeFilter,true);
-			wcaseFilter = addValueToFilter(wordRelation.word2Case, wcaseFilter,true);
-			genderFilter = addValueToFilter(wordRelation.word2Gender, genderFilter,false);
-			sing_plFilter = addValueToFilter(wordRelation.word2Sing_Pl, sing_plFilter,false);
-			animateFilter = addValueToFilter(wordRelation.word2Animate, animateFilter,false);			
+			typeFilter = addValueToFilter(wordRelation.word2Type, typeFilter, true);
+			wcaseFilter = addValueToFilter(wordRelation.word2Case, wcaseFilter, true);
+			genderFilter = addValueToFilter(wordRelation.word2Gender, genderFilter, false);
+			sing_plFilter = addValueToFilter(wordRelation.word2Sing_Pl, sing_plFilter, false);
+			animateFilter = addValueToFilter(wordRelation.word2Animate, animateFilter, false);
 		}
 	}
 
@@ -47,7 +47,7 @@ public class SentenceWordFilter {
 		}
 		return result;
 	}
-	
+
 	static public boolean checkFilter(int value, String filter) {
 		boolean result = false;
 		if (filter == null)
@@ -75,10 +75,10 @@ public class SentenceWordFilter {
 			part = filter.substring(1);
 			return (value > Integer.valueOf(part));
 		}
-		
-//		if (Integer.valueOf(part)==0)
-//			return true;
-		
+
+		// if (Integer.valueOf(part)==0)
+		// return true;
+
 		return (value == Integer.valueOf(part));
 	}
 

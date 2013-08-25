@@ -6,11 +6,13 @@ import java.util.HashSet;
 public class SentenceWordRelationGraph {
 
 	private HashSet<SentenceWordRelation> sentenceWordRelationSet;
+	private int sourceID;
 	private int sentenceID;
 	private int maxWordPos;
 	private int relationCount;
 
-	public SentenceWordRelationGraph(int newSentenceID, int newMaxWordPos) {
+	public SentenceWordRelationGraph(int newSourceID, int newSentenceID, int newMaxWordPos) {
+		sourceID = newSourceID;
 		sentenceID = newSentenceID;
 		maxWordPos = newMaxWordPos;
 		sentenceWordRelationSet = new HashSet<SentenceWordRelation>();
@@ -90,7 +92,8 @@ public class SentenceWordRelationGraph {
 		for (SentenceWordRelation curWordRelation : sentenceWordRelationSet) {
 			// if exist wordRelation where Word1 is related to different Word2 and has the same
 			// relationType and dependent Relation
-			if ((curWordRelation.sentenceID == wordRelation.sentenceID)
+			if ((curWordRelation.sourceID == wordRelation.sourceID)
+					&& (curWordRelation.sentenceID == wordRelation.sentenceID)
 					&& (curWordRelation.word1Pos == wordRelation.word1Pos)
 					&& (curWordRelation.word1Case == wordRelation.word1Case)
 					&& (curWordRelation.word1Gender == wordRelation.word1Gender)
@@ -104,6 +107,7 @@ public class SentenceWordRelationGraph {
 			// if exist wordRelation where Word1 is dependent to different word and has the same
 			// relationType and dependent Relation
 			if ((curWordRelation.status == 2)
+					&& (curWordRelation.sourceID == wordRelation.sourceID)
 					&& (curWordRelation.sentenceID == wordRelation.sentenceID)
 					&& (curWordRelation.word2Pos == wordRelation.word1Pos)
 					&& (curWordRelation.relationType == wordRelation.relationType)
@@ -112,6 +116,7 @@ public class SentenceWordRelationGraph {
 
 			// if exist wordRelation where Word2 is related to different Word1
 			if ((curWordRelation.status == 2)
+					&& (curWordRelation.sourceID == wordRelation.sourceID)
 					&& (curWordRelation.sentenceID == wordRelation.sentenceID)
 					&& (curWordRelation.word2Pos == wordRelation.word2Pos)
 					&& (curWordRelation.word1Pos != wordRelation.word1Pos)
@@ -120,14 +125,16 @@ public class SentenceWordRelationGraph {
 
 			// Break cycles:if exist wordRelation in WordRelation dependency chain with the same
 			// Word1 and Word2
-			if ((curWordRelation.sentenceID == wordRelation.sentenceID)
+			if ((curWordRelation.sourceID == wordRelation.sourceID)
+					&& (curWordRelation.sentenceID == wordRelation.sentenceID)
 					&& (curWordRelation.word1Pos == wordRelation.word1Pos)
 					&& (curWordRelation.word2Pos == wordRelation.word2Pos)
 					&& (isDependentRelation(curWordRelation, wordRelation.depID)))
 				return true;
 
 			// if exist wordRelation with the same Word1 and Word2
-			if ((curWordRelation.sentenceID == wordRelation.sentenceID)
+			if ((curWordRelation.sourceID == wordRelation.sourceID)
+					&& (curWordRelation.sentenceID == wordRelation.sentenceID)
 					&& (curWordRelation.relationType == wordRelation.relationType)
 					&& (curWordRelation.word1Pos == wordRelation.word1Pos)
 					&& (curWordRelation.word1Type == wordRelation.word1Type)
@@ -244,7 +251,8 @@ public class SentenceWordRelationGraph {
 			foundPos = false;
 			foundMatch = false;
 			for (SentenceWordRelation curWordRelation : newWordRelations)
-				if ((curWordRelation.sentenceID == prepWordRelation.sentenceID)
+				if ((curWordRelation.sourceID == prepWordRelation.sourceID)
+						&& (curWordRelation.sentenceID == prepWordRelation.sentenceID)
 						&& (curWordRelation.word2Pos == prepWordRelation.word1Pos)) {
 					foundPos = true;
 					if ((curWordRelation.word2Case == prepWordRelation.word1Case)
@@ -261,6 +269,7 @@ public class SentenceWordRelationGraph {
 						if (mainAttributeWordRelation.word1Case > 0) {
 							dependentWordRelation = new SentenceWordRelation(0,
 									mainAttributeWordRelation.id,
+									mainAttributeWordRelation.sourceID,
 									mainAttributeWordRelation.sentenceID,
 									mainAttributeWordRelation.word1Pos,
 									mainAttributeWordRelation.word1Type,
@@ -280,6 +289,7 @@ public class SentenceWordRelationGraph {
 							if (dependentAttributeWordRelation.word2Case > 0) {
 								dependentWordRelation = new SentenceWordRelation(0,
 										dependentAttributeWordRelation.id,
+										dependentAttributeWordRelation.sourceID,
 										dependentAttributeWordRelation.sentenceID,
 										dependentAttributeWordRelation.word2Pos,
 										dependentAttributeWordRelation.word2Type,
@@ -313,7 +323,8 @@ public class SentenceWordRelationGraph {
 
 	public boolean existDependence(int wordPos, int relationType) {
 		for (SentenceWordRelation wordRelation : sentenceWordRelationSet)
-			if ((wordRelation.sentenceID == sentenceID) && (wordRelation.word1Pos == wordPos)
+			if ((wordRelation.sourceID == sentenceID) && (wordRelation.sourceID == sentenceID)
+					&& (wordRelation.word1Pos == wordPos)
 					&& (wordRelation.relationType == relationType))
 				return true;
 		return false;
@@ -322,7 +333,8 @@ public class SentenceWordRelationGraph {
 	public int getPrepositionWordPos(int wordPos) {
 		int relationType = SentenceWordRelation.preposition;
 		for (SentenceWordRelation wordRelation : sentenceWordRelationSet)
-			if ((wordRelation.sentenceID == sentenceID) && (wordRelation.word1Pos == wordPos)
+			if ((wordRelation.sourceID == sourceID) && (wordRelation.sentenceID == sentenceID)
+					&& (wordRelation.word1Pos == wordPos)
 					&& (wordRelation.relationType == relationType))
 				return wordRelation.word2Pos;
 		return 0;
@@ -330,7 +342,8 @@ public class SentenceWordRelationGraph {
 
 	public SentenceWordRelation getMainVerbRelation(int wordPos) {
 		for (SentenceWordRelation wordRelation : sentenceWordRelationSet)
-			if ((wordRelation.sentenceID == sentenceID) && (wordRelation.word2Pos == wordPos)
+			if ((wordRelation.sourceID == sourceID) && (wordRelation.sentenceID == sentenceID)
+					&& (wordRelation.word2Pos == wordPos)
 					&& (wordRelation.relationType == SentenceWordRelation.verbInfinitive)) {
 				SentenceWordRelation tempWordRelation = getMainVerbRelation(wordRelation.word1Pos);
 				if (tempWordRelation == null)

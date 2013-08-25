@@ -3,6 +3,7 @@ package databank;
 import java.util.ArrayList;
 
 public class SentenceWordLink {
+	int sourceID;
 	int sentenceID;
 	int wordPos;
 	int linkWordPos;
@@ -16,6 +17,7 @@ public class SentenceWordLink {
 
 	public SentenceWordLink(SentenceWordform prevWordform, SentenceWord conjunctionWord,
 			SentenceWordform nextWordform) {
+		this.sourceID = prevWordform.sourceID;
 		this.sentenceID = prevWordform.sentenceID;
 		this.wordPos = prevWordform.wordPos;
 		this.linkWordPos = nextWordform.wordPos;
@@ -46,9 +48,9 @@ public class SentenceWordLink {
 
 	public boolean exists(ArrayList<SentenceWordLink> wordLinkList) {
 		for (SentenceWordLink wordLink : wordLinkList)
-			if ((sentenceID == wordLink.sentenceID)
+			if ((sentenceID == wordLink.sentenceID) && (sourceID == wordLink.sourceID)
 					&& ((wordPos == wordLink.wordPos) && (linkWordPos == wordLink.linkWordPos))
-							| ((wordPos == wordLink.linkWordPos) && (linkWordPos == wordLink.wordPos))
+					| ((wordPos == wordLink.linkWordPos) && (linkWordPos == wordLink.wordPos))
 					&& (conjunctionWordPos == wordLink.conjunctionWordPos)) {
 				// существительные и местоимения существительные
 				if ((wcase > 0) && (person > 0))

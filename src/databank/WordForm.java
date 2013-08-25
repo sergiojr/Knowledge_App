@@ -17,12 +17,12 @@ public class WordForm {
 	public EndingRule getEndingRule() {
 		return endingRule;
 	}
-	
-	public int getRuleID(){
+
+	public int getRuleID() {
 		if (endingRule == null)
 			return 0;
 		else
-			return endingRule.rule_id;		
+			return endingRule.rule_id;
 	}
 
 	public float getRelationIndex() {
@@ -32,6 +32,5 @@ public class WordForm {
 	public void setRelationIndex(float relationIndex) {
 		this.relationIndex = relationIndex;
 	}
-	
 
 }

@@ -63,9 +63,9 @@ public class Word {
 	}
 
 	public void addWordWordRelation(WordWordRelation wordRelation) {
-		if (wordRelations==null)
+		if (wordRelations == null)
 			wordRelations = new ArrayList<WordWordRelation>();
-		
+
 		if ((id == wordRelation.parentWordID | id == wordRelation.wordID)
 				&& (!wordRelations.contains(wordRelation)))
 			wordRelations.add(wordRelation);
@@ -73,10 +73,10 @@ public class Word {
 
 	public HashSet<WordWordRelation> getWordRelations(int relationType) {
 		HashSet<WordWordRelation> result = new HashSet<WordWordRelation>();
-		
-		if (wordRelations==null)
+
+		if (wordRelations == null)
 			return result;
-		
+
 		for (WordWordRelation wordRelation : wordRelations)
 			if (relationType < 0 | relationType == wordRelation.relationType)
 				result.add(wordRelation);
@@ -92,18 +92,18 @@ public class Word {
 	}
 
 	public ArrayList<Word> getDependentComplexWords() {
-		if (dependentComplexWords==null)
+		if (dependentComplexWords == null)
 			return new ArrayList<Word>();
-		
+
 		return dependentComplexWords;
 	}
 
 	public int getWordRelationDiversity() {
-		if (wordRelations==null)
+		if (wordRelations == null)
 			return 0;
-		
-		HashSet<Integer> wordRelationRefIDs = new HashSet<Integer>();		
-		
+
+		HashSet<Integer> wordRelationRefIDs = new HashSet<Integer>();
+
 		for (WordWordRelation wordRelation : wordRelations)
 			if (wordRelation.relationType == 2)
 				wordRelationRefIDs.add(wordRelation.relationRefID);

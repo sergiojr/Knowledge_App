@@ -3,7 +3,6 @@ package databank;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 
 import knowledge_app.WordProcessor;
@@ -21,16 +20,18 @@ public class Sentence {
 	private SentenceWordFilter[] sentenceWordFilter;
 	ArrayList<SentenceWordLink> wordLinkList;
 
+	private int sourceID;
 	private int id;
 	private int type;
 	private ArrayList<ArrayList<Integer>> division;
 	private DataBank databank;
 	private Vocabulary vocabulary;
 
-	public Sentence(DataBank databank, Vocabulary vocabulary, int id, String sentence,
-			ArrayList<SentenceWord> sentenceWordList) {
+	public Sentence(DataBank databank, Vocabulary vocabulary, int sourceID, int id,
+			String sentence, ArrayList<SentenceWord> sentenceWordList) {
 		this.databank = databank;
 		this.vocabulary = vocabulary;
+		this.sourceID = sourceID;
 		this.id = id;
 		this.sentence = sentence;
 		this.sentenceWordList = sentenceWordList;
@@ -38,7 +39,7 @@ public class Sentence {
 
 	public void save() {
 		try {
-			id = databank.saveSentence(type, sentence, sentenceWordList);
+			id = databank.saveSentence(sourceID, type, sentence, sentenceWordList);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -46,7 +47,7 @@ public class Sentence {
 
 	public void parse() {
 		// System.out.println(id);
-		wordRelationGraph = new SentenceWordRelationGraph(id, sentenceWordList.size());
+		wordRelationGraph = new SentenceWordRelationGraph(sourceID, id, sentenceWordList.size());
 		wordLinkList = new ArrayList<SentenceWordLink>();
 		ArrayList<SentenceWord> sentenceParts;
 		ArrayList<SentenceWord> conjunctions;
@@ -55,8 +56,8 @@ public class Sentence {
 		if (databank == null)
 			return;
 
-		sentenceWordformList = databank.getSentencePartList(id, "", 0, "", "", 0, 0, "", "",
-				rating_tolerance);
+		sentenceWordformList = databank.getSentencePartList(sourceID, id, "", 0, "", "", 0, 0, "",
+				"", rating_tolerance);
 
 		parsePrepositions();
 		parseNumerals();
@@ -175,7 +176,7 @@ public class Sentence {
 				subsentenceFilter = convertArrayToFilter(subsentencePart);
 				curSentenceParts.add(findSubjectPredicate(conjunctions, subsentenceFilter));
 			}
-			curRating = calculateSubsenteneRating(curSentenceParts);
+			curRating = calculateSubsentenceRating(curSentenceParts);
 			if (curRating > maxRating) {
 				sentenceParts = curSentenceParts;
 				maxRating = curRating;
@@ -185,7 +186,7 @@ public class Sentence {
 		return sentenceParts;
 	}
 
-	private int calculateSubsenteneRating(ArrayList<ArrayList<SentenceWord>> curSentenceParts) {
+	private int calculateSubsentenceRating(ArrayList<ArrayList<SentenceWord>> curSentenceParts) {
 		int result = 0;
 		for (ArrayList<SentenceWord> subsentence : curSentenceParts) {
 			// bonus rating for each subsentence
@@ -724,8 +725,8 @@ public class Sentence {
 		int relationType = SentenceWordRelation.attribute;
 		SentenceWordRelation wordRelation;
 		SentenceWordRelation curWordRelation;
-		SentenceWordRelationGraph curWordRelationGraph = new SentenceWordRelationGraph(id,
-				sentenceWordList.size());
+		SentenceWordRelationGraph curWordRelationGraph = new SentenceWordRelationGraph(sourceID,
+				id, sentenceWordList.size());
 
 		boolean found;
 		int curWordPos;
@@ -1016,7 +1017,7 @@ public class Sentence {
 			if ((id == wordLink.sentenceID)
 					&& ((wordPos == wordLink.wordPos) && (linkWordPos == wordLink.linkWordPos))
 					| ((wordPos == wordLink.linkWordPos) && (linkWordPos == wordLink.wordPos)))
-				return new SentenceWordform(id, 0, wordLink.conjunctionWordPos,
+				return new SentenceWordform(sourceID, id, 0, wordLink.conjunctionWordPos,
 						WordProcessor.conjunction, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "", "", "", "", 0,
 						0);
 		return null;
@@ -1194,7 +1195,7 @@ public class Sentence {
 				subsentence_id++;
 			} else
 				sentenceWord.subsentenceID = subsentence_id;
-		databank.setSentenceType(id, 1);
+		databank.setSentenceType(sourceID, id, 1);
 		return division;
 	}
 

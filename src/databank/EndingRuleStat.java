@@ -6,7 +6,7 @@ public class EndingRuleStat {
 	public int gender;
 	public int sing_pl;
 	public int index;
-	
+
 	public EndingRuleStat(int type, int wcase, int gender, int sing_pl, int index) {
 		this.type = type;
 		this.wcase = wcase;

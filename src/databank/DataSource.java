@@ -15,6 +15,10 @@ public class DataSource {
 		this.action = action;
 	}
 
+	public int getID() {
+		return id;
+	}
+
 	public String getFilePath() {
 		return filePath;
 	}

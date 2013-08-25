@@ -1,10 +1,12 @@
 package databank;
 
 public class SentenceWordform {
-	public SentenceWordform(int sentenceID, int subsentenceID, int wordPos, int type,
-			int subtype, int wcase, int gender, int person, int sing_pl, int animate, int word_id, int rule_id,
-			int dep_word_pos, int preposition_id, String word_type_filter, String wcase_filter,
-			String gender_filter, String sing_pl_filter, int rating, int maxrating) {
+	public SentenceWordform(int sourceID, int sentenceID, int subsentenceID, int wordPos, int type,
+			int subtype, int wcase, int gender, int person, int sing_pl, int animate, int word_id,
+			int rule_id, int dep_word_pos, int preposition_id, String word_type_filter,
+			String wcase_filter, String gender_filter, String sing_pl_filter, int rating,
+			int maxrating) {
+		this.sourceID = sourceID;
 		this.sentenceID = sentenceID;
 		this.subsentenceID = subsentenceID;
 		this.wordPos = wordPos;
@@ -20,13 +22,14 @@ public class SentenceWordform {
 		this.dep_word_pos = dep_word_pos;
 		this.preposition_id = preposition_id;
 		this.word_type_filter = word_type_filter;
-		this.wcase_filter=wcase_filter;
-		this.gender_filter=gender_filter;
-		this.sing_pl_filter=sing_pl_filter;
+		this.wcase_filter = wcase_filter;
+		this.gender_filter = gender_filter;
+		this.sing_pl_filter = sing_pl_filter;
 		this.rating = rating;
 		this.maxrating = maxrating;
 	}
 
+	public int sourceID;
 	public int sentenceID;
 	public int subsentenceID;
 	public int wordPos;
@@ -47,5 +50,5 @@ public class SentenceWordform {
 	public String wcase_filter;
 	public String gender_filter;
 	public String sing_pl_filter;
-	
+
 }

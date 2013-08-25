@@ -3,6 +3,7 @@ package databank;
 public class SentenceWordRelation {
 	int id;
 	int depID;
+	int sourceID;
 	int sentenceID;
 	int word1Pos;
 	int word1Type;
@@ -29,14 +30,14 @@ public class SentenceWordRelation {
 	static int negative = 101;
 	static int preposition = 102;
 	static int subjectPredicate = 1001;
-	
 
-	public SentenceWordRelation(int id, int depID, int sentenceID, int word1Pos, int word1Type,
-			int word1Case, int word1Gender, int word1Sing_Pl, int word1Animate, int word2Pos,
-			int word2Type, int word2Case, int word2Gender, int word2Sing_Pl, int word2Animate,
-			int relationType) {
+	public SentenceWordRelation(int id, int depID, int sourceID, int sentenceID, int word1Pos,
+			int word1Type, int word1Case, int word1Gender, int word1Sing_Pl, int word1Animate,
+			int word2Pos, int word2Type, int word2Case, int word2Gender, int word2Sing_Pl,
+			int word2Animate, int relationType) {
 		this.id = id;
 		this.depID = depID;
+		this.sourceID = sourceID;
 		this.sentenceID = sentenceID;
 		this.word1Pos = word1Pos;
 		this.word1Type = word1Type;
@@ -114,25 +115,25 @@ public class SentenceWordRelation {
 
 	public SentenceWordRelation(int id, SentenceWordRelation wordRelation,
 			SentenceWordform wordform2, int relationType) {
-		this(id, wordRelation.id, wordRelation.sentenceID, wordRelation.word1Pos,
-				wordRelation.word1Type, wordRelation.word1Case, wordRelation.word1Gender,
-				wordRelation.word1Sing_Pl, wordRelation.word1Animate, wordform2.wordPos,
-				wordform2.type, wordform2.wcase, wordform2.gender, wordform2.sing_pl,
-				wordform2.animate, relationType);
+		this(id, wordRelation.id, wordRelation.sourceID, wordRelation.sentenceID,
+				wordRelation.word1Pos, wordRelation.word1Type, wordRelation.word1Case,
+				wordRelation.word1Gender, wordRelation.word1Sing_Pl, wordRelation.word1Animate,
+				wordform2.wordPos, wordform2.type, wordform2.wcase, wordform2.gender,
+				wordform2.sing_pl, wordform2.animate, relationType);
 	}
 
 	public SentenceWordRelation(int id, int depID, SentenceWordform wordform1,
 			SentenceWordform wordform2, int relationType) {
-		this(id, depID, wordform1.sentenceID, wordform1.wordPos, wordform1.type, wordform1.wcase,
-				wordform1.gender, wordform1.sing_pl, wordform1.animate, wordform2.wordPos,
-				wordform2.type, wordform2.wcase, wordform2.gender, wordform2.sing_pl,
-				wordform2.animate, relationType);
+		this(id, depID, wordform1.sourceID, wordform1.sentenceID, wordform1.wordPos,
+				wordform1.type, wordform1.wcase, wordform1.gender, wordform1.sing_pl,
+				wordform1.animate, wordform2.wordPos, wordform2.type, wordform2.wcase,
+				wordform2.gender, wordform2.sing_pl, wordform2.animate, relationType);
 	}
 
 	public SentenceWordRelation(int id, int depID, SentenceWordform wordform1, int relationType) {
-		this(id, depID, wordform1.sentenceID, wordform1.wordPos, wordform1.type, wordform1.wcase,
-				wordform1.gender, wordform1.sing_pl, wordform1.animate, 0, 0, 0, 0, 0, 0,
-				relationType);
+		this(id, depID, wordform1.sourceID, wordform1.sentenceID, wordform1.wordPos,
+				wordform1.type, wordform1.wcase, wordform1.gender, wordform1.sing_pl,
+				wordform1.animate, 0, 0, 0, 0, 0, 0, relationType);
 	}
 
 }

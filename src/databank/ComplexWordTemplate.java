@@ -20,8 +20,8 @@ public class ComplexWordTemplate {
 	}
 
 	public ComplexWordTemplate(int id, int word1_type, int word1_subtype, int word1_wcase,
-			int word1_sing_pl, int word2_type, int word2_subtype, int word2_wcase, int word2_sing_pl,
-			String delimiter) {
+			int word1_sing_pl, int word2_type, int word2_subtype, int word2_wcase,
+			int word2_sing_pl, String delimiter) {
 		super();
 		this.id = id;
 		this.word1_type = word1_type;
