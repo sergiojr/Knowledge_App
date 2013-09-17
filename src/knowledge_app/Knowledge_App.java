@@ -46,6 +46,7 @@ public class Knowledge_App {
 		System.out.print("Parse Sentences...");
 		parseSentences();
 		databank.saveWordformRelationStats();
+		databank.saveSentenceWordRelationHistory();
 		endTime = System.currentTimeMillis();
 		System.out.println("Complete in " + minutes(endTime - curTime) + " minutes.");
 		curTime = endTime;
@@ -61,10 +62,14 @@ public class Knowledge_App {
 	}
 
 	private void parseSources() {
+		boolean save;
 		DataSource dataSource;
 		dataSource = databank.getNextDataSource();
 		while (dataSource != null) {
-			parseText(dataSource.getID(), dataSource.getFilePath(), dataSource.getAction() > 1);
+			save =dataSource.getAction() > 1; 
+			if (save)
+				databank.cleanDataSource(dataSource.getID());
+			parseText(dataSource.getID(), dataSource.getFilePath(), save);
 			dataSource = databank.getNextDataSource();
 		}
 	}

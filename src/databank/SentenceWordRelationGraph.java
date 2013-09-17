@@ -103,6 +103,19 @@ public class SentenceWordRelationGraph {
 					&& (curWordRelation.relationType == wordRelation.relationType)
 					&& (curWordRelation.depID == wordRelation.depID))
 				return true;
+			
+			// Word1 can have only one preposition relation
+			if ((curWordRelation.sourceID == wordRelation.sourceID)
+					&& (curWordRelation.sentenceID == wordRelation.sentenceID)
+					&& (curWordRelation.word1Pos == wordRelation.word1Pos)
+					&& (curWordRelation.word1Case == wordRelation.word1Case)
+					&& (curWordRelation.word1Gender == wordRelation.word1Gender)
+					&& (curWordRelation.word1Sing_Pl == wordRelation.word1Sing_Pl)
+					&& (curWordRelation.word1Animate == wordRelation.word1Animate)
+					&& (curWordRelation.word2Pos != wordRelation.word2Pos)
+					&& (curWordRelation.relationType == wordRelation.relationType)
+					&& (curWordRelation.relationType == SentenceWordRelation.preposition))
+				return true;
 
 			// if exist wordRelation where Word1 is dependent to different word and has the same
 			// relationType and dependent Relation
@@ -323,7 +336,7 @@ public class SentenceWordRelationGraph {
 
 	public boolean existDependence(int wordPos, int relationType) {
 		for (SentenceWordRelation wordRelation : sentenceWordRelationSet)
-			if ((wordRelation.sourceID == sentenceID) && (wordRelation.sourceID == sentenceID)
+			if ((wordRelation.sourceID == sourceID) && (wordRelation.sentenceID == sentenceID)
 					&& (wordRelation.word1Pos == wordPos)
 					&& (wordRelation.relationType == relationType))
 				return true;

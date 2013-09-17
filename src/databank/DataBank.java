@@ -78,6 +78,18 @@ public class DataBank {
 		}
 	}
 
+	public void cleanDataSource(int id) {
+		String query = MessageFormat.format("delete from sentences where source_id={0,number,#}",
+				id);
+		try {
+			establishConnection();
+			Statement stat = conn.createStatement();
+			stat.executeUpdate(query);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
 	void establishConnection() throws SQLException {
 		try {
 			if (conn == null) {
@@ -448,6 +460,61 @@ public class DataBank {
 			Statement stat = conn.createStatement();
 			stat.execute("delete from wordform_relation_stats;");
 			stat.execute("insert into wordform_relation_stats select * from sentence_word_relation_stats;");
+			stat.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void saveSentenceWordRelationHistory() {
+		int max_version_id = 0;
+		String query;
+		try {
+			establishConnection();
+			Statement stat = conn.createStatement();
+			// copy error flag to all versions of relation
+			stat.execute("update sentence_word_relation_history set error = true where exists "
+					+ "(select 1 from sentence_word_relation_history l_history "
+					+ "where sentence_word_relation_history.source_id=l_history.source_id and "
+					+ "sentence_word_relation_history.relation_type=l_history.relation_type and "
+					+ "sentence_word_relation_history.sentence_id=l_history.sentence_id and "
+					+ "sentence_word_relation_history.word_pos = l_history.word_pos and "
+					+ "sentence_word_relation_history.dep_word_pos=l_history.dep_word_pos and l_history.error=true);");
+
+			// clean error relations from reference version (id=0)
+			stat.execute("delete from sentence_word_relation_history where version_id=0 and error=true");
+
+			// copy non-error entries from last version to reference version (id=0)
+			stat.execute("insert into sentence_word_relation_history "
+					+ "select 0, source_id, sentence_id, relation_type, word_pos, preposition, "
+					+ "word, type, dep_word_pos, dep_preposition, dep_word, dep_type, error "
+					+ "from sentence_word_relation_history history "
+					+ "where version_id=(select max(version_id) from sentence_word_relation_history) and "
+					+ "error=false and not exists(select 1 from sentence_word_relation_history ref_history "
+					+ "where ref_history.version_id=0 and ref_history.source_id=history.source_id and "
+					+ "ref_history.sentence_id=history.sentence_id and ref_history.relation_type=history.relation_type and "
+					+ "ref_history.word_pos=history.word_pos and ref_history.dep_word_pos=history.dep_word_pos)");
+
+			// get last version id
+			ResultSet rs = stat
+					.executeQuery("select max(version_id)  max_version_id from sentence_word_relation_history");
+			if (rs.next()) {
+				max_version_id = rs.getInt("max_version_id");
+			}
+
+			// copy current version to history
+			query = MessageFormat
+					.format("INSERT INTO sentence_word_relation_history "
+							+ "SELECT {0,number,#}, source_id, sentence_id, relation_type, word_pos, preposition,"
+							+ "word, type, dep_word_pos, dep_preposition, dep_word, dep_type, "
+							+ "exists (select 1 from sentence_word_relation_history l_history "
+							+ "where dep_words_pair2.source_id=l_history.source_id and "
+							+ "dep_words_pair2.relation_type=l_history.relation_type and "
+							+ "dep_words_pair2.sentence_id = l_history.sentence_id and "
+							+ "dep_words_pair2.word_pos = l_history.word_pos and "
+							+ "dep_words_pair2.dep_word_pos=l_history.dep_word_pos and l_history.error=true) error "
+							+ "FROM dep_words_pair2;", max_version_id + 1);
+			stat.execute(query);
 			stat.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -1191,7 +1258,8 @@ public class DataBank {
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
-			ResultSet rs = stat.executeQuery("select * from sentences order by source_id, id");
+			ResultSet rs = stat
+					.executeQuery("select * from sentences where processed=false order by source_id, id");
 			while (rs.next()) {
 				source_id = rs.getInt("source_id");
 				sentence_id = rs.getInt("id");
@@ -1325,5 +1393,18 @@ public class DataBank {
 			return existNumeral(base);
 		}
 		return true;
+	}
+
+	public void setSentenceProcessed(int sourceID, int id) {
+		String query = MessageFormat.format("update sentences set processed = true "
+				+ "where source_id={0,number,#} and id={1,number,#}", sourceID, id);
+		try {
+			establishConnection();
+			Statement stat = conn.createStatement();
+			stat.execute(query);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+
 	}
 }

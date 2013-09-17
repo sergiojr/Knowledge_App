@@ -109,6 +109,7 @@ public class Sentence {
 		}
 		databank.saveSentenceWordLinkList(wordLinkList);
 		databank.saveSentenceWordRelationList(wordRelationGraph.getSet());
+		databank.setSentenceProcessed(sourceID, id);
 	}
 
 	private boolean markAdverbialParticiple(ArrayList<ArrayList<Integer>> division) {
