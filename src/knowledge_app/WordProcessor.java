@@ -35,6 +35,9 @@ public class WordProcessor {
 	public static int pronoun = 50; // местоимение
 	public static int particle = 97; // частица
 	public static int adverb = 98; // наречие
+	public static int adverb_adverbial = 0; //обстоятельственные наречия
+	public static int adverb_measure = 1; //наречия меры и степени
+	public static int adverb_attribute = 2; //определительные наречия	
 	public static int conjunction = 99; // союз
 	public static int preposition = 100; // предлог
 	public static int punctuation = 200; // знак препинания

@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 
+import knowledge_app.Knowledge_App;
 import knowledge_app.WordProcessor;
 
 public class Sentence {
@@ -596,12 +597,12 @@ public class Sentence {
 		while (verbIterator.hasNext()) {
 			verbWordform = verbIterator.next();
 			adverbList = getAdverbList(id,
-					wordRelationGraph.getPrevIndependentWordPos(verbWordform.wordPos));
+					wordRelationGraph.getPrevIndependentWordPos(verbWordform.wordPos), "");
 			// если есть связанный инфинитив, то относим наречия к нему
 			if (!wordRelationGraph.existDependence(verbWordform.wordPos,
 					SentenceWordRelation.verbInfinitive))
 				adverbList.addAll(getAdverbList(id,
-						wordRelationGraph.getNextIndependentWordPos(verbWordform.wordPos)));
+						wordRelationGraph.getNextIndependentWordPos(verbWordform.wordPos), ""));
 			adverbsIterator = adverbList.iterator();
 			while (adverbsIterator.hasNext()) {
 				adverbWordform = adverbsIterator.next();
@@ -690,7 +691,8 @@ public class Sentence {
 		sentenceWordFilter = wordRelationGraph.generateSentenceWordFilter();
 
 		// получить прилагательные и местоимения прилагательные
-		attributeList = getAdjectiveList(id, 0, ">0", 0, 0, 0, 1);
+		// attributeList = getAdjectiveList(id, 0, ">0", 0, 0, 0, 1);
+		attributeList = getAdjectiveList(id, 0, "", 0, 0, 0, 1);
 		attributeIterator = attributeList.iterator();
 
 		// для каждого прилагательного получить предшествующие наречия
@@ -700,7 +702,8 @@ public class Sentence {
 					&& !wordRelationGraph.existDependence(attributeWordform.wordPos,
 							SentenceWordRelation.preposition)) {
 				adverbList = getAdverbList(id,
-						wordRelationGraph.getPrevIndependentWordPos(attributeWordform.wordPos));
+						wordRelationGraph.getPrevIndependentWordPos(attributeWordform.wordPos),
+						String.valueOf(WordProcessor.adverb_attribute));
 				adverbsIterator = adverbList.iterator();
 				if (adverbsIterator.hasNext()) {
 					adverbWordform = adverbsIterator.next();
@@ -750,51 +753,49 @@ public class Sentence {
 			substantiveWordform = substantiveIterator.next();
 			curPrepositionPos = wordRelationGraph
 					.getPrepositionWordPos(substantiveWordform.wordPos);
-			if (substantiveWordform.wordPos > 1) {
-				// start from substantive position
-				curWordPos = substantiveWordform.wordPos;
-				curWordRelationId = 0;
-				found = true;
-				// try to find adjectives with the same properties to the left
-				while (found && (curWordPos > 1) && (curWordPos < sentenceWordList.size())) {
-					found = false;
-					// curWordPos--;
-					if (direction == forward)
-						curWordPos = wordRelationGraph.getNextIndependentWordPos(curWordPos);
-					else if (direction == backward)
-						curWordPos = wordRelationGraph.getPrevIndependentWordPos(curWordPos);
-					adjPrepositionPos = wordRelationGraph.getPrepositionWordPos(curWordPos);
-					if (((curPrepositionPos == 0) && (direction == backward))
-							| ((adjPrepositionPos == 0) && (direction == forward))
-							| (curPrepositionPos == adjPrepositionPos)) {
-						curPrepositionPos = adjPrepositionPos;
-						adjectiveList = getAdjectiveList(id, curWordPos,
-								String.valueOf(substantiveWordform.wcase),
-								substantiveWordform.gender, substantiveWordform.sing_pl,
-								substantiveWordform.animate, rating_tolerance);
-						adjectiveIterator = adjectiveList.iterator();
-						if (adjectiveIterator.hasNext()) {
-							found = true;
-							adjectiveWordform = adjectiveIterator.next();
-							// mark, that adjective is dependent on substantive
-							wordRelation = new SentenceWordRelation(0, curWordRelationId,
-									substantiveWordform, adjectiveWordform, relationType);
-							if (!wordRelationGraph.existWordRelation(wordRelation)
-									&& curWordRelationGraph.add(wordRelation)) {
-								// mark any linked adjective
-								markLinkedWords(curWordRelationGraph, wordRelation,
-										adjectiveWordform);
+			// start from substantive position
+			curWordPos = substantiveWordform.wordPos;
+			curWordRelationId = 0;
+			found = true;
+			// try to find adjectives with the same properties to the left
+			while (found && (curWordPos + direction > 0)
+					&& (curWordPos + direction <= sentenceWordList.size())) {
+				found = false;
+				// curWordPos--;
+				if (direction == forward)
+					curWordPos = wordRelationGraph.getNextIndependentWordPos(curWordPos);
+				else if (direction == backward)
+					curWordPos = wordRelationGraph.getPrevIndependentWordPos(curWordPos);
+				adjPrepositionPos = wordRelationGraph.getPrepositionWordPos(curWordPos);
+				if (((curPrepositionPos == 0) && (direction == backward))
+						| ((adjPrepositionPos == 0) && (direction == forward))
+						| (curPrepositionPos == adjPrepositionPos)) {
+					curPrepositionPos = adjPrepositionPos;
+					adjectiveList = getAdjectiveList(id, curWordPos,
+							String.valueOf(substantiveWordform.wcase), substantiveWordform.gender,
+							substantiveWordform.sing_pl, substantiveWordform.animate,
+							rating_tolerance);
+					adjectiveIterator = adjectiveList.iterator();
+					if (adjectiveIterator.hasNext()) {
+						found = true;
+						adjectiveWordform = adjectiveIterator.next();
+						// mark, that adjective is dependent on substantive
+						wordRelation = new SentenceWordRelation(0, curWordRelationId,
+								substantiveWordform, adjectiveWordform, relationType);
+						if (!wordRelationGraph.existWordRelation(wordRelation)
+								&& curWordRelationGraph.add(wordRelation)) {
+							// mark any linked adjective
+							markLinkedWords(curWordRelationGraph, wordRelation, adjectiveWordform);
 
-								// find leftmost dependent adjective
-								curWordRelation = curWordRelationGraph
-										.getLastWordRelation(wordRelation);
-								curWordRelationId = curWordRelation.id;
-								curWordPos = curWordRelation.word2Pos;
+							// find leftmost dependent adjective
+							curWordRelation = curWordRelationGraph
+									.getLastWordRelation(wordRelation);
+							curWordRelationId = curWordRelation.id;
+							curWordPos = curWordRelation.word2Pos;
 
-								// start search only if leftmost dependent adjective is before
-								// substantive
-								found = (curWordPos - wordRelation.word1Pos) * direction > 0;
-							}
+							// start search only if leftmost dependent adjective is before
+							// substantive
+							found = (curWordPos - wordRelation.word1Pos) * direction > 0;
 						}
 					}
 				}
@@ -819,6 +820,9 @@ public class Sentence {
 
 		SentenceWordLink wordLink;
 
+		int prepositionPrevWordPos;
+		int prepositionNextWordPos;
+
 		// find wordPos with conjunction
 		conjunctions = getConjunctions("и");
 		conjunctions.addAll(getConjunctions("или"));
@@ -833,9 +837,13 @@ public class Sentence {
 			prevWordformIterator = prevWordforms.iterator();
 			while (prevWordformIterator.hasNext()) {
 				prevWordform = prevWordformIterator.next();
+				prepositionPrevWordPos = wordRelationGraph
+						.getPrepositionWordPos(prevWordform.wordPos);
 				nextWordformIterator = nextWordforms.iterator();
 				while (nextWordformIterator.hasNext()) {
 					nextWordform = nextWordformIterator.next();
+					prepositionNextWordPos = wordRelationGraph
+							.getPrepositionWordPos(nextWordform.wordPos);
 					// существительные и местоимения существительные
 					if ((prevWordform.wcase > 0) & (prevWordform.person > 0))
 						if ((prevWordform.wcase == nextWordform.wcase) & (nextWordform.person > 0)) {
@@ -852,7 +860,8 @@ public class Sentence {
 								& ((prevWordform.gender == nextWordform.gender)
 										| (prevWordform.gender == 0) | (nextWordform.gender == 0))
 								& ((prevWordform.sing_pl == nextWordform.sing_pl)
-										| (prevWordform.sing_pl == 0) | (nextWordform.sing_pl == 0))) {
+										| (prevWordform.sing_pl == 0) | (nextWordform.sing_pl == 0))
+								& ((prepositionNextWordPos == prepositionPrevWordPos) | (prepositionNextWordPos == 0))) {
 							conjunction.internal = true;
 							wordLink = new SentenceWordLink(prevWordform, conjunction, nextWordform);
 							if (!wordLink.exists(wordLinkList))
@@ -948,13 +957,14 @@ public class Sentence {
 				rating_tolerance);
 	}
 
-	private ArrayList<SentenceWordform> getAdverbList(int sentence_id, int wordPos) {
+	private ArrayList<SentenceWordform> getAdverbList(int sentence_id, int wordPos,
+			String subtypefilter) {
 		ArrayList<SentenceWordform> adverbList = new ArrayList<SentenceWordform>();
 		adverbList.addAll(getSentencePartList("", wordPos, "", "", 0, 0, 0,
 				String.valueOf(WordProcessor.adjective),
 				String.valueOf(WordProcessor.adjective_adverb), 1));
 		adverbList.addAll(getSentencePartList("", wordPos, "", "", 0, 0, 0,
-				String.valueOf(WordProcessor.adverb), "", 1));
+				String.valueOf(WordProcessor.adverb), subtypefilter, 1));
 		return adverbList;
 	}
 
