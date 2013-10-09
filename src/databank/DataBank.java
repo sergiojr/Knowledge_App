@@ -10,6 +10,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 
 import knowledge_app.WordProcessor;
@@ -1053,9 +1054,14 @@ public class DataBank {
 			int gender, int sing_pl, String typeFilter, String subtypeFilter,
 			double rating_tolerance) {
 		ArrayList<SentenceWordform> sentenceParts = new ArrayList<SentenceWordform>();
-		String ratingToleranceCondition = MessageFormat
-				.format("(100-rating)<=(100-maxrating)*{0,number,#.##} and rating*{0,number,#.##}>=maxrating",
-						rating_tolerance);
+		//String ratingToleranceCondition = MessageFormat
+		//		.format("(100-rating)<=(100-maxrating)*{0,number,#.##} and rating*{0,number,#.##}>=maxrating",
+		//				rating_tolerance);
+		MessageFormat formatter = new MessageFormat("");
+		formatter.setLocale(Locale.US);
+		formatter.applyPattern("(100-rating)<=(100-maxrating)*{0,number,#.##} and rating*{0,number,#.##}>=maxrating");
+		Object[] arguments = {rating_tolerance};
+		String ratingToleranceCondition = formatter.format(arguments);
 
 		if (wordPos < 0)
 			return sentenceParts;

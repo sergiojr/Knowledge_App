@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="src"/>
-	<classpathentry kind="lib" path="/store/Jr/eclipse.workspace/Knowledge_App/libs/sqlitejdbc-v056.jar"/>
+	<classpathentry kind="lib" path="C:/Users/sergiojr/workspace/Knowledge_App/libs/sqlitejdbc-v056.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="/store/Jr/eclipse.workspace/SQLBuilder/sqlbuilder-2.0.11.jar" sourcepath="/store/Jr/eclipse.workspace/SQLBuilder/sqlbuilder-2.0.11-sources.jar"/>
-	<classpathentry kind="lib" path="/store/Jr/eclipse.workspace/SQLBuilder/common-util-1.0.4.jar" sourcepath="D:/Jr/eclipse.workspace/SQLBuilder/common-util-1.0.4-sources.jar"/>
-	<classpathentry kind="lib" path="/store/Jr/eclipse.workspace/Knowledge_App/libs/postgresql-9.1-901.jdbc4.jar"/>
+	<classpathentry kind="lib" path="C:/Users/sergiojr/workspace/Knowledge_App/libs/SQLBuilder/sqlbuilder-2.0.11.jar" sourcepath="/store/Jr/eclipse.workspace/SQLBuilder/sqlbuilder-2.0.11-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Users/sergiojr/workspace/Knowledge_App/libs/SQLBuilder/common-util-1.0.4.jar" sourcepath="D:/Jr/eclipse.workspace/SQLBuilder/common-util-1.0.4-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Users/sergiojr/workspace/Knowledge_App/libs/postgresql-9.1-901.jdbc4.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
