@@ -50,7 +50,6 @@ public class Sentence {
 		// System.out.println(id);
 		wordRelationGraph = new SentenceWordRelationGraph(sourceID, id, sentenceWordList.size());
 		wordLinkList = new ArrayList<SentenceWordLink>();
-		ArrayList<SentenceWord> sentenceParts;
 		ArrayList<SentenceWord> conjunctions;
 		Iterator<ArrayList<Integer>> subsentenceIterator;
 		ArrayList<Integer> curSubsentence;
@@ -102,15 +101,46 @@ public class Sentence {
 
 			subsentenceIterator = division.iterator();
 			while (subsentenceIterator.hasNext()) {
+				int depID = 0;
 				curSubsentence = subsentenceIterator.next();
-				sentenceParts = gather(parseSubsentence(conjunctions, curSubsentence));
-				if (!sentenceParts.isEmpty())
-					databank.saveSentenceParts(sentenceParts);
+				ArrayList<SentenceWord> gatheredSentenceParts;
+				ArrayList<ArrayList<SentenceWord>> sentenceParts = parseSubsentence(conjunctions,
+						curSubsentence);
+				gatheredSentenceParts = gather(sentenceParts);
+				if (!gatheredSentenceParts.isEmpty())
+					databank.saveSentenceParts(gatheredSentenceParts);
+				ArrayList<SentenceWordRelation> subjectPredicateRelations = gatherSubjectPredicateRelations(sentenceParts);
+				for (SentenceWordRelation sentenceWordRelation : subjectPredicateRelations) {
+					sentenceWordRelation.depID = depID;
+					wordRelationGraph.add(sentenceWordRelation);
+					depID = sentenceWordRelation.id;
+				}
+				wordRelationGraph.changeWordRelationStatus(SentenceWordRelation.subjectPredicate);
 			}
 		}
 		databank.saveSentenceWordLinkList(wordLinkList);
 		databank.saveSentenceWordRelationList(wordRelationGraph.getSet());
 		databank.setSentenceProcessed(sourceID, id);
+	}
+
+	private ArrayList<SentenceWordRelation> gatherSubjectPredicateRelations(
+			ArrayList<ArrayList<SentenceWord>> sentenceParts) {
+		ArrayList<SentenceWordRelation> subjectPredicateRelations = new ArrayList<SentenceWordRelation>();
+		for (ArrayList<SentenceWord> subsentenceParts : sentenceParts) {
+			SentenceWord predicate = null;
+			for (SentenceWord sentenceWord : subsentenceParts)
+				if (sentenceWord.part == SentenceWord.predicate)
+					predicate = sentenceWord;
+			if (predicate != null) {
+				for (SentenceWord sentenceWord : subsentenceParts)
+					if (sentenceWord.part == SentenceWord.subject) {
+						subjectPredicateRelations.add(new SentenceWordRelation(0, 0,
+								predicate.sentenceWordform, sentenceWord.sentenceWordform,
+								SentenceWordRelation.subjectPredicate));
+					}
+			}
+		}
+		return subjectPredicateRelations;
 	}
 
 	private boolean markAdverbialParticiple(ArrayList<ArrayList<Integer>> division) {
@@ -741,14 +771,12 @@ public class Sentence {
 		sentenceWordFilter = wordRelationGraph.generateSentenceWordFilter();
 
 		// find possible substantives
-		// possible substantive: wordform that has an substantive as a word
-		// with maximal rating
+		// possible substantive: wordform that has an substantive as a word with maximal rating
 		substantiveList = getSubstantiveList(id, 0, ">0", ">0", 0, 0, 0, rating_tolerance);
 		substantiveIterator = substantiveList.iterator();
 
 		// find possible adjectives that have common form with substantive
-		// possible adjective: wordform that has an adjective as a word with
-		// maximal rating
+		// possible adjective: wordform that has an adjective as a word with maximal rating
 		while (substantiveIterator.hasNext()) {
 			substantiveWordform = substantiveIterator.next();
 			curPrepositionPos = wordRelationGraph
