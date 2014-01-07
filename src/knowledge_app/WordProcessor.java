@@ -31,6 +31,7 @@ public class WordProcessor {
 	public static int adjective_positive = 0; // позитивная форма прилагательного
 	public static int adjective_adverb = 1; // наречие, образованное от прилагательного
 	public static int adjective_short = 2; // прилагательное в сокращенной форме
+	public static int adjective_comparative = 3; //прилагательное в сравнительной форме
 	public static int numeral = 4; // числительное
 	public static int pronoun = 50; // местоимение
 	public static int particle = 97; // частица

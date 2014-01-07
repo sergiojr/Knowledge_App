@@ -69,7 +69,7 @@ public class Sentence {
 		parseAttributes(forward);
 		parseConjunctions();
 		parseComplexPredicate();
-		parseAdverbs();
+		parseVerbQualifier();
 		parseVerbControlledSubstantives();
 		parseConjunctions();
 		// parseGenetiveSubstantives();
@@ -606,7 +606,11 @@ public class Sentence {
 		wordRelationGraph.changeWordRelationStatus(relationType);
 	}
 
-	private void parseAdverbs() {
+	/**
+	 * разбираем слова, определяющие харакатер действия глагола: наречия, сравнительные
+	 * прилагательные
+	 */
+	private void parseVerbQualifier() {
 		ArrayList<SentenceWordform> verbList;
 		Iterator<SentenceWordform> verbIterator;
 		SentenceWordform verbWordform;
@@ -628,14 +632,28 @@ public class Sentence {
 			verbWordform = verbIterator.next();
 			adverbList = getAdverbList(id,
 					wordRelationGraph.getPrevIndependentWordPos(verbWordform.wordPos), "");
+			adverbList.addAll(getSentencePartList("",
+					wordRelationGraph.getPrevIndependentWordPos(verbWordform.wordPos), "", "", 0,
+					0, 0, String.valueOf(WordProcessor.adjective),
+					String.valueOf(WordProcessor.adjective_comparative), 1));
 			// если есть связанный инфинитив, то относим наречия к нему
 			if (!wordRelationGraph.existDependence(verbWordform.wordPos,
-					SentenceWordRelation.verbInfinitive))
+					SentenceWordRelation.verbInfinitive)) {
 				adverbList.addAll(getAdverbList(id,
 						wordRelationGraph.getNextIndependentWordPos(verbWordform.wordPos), ""));
+				adverbList.addAll(getSentencePartList("",
+						wordRelationGraph.getNextIndependentWordPos(verbWordform.wordPos), "", "",
+						0, 0, 0, String.valueOf(WordProcessor.adjective),
+						String.valueOf(WordProcessor.adjective_comparative), 1));
+			}
 			adverbsIterator = adverbList.iterator();
 			while (adverbsIterator.hasNext()) {
 				adverbWordform = adverbsIterator.next();
+				if ((adverbWordform.type == WordProcessor.adjective)
+						&& (adverbWordform.subtype == WordProcessor.adjective_comparative))
+					relationType = SentenceWordRelation.verbRelativeAdjective;
+				else
+					relationType = SentenceWordRelation.verbAdverb;
 				wordRelation = new SentenceWordRelation(0, 0, verbWordform, adverbWordform,
 						relationType);
 				if (wordRelationGraph.add(wordRelation))

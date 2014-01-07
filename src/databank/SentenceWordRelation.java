@@ -24,6 +24,7 @@ public class SentenceWordRelation {
 	static int verbInfinitive = 11;
 	static int verbSubstantive = 12;
 	static int verbAdverb = 13;
+	static int verbRelativeAdjective = 14;
 	static int numeral = 21;
 	static int genetivesubstantive = 31;
 	static int conjunction = 100;
@@ -45,6 +46,15 @@ public class SentenceWordRelation {
 		this.word2Type = word2Type;
 
 		if (relationType == verbAdverb) {
+			this.word1Case = 0;
+			this.word1Gender = 0;
+			this.word1Sing_Pl = 0;
+			this.word1Animate = 0;
+			this.word2Case = 0;
+			this.word2Gender = 0;
+			this.word2Sing_Pl = 0;
+			this.word2Animate = 0;
+		} else if (relationType == verbRelativeAdjective) {
 			this.word1Case = 0;
 			this.word1Gender = 0;
 			this.word1Sing_Pl = 0;
