@@ -342,9 +342,10 @@ public class Sentence {
 		String personFilter;
 		subjectPredicateRelations = new ArrayList<SentenceWordRelation>();
 		// получить потенциальные сказуемые, отсортированные по рейтингу
-		predicateList = getPredicateList(subsentenceFilter, 0, "", 0, 0, rating_tolerance);
+		predicateList = getSentencePartList(subsentenceFilter, 0, "0", "", 0, 0, 0, "2", "1",
+				rating_tolerance);
 		predicateIterator = predicateList.iterator();
-		while ((predicateIterator.hasNext()) & !success) {
+		while ((predicateIterator.hasNext()) && !success) {
 			predicateWordform = predicateIterator.next();
 			// получить для каждого сказуемого, потенциальные подлежащие,
 			// отсортированные по рейтингу
@@ -352,64 +353,76 @@ public class Sentence {
 				personFilter = String.valueOf(predicateWordform.person);
 			else
 				personFilter = ">0";
-			subjectList = getSubjectList(subsentenceFilter, predicateWordform.wordPos, personFilter,
-					predicateWordform.gender, predicateWordform.sing_pl, rating_tolerance);
+
+			subjectList = getSentencePartList(subsentenceFilter, 0, "1", personFilter,
+					predicateWordform.gender, predicateWordform.sing_pl, 0, "", "",
+					rating_tolerance);
 			subjectIterator = subjectList.iterator();
 			// выбрать первую пару
-			if (subjectIterator.hasNext()) {
+			while ((subjectIterator.hasNext()) && !success) {
 				subjectWordform = subjectIterator.next();
-				subjectPredicateRelations.add(new SentenceWordRelation(0, 0, predicateWordform,
-						subjectWordform, SentenceWordRelation.subjectPredicate));
+				SentenceWordRelation subjectPredicateRelation = new SentenceWordRelation(0, 0,
+						predicateWordform, subjectWordform, SentenceWordRelation.subjectPredicate);
+				if ((subjectWordform.wordPos != predicateWordform.wordPos)
+						&& !wordRelationGraph.existWordRelation(subjectPredicateRelation)
+						&& !wordRelationGraph.existDependence(subjectWordform.wordPos,
+								SentenceWordRelation.preposition)) {
+					subjectPredicateRelations.add(subjectPredicateRelation);
 
-				// поиск подлежащего из двух слов, связанных союзом И
-				if (!conjunctions.isEmpty()) {
-					while (subjectIterator.hasNext()) {
-						subject2Wordform = subjectIterator.next();
-						if (subject2Wordform.wordPos != subjectWordform.wordPos) {
-							conjunctionIterator = conjunctions.iterator();
-							conjunctionFound = false;
-							while (conjunctionIterator.hasNext()) {
-								conjunction = conjunctionIterator.next();
-								// варианты взаимного расположения
-								// подлежащее1 И подлежащее2 сказуемое
-								if ((subjectWordform.wordPos < conjunction.wordPos)
-										& (subject2Wordform.wordPos > conjunction.wordPos)
-										& (subject2Wordform.wordPos < predicateWordform.wordPos)) {
-									conjunctionFound = true;
-									break;
+					// поиск подлежащего из двух слов, связанных союзом И
+					if (!conjunctions.isEmpty()) {
+						while (subjectIterator.hasNext()) {
+							subject2Wordform = subjectIterator.next();
+							if (subject2Wordform.wordPos != subjectWordform.wordPos) {
+								conjunctionIterator = conjunctions.iterator();
+								conjunctionFound = false;
+								while (conjunctionIterator.hasNext()) {
+									conjunction = conjunctionIterator.next();
+									// варианты взаимного расположения
+									// подлежащее1 И подлежащее2 сказуемое
+									if ((subjectWordform.wordPos < conjunction.wordPos)
+											& (subject2Wordform.wordPos > conjunction.wordPos)
+											& (subject2Wordform.wordPos < predicateWordform.wordPos)) {
+										conjunctionFound = true;
+										break;
+									}
+									// подлежащее2 И подлежащее1 сказуемое
+									if ((subject2Wordform.wordPos < conjunction.wordPos)
+											& (subjectWordform.wordPos > conjunction.wordPos)
+											& (subjectWordform.wordPos < predicateWordform.wordPos)) {
+										conjunctionFound = true;
+										break;
+									}
+									// сказуемое подлежащее1 И подлежащее2
+									if ((subjectWordform.wordPos < conjunction.wordPos)
+											& (subject2Wordform.wordPos > conjunction.wordPos)
+											& (subjectWordform.wordPos > predicateWordform.wordPos)) {
+										conjunctionFound = true;
+										break;
+									}
+									// сказуемое подлежащее2 И подлежащее1
+									if ((subject2Wordform.wordPos < conjunction.wordPos)
+											& (subjectWordform.wordPos > conjunction.wordPos)
+											& (subject2Wordform.wordPos > predicateWordform.wordPos)) {
+										conjunctionFound = true;
+										break;
+									}
 								}
-								// подлежащее2 И подлежащее1 сказуемое
-								if ((subject2Wordform.wordPos < conjunction.wordPos)
-										& (subjectWordform.wordPos > conjunction.wordPos)
-										& (subjectWordform.wordPos < predicateWordform.wordPos)) {
-									conjunctionFound = true;
-									break;
+								if (conjunctionFound) {
+									SentenceWordRelation subjectPredicateRelation2 = new SentenceWordRelation(
+											0, 0, predicateWordform, subject2Wordform,
+											SentenceWordRelation.subjectPredicate);
+									if (!wordRelationGraph
+											.existWordRelation(subjectPredicateRelation2)) {
+										subjectPredicateRelations.add(subjectPredicateRelation2);
+										break;
+									}
 								}
-								// сказуемое подлежащее1 И подлежащее2
-								if ((subjectWordform.wordPos < conjunction.wordPos)
-										& (subject2Wordform.wordPos > conjunction.wordPos)
-										& (subjectWordform.wordPos > predicateWordform.wordPos)) {
-									conjunctionFound = true;
-									break;
-								}
-								// сказуемое подлежащее2 И подлежащее1
-								if ((subject2Wordform.wordPos < conjunction.wordPos)
-										& (subjectWordform.wordPos > conjunction.wordPos)
-										& (subject2Wordform.wordPos > predicateWordform.wordPos)) {
-									conjunctionFound = true;
-									break;
-								}
-							}
-							if (conjunctionFound) {
-								subjectPredicateRelations.add(new SentenceWordRelation(0, 0,
-										predicateWordform, subject2Wordform,
-										SentenceWordRelation.subjectPredicate));
-								break;
 							}
 						}
 					}
+					success = true;
 				}
-				success = true;
 			}
 		}
 		return subjectPredicateRelations;
@@ -1142,56 +1155,6 @@ public class Sentence {
 							&& SentenceWordFilter.checkFilter(sentenceWordform.animate,
 									sentenceWordFilter[sentenceWordform.wordPos].animateFilter))
 						result.add(sentenceWordform);
-			}
-		return result;
-	}
-
-	private ArrayList<SentenceWordform> getSubjectList(String subsentenceFilter, int predicatePos,
-			String personFilter, int gender, int sing_pl, double rating_tolerance) {
-		ArrayList<SentenceWordform> result = new ArrayList<SentenceWordform>();
-		SentenceWord sentenceWord;
-		for (SentenceWordform sentenceWordform : sentenceWordformList)
-			if ((sentenceWordform.wordPos != predicatePos)
-					&& ((100 - sentenceWordform.rating) <= (100 - sentenceWordform.maxrating)
-							* rating_tolerance)
-					&& (sentenceWordform.rating * rating_tolerance >= sentenceWordform.maxrating)
-					&& (sentenceWordform.wcase == 1)
-					&& SentenceWordFilter.checkFilter(sentenceWordform.person, personFilter)
-					&& (gender == 0 | sentenceWordform.gender == 0 | sentenceWordform.gender == gender)
-					&& (sing_pl == 0 | sentenceWordform.sing_pl == 0 | sentenceWordform.sing_pl == sing_pl)) {
-				sentenceWord = getSentenceWord(sentenceWordList, sentenceWordform.wordPos);
-				if ((!wordRelationGraph.existDependence(sentenceWordform.wordPos,
-						SentenceWordRelation.preposition))
-						&& (sentenceWord.dep_word_pos == 0)
-						&& SentenceWordFilter.checkFilter(sentenceWord.subsentenceID,
-								subsentenceFilter))
-					result.add(sentenceWordform);
-			}
-		return result;
-	}
-
-	private ArrayList<SentenceWordform> getPredicateList(String subsentenceFilter, int subjectPos,
-			String personFilter, int gender, int sing_pl, double rating_tolerance) {
-		ArrayList<SentenceWordform> result = new ArrayList<SentenceWordform>();
-		SentenceWord sentenceWord;
-		for (SentenceWordform sentenceWordform : sentenceWordformList)
-			if ((sentenceWordform.wordPos != subjectPos)
-					&& ((100 - sentenceWordform.rating) <= (100 - sentenceWordform.maxrating)
-							* rating_tolerance)
-					&& (sentenceWordform.rating * rating_tolerance >= sentenceWordform.maxrating)
-					&& (sentenceWordform.wcase == 0)
-					&& (sentenceWordform.type == 2)
-					&& (sentenceWordform.subtype == 1)
-					&& SentenceWordFilter.checkFilter(sentenceWordform.person, personFilter)
-					&& (gender == 0 | sentenceWordform.gender == 0 | sentenceWordform.gender == gender)
-					&& (sing_pl == 0 | sentenceWordform.sing_pl == 0 | sentenceWordform.sing_pl == sing_pl)) {
-				sentenceWord = getSentenceWord(sentenceWordList, sentenceWordform.wordPos);
-				if (!wordRelationGraph.existDependence(sentenceWordform.wordPos,
-						SentenceWordRelation.preposition)
-				// if ((sentenceWord.preposition_id == 0)
-						&& SentenceWordFilter.checkFilter(sentenceWord.subsentenceID,
-								subsentenceFilter))
-					result.add(sentenceWordform);
 			}
 		return result;
 	}

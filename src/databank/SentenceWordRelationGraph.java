@@ -338,6 +338,7 @@ public class SentenceWordRelationGraph {
 		for (SentenceWordRelation wordRelation : sentenceWordRelationSet)
 			if ((wordRelation.sourceID == sourceID) && (wordRelation.sentenceID == sentenceID)
 					&& (wordRelation.word1Pos == wordPos)
+					&& (wordRelation.word2Pos>0)
 					&& (wordRelation.relationType == relationType))
 				return true;
 		return false;
