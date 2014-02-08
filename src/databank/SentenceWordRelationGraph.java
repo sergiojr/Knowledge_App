@@ -88,6 +88,41 @@ public class SentenceWordRelationGraph {
 		return sentenceWordFilter;
 	}
 
+	public boolean checkRelationCompatability(SentenceWordform wordform) {
+		int[] relationIndex = new int[maxWordPos + 1];
+		for (SentenceWordRelation sentenceWordRelation : sentenceWordRelationSet)
+			if (sentenceWordRelation.status == 2) {
+				if (sentenceWordRelation.word1Pos == wordform.wordPos)
+					if (relationIndex[sentenceWordRelation.word2Pos] < 2) {
+						relationIndex[sentenceWordRelation.word2Pos] = 1;//relation present
+						if (ZeroOrEqual(sentenceWordRelation.word1Case, wordform.wcase)
+								&& ZeroOrEqual(sentenceWordRelation.word1Gender, wordform.gender)
+								&& ZeroOrEqual(sentenceWordRelation.word1Sing_Pl, wordform.sing_pl)
+								&& ZeroOrEqual(sentenceWordRelation.word1Animate, wordform.animate)
+								&& ZeroOrEqual(sentenceWordRelation.word1Type, wordform.type))
+							relationIndex[sentenceWordRelation.word2Pos] = 2;//relation passed
+					}
+				if (sentenceWordRelation.word2Pos == wordform.wordPos)
+					if (relationIndex[sentenceWordRelation.word1Pos] < 2) {
+						relationIndex[sentenceWordRelation.word1Pos] = 1;//relation present
+						if (ZeroOrEqual(sentenceWordRelation.word2Case, wordform.wcase)
+								&& ZeroOrEqual(sentenceWordRelation.word2Gender, wordform.gender)
+								&& ZeroOrEqual(sentenceWordRelation.word2Sing_Pl, wordform.sing_pl)
+								&& ZeroOrEqual(sentenceWordRelation.word2Animate, wordform.animate)
+								&& ZeroOrEqual(sentenceWordRelation.word2Type, wordform.type))
+							relationIndex[sentenceWordRelation.word1Pos] = 2;//relation passed
+					}
+			}
+		for(int i=0;i<=maxWordPos;i++)
+			if (relationIndex[i]==1)
+				return false;
+		return true;
+	}
+
+	private boolean ZeroOrEqual(int a, int b) {
+		return (a == 0) || (b == 0) || (a == b);
+	}
+
 	public boolean existWordRelation(SentenceWordRelation wordRelation) {
 		for (SentenceWordRelation curWordRelation : sentenceWordRelationSet) {
 			// if exist wordRelation where Word1 is related to different Word2 and has the same
@@ -103,7 +138,7 @@ public class SentenceWordRelationGraph {
 					&& (curWordRelation.relationType == wordRelation.relationType)
 					&& (curWordRelation.depID == wordRelation.depID))
 				return true;
-			
+
 			// Word1 can have only one preposition relation
 			if ((curWordRelation.sourceID == wordRelation.sourceID)
 					&& (curWordRelation.sentenceID == wordRelation.sentenceID)
@@ -337,8 +372,7 @@ public class SentenceWordRelationGraph {
 	public boolean existDependence(int wordPos, int relationType) {
 		for (SentenceWordRelation wordRelation : sentenceWordRelationSet)
 			if ((wordRelation.sourceID == sourceID) && (wordRelation.sentenceID == sentenceID)
-					&& (wordRelation.word1Pos == wordPos)
-					&& (wordRelation.word2Pos>0)
+					&& (wordRelation.word1Pos == wordPos) && (wordRelation.word2Pos > 0)
 					&& (wordRelation.relationType == relationType))
 				return true;
 		return false;

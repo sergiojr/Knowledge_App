@@ -1051,18 +1051,9 @@ public class DataBank {
 
 	public ArrayList<SentenceWordform> getSentencePartList(int source_id, int sentence_id,
 			String subsentenceFilter, int wordPos, String wcaseFilter, String personFilter,
-			int gender, int sing_pl, String typeFilter, String subtypeFilter,
-			double rating_tolerance) {
+			int gender, int sing_pl, String typeFilter, String subtypeFilter) {
 		ArrayList<SentenceWordform> sentenceParts = new ArrayList<SentenceWordform>();
-		//String ratingToleranceCondition = MessageFormat
-		//		.format("(100-rating)<=(100-maxrating)*{0,number,#.##} and rating*{0,number,#.##}>=maxrating",
-		//				rating_tolerance);
-		MessageFormat formatter = new MessageFormat("");
-		formatter.setLocale(Locale.US);
-		formatter.applyPattern("(100-rating)<=(100-maxrating)*{0,number,#.##} and rating*{0,number,#.##}>=maxrating");
-		Object[] arguments = {rating_tolerance};
-		String ratingToleranceCondition = formatter.format(arguments);
-
+		
 		if (wordPos < 0)
 			return sentenceParts;
 		try {
@@ -1090,15 +1081,9 @@ public class DataBank {
 			if (wordPos > 0)
 				query.addCondition(new BinaryCondition(BinaryCondition.Op.EQUAL_TO, new CustomSql(
 						"word_pos"), wordPos));
-			// query.addCondition(new CustomCondition(ratingToleranceCondition));
 			query.addCustomOrdering(new CustomSql("rating"), OrderObject.Dir.DESCENDING);
 			ResultSet rs = stat.executeQuery(query.validate().toString());
 			while (rs.next()) {
-				// if (DataBank.checkFilter(rs.getInt("type"), rs.getString("word_type_filter"))
-				// & DataBank.checkFilter(rs.getInt("wcase"), rs.getString("wcase_filter"))
-				// & DataBank.checkFilter(rs.getInt("gender"), rs.getString("gender_filter"))
-				// & DataBank
-				// .checkFilter(rs.getInt("sing_pl"), rs.getString("sing_pl_filter")))
 				sentenceParts.add(new SentenceWordform(source_id, sentence_id, rs
 						.getInt("subsentence_id"), rs.getInt("word_pos"), rs.getInt("type"), rs
 						.getInt("subtype"), rs.getInt("wcase"), rs.getInt("gender"), rs
