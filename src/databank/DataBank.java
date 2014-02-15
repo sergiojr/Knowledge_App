@@ -991,15 +991,15 @@ public class DataBank {
 		return result;
 	}
 
-	public String getCapitalLetters() {
+	private String getCapitalLetters() {
 		return getCharacters(1, 1, -1, -1);
 	}
 
-	public String getChameleonMarks() {
+	private String getChameleonMarks() {
 		return getCharacters(2, -1, -1, -1);
 	}
 
-	public String getPunctuationMarks() {
+	private String getPunctuationMarks() {
 		return getCharacters(0, -1, -1, -1);
 	}
 
@@ -1049,11 +1049,31 @@ public class DataBank {
 		return result;
 	}
 
+	public ArrayList<CharacterSetup> getCharacterList() {
+		ArrayList<CharacterSetup> result = new ArrayList<CharacterSetup>();
+		try {
+			establishConnection();
+			Statement stat = conn.createStatement();
+			ResultSet rs = stat.executeQuery("select * from characters");
+			while (rs.next()) {
+				result.add(new CharacterSetup(rs.getString("character").charAt(0), rs.getInt("type"), rs
+						.getInt("capital"), rs.getInt("sentence_end"), rs.getInt("ready"), rs
+						.getInt("elevation")));
+			}
+			rs.close();
+			stat.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return result;
+
+	}
+
 	public ArrayList<SentenceWordform> getSentencePartList(int source_id, int sentence_id,
 			String subsentenceFilter, int wordPos, String wcaseFilter, String personFilter,
 			int gender, int sing_pl, String typeFilter, String subtypeFilter) {
 		ArrayList<SentenceWordform> sentenceParts = new ArrayList<SentenceWordform>();
-		
+
 		if (wordPos < 0)
 			return sentenceParts;
 		try {
@@ -1085,13 +1105,14 @@ public class DataBank {
 			ResultSet rs = stat.executeQuery(query.validate().toString());
 			while (rs.next()) {
 				sentenceParts.add(new SentenceWordform(source_id, sentence_id, rs
-						.getInt("subsentence_id"), rs.getInt("word_pos"), rs.getInt("type"), rs
-						.getInt("subtype"), rs.getInt("wcase"), rs.getInt("gender"), rs
-						.getInt("person"), rs.getInt("sing_pl"), rs.getInt("animate"), rs
-						.getInt("word_id"), rs.getInt("rule_id"), rs.getInt("dep_word_pos"), rs
-						.getInt("preposition_id"), rs.getString("word_type_filter"), rs
-						.getString("wcase_filter"), rs.getString("gender_filter"), rs
-						.getString("sing_pl_filter"), rs.getInt("rating"), rs.getInt("maxrating")));
+						.getInt("subsentence_id"), rs.getInt("elevation"), rs.getInt("word_pos"),
+						rs.getInt("type"), rs.getInt("subtype"), rs.getInt("wcase"), rs
+								.getInt("gender"), rs.getInt("person"), rs.getInt("sing_pl"), rs
+								.getInt("animate"), rs.getInt("word_id"), rs.getInt("rule_id"), rs
+								.getInt("dep_word_pos"), rs.getInt("preposition_id"), rs
+								.getString("word_type_filter"), rs.getString("wcase_filter"), rs
+								.getString("gender_filter"), rs.getString("sing_pl_filter"), rs
+								.getInt("rating"), rs.getInt("maxrating")));
 			}
 			rs.close();
 			stat.close();
@@ -1138,7 +1159,8 @@ public class DataBank {
 		try {
 			establishConnection();
 			PreparedStatement prep = conn.prepareStatement("UPDATE sentence_word "
-					+ "SET type=?,word_id=?,rule_id=?,dep_word_pos=?,preposition_id=?,"
+					+ "SET type=?,word_id=?,rule_id=?,dep_word_pos=?,preposition_id=?, "
+					+ "elevation=?, elevation_dif=?, "
 					+ "word_type_filter=?, wcase_filter=?, gender_filter=?, sing_pl_filter=?, "
 					+ "animate_filter=?, subsentence_id=?, internal=? "
 					+ "WHERE source_id=? and sentence_id=? and word_pos=?");
@@ -1157,16 +1179,18 @@ public class DataBank {
 				prep.setInt(3, rule_id);
 				prep.setInt(4, sentencePart.dep_word_pos);
 				prep.setInt(5, sentencePart.preposition_id);
-				prep.setString(6, sentencePart.word_type_filter);
-				prep.setString(7, sentencePart.wcase_filter);
-				prep.setString(8, sentencePart.gender_filter);
-				prep.setString(9, sentencePart.sing_pl_filter);
-				prep.setString(10, sentencePart.animate_filter);
-				prep.setInt(11, sentencePart.subsentenceID);
-				prep.setBoolean(12, sentencePart.internal);
-				prep.setInt(13, sentencePart.sourceID);
-				prep.setInt(14, sentencePart.sentenceID);
-				prep.setInt(15, sentencePart.wordPos);
+				prep.setInt(6, sentencePart.elevation);
+				prep.setInt(7, sentencePart.elevation_dif);
+				prep.setString(8, sentencePart.word_type_filter);
+				prep.setString(9, sentencePart.wcase_filter);
+				prep.setString(10, sentencePart.gender_filter);
+				prep.setString(11, sentencePart.sing_pl_filter);
+				prep.setString(12, sentencePart.animate_filter);
+				prep.setInt(13, sentencePart.subsentenceID);
+				prep.setBoolean(14, sentencePart.internal);
+				prep.setInt(15, sentencePart.sourceID);
+				prep.setInt(16, sentencePart.sentenceID);
+				prep.setInt(17, sentencePart.wordPos);
 				prep.addBatch();
 			}
 			conn.setAutoCommit(false);
@@ -1278,12 +1302,13 @@ public class DataBank {
 			while (rs.next()) {
 				sentenceWords.add(new SentenceWord(rs.getInt("source_id"),
 						rs.getInt("sentence_id"), rs.getInt("subsentence_id"), rs
-								.getInt("word_pos"), rs.getString("word"), rs.getInt("type"), rs
-								.getInt("dep_word_pos"), rs.getInt("preposition_id"), rs
-								.getBoolean("punctuation"), rs.getBoolean("name"), rs
-								.getBoolean("internal"), rs.getString("word_type_filter"), rs
-								.getString("wcase_filter"), rs.getString("gender_filter"), rs
-								.getString("sing_pl_filter"), rs.getString("animate_filter")));
+								.getInt("elevation"), rs.getInt("word_pos"), rs.getString("word"),
+						rs.getInt("type"), rs.getInt("dep_word_pos"), rs.getInt("preposition_id"),
+						rs.getInt("elevation_dif"), rs.getBoolean("punctuation"), rs
+								.getBoolean("name"), rs.getBoolean("internal"), rs
+								.getString("word_type_filter"), rs.getString("wcase_filter"), rs
+								.getString("gender_filter"), rs.getString("sing_pl_filter"), rs
+								.getString("animate_filter")));
 			}
 			rs.close();
 			stat.close();

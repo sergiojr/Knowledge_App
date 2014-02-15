@@ -5,6 +5,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+import databank.CharacterSetup;
 import databank.DataBank;
 import databank.DataSource;
 import databank.PostgresDataBank;
@@ -66,7 +67,7 @@ public class Knowledge_App {
 		DataSource dataSource;
 		dataSource = databank.getNextDataSource();
 		while (dataSource != null) {
-			save =dataSource.getAction() > 1; 
+			save = dataSource.getAction() > 1;
 			if (save)
 				databank.cleanDataSource(dataSource.getID());
 			parseText(dataSource.getID(), dataSource.getFilePath(), save);
@@ -79,12 +80,12 @@ public class Knowledge_App {
 		char[] cbuf = new char[bufferSize];
 		String sentenceText;
 		ArrayList<SentenceWord> sentenceWordList;
+		ArrayList<CharacterSetup> characterList;
+		CharacterSetup characterSetup;
 		char newline = '\n';
 		char dash = '-';
 		char apostroph = '\'';
 		int newlinecount = 0;
-		String punctuationMarks;
-		String chameleonMarks;
 		char[] endSentenceMarks;
 		char newchar;
 		int result;
@@ -100,8 +101,7 @@ public class Knowledge_App {
 		sentenceText = new String();
 		sentenceWordList = new ArrayList<SentenceWord>();
 		try {
-			punctuationMarks = databank.getPunctuationMarks();
-			chameleonMarks = databank.getChameleonMarks();
+			characterList = databank.getCharacterList();
 			endSentenceMarks = databank.getEndSentenceMarks().toCharArray();
 			InputStreamReader in = new InputStreamReader(new FileInputStream(filePath), "UTF-8");
 			while (in.ready()) {
@@ -114,24 +114,30 @@ public class Knowledge_App {
 						newchar = ' ';
 					if (newchar == newline)
 						newlinecount++;
+
+					characterSetup = getCharacterSetup(characterList, newchar);
+
 					// chameleonCharacter contains positive number if newchar is chameleon and 0 if
 					// it's not
-					chameleonCharacter = chameleonMarks.indexOf(newchar) + 1;
+					if (characterSetup.isChameleon())
+						chameleonCharacter = 1;
+					else
+						chameleonCharacter = 0;
 					// chameleon character '-' belongs to punctuation marks after a punctuation and
 					// to words after a word
 					if (!isPunctuation)
 						chameleonCharacter *= -1;
 					// if new character is punctuation and current block is letter
 					// or character is letter and current block is punctuation then
-					if ((Character.isWhitespace(newchar) | (punctuationMarks.indexOf(newchar) >= 0) | (chameleonCharacter > 0)) != isPunctuation) {
+					if ((Character.isWhitespace(newchar) || (characterSetup.isPunctuation()) || (chameleonCharacter > 0)) != isPunctuation) {
 						curInput = curInput.trim();
 						// add current block to sentence
 						if (!curInput.isEmpty()) {
 							sentenceText = sentenceText + " " + curInput;
-							sentenceWordList.add(new SentenceWord(sourceID, 0, 0, 0,
+							sentenceWordList.add(new SentenceWord(sourceID, 0, 0, 0, 0,
 									new WordProcessor(curInput, isPunctuation, isName, databank,
-											vocabulary).getWord(), 0, 0, 0, isPunctuation, isName,
-									false, "", "", "", "", ""));
+											vocabulary).getWord(), 0, 0, 0, 0, isPunctuation,
+									isName, false, "", "", "", "", ""));
 						}
 						isName = false;
 						if (!isPunctuation)
@@ -173,9 +179,9 @@ public class Knowledge_App {
 			// add current block to sentence
 			if (!curInput.isEmpty()) {
 				sentenceText = sentenceText + " " + curInput;
-				sentenceWordList.add(new SentenceWord(sourceID, 0, 0, 0, new WordProcessor(
+				sentenceWordList.add(new SentenceWord(sourceID, 0, 0, 0, 0, new WordProcessor(
 						curInput, isPunctuation, isName, databank, vocabulary).getWord(), 0, 0, 0,
-						isPunctuation, isName, false, "", "", "", "", ""));
+						0, isPunctuation, isName, false, "", "", "", "", ""));
 			}
 			if (!sentenceText.isEmpty()) {
 				if (save)
@@ -197,5 +203,12 @@ public class Knowledge_App {
 			sentence = iterator.next();
 			sentence.parse();
 		}
+	}
+
+	private CharacterSetup getCharacterSetup(ArrayList<CharacterSetup> characterList, char character) {
+		for (CharacterSetup characterSetup : characterList)
+			if (characterSetup.equals(character))
+				return characterSetup;
+		return new CharacterSetup(character, 1, 0, 0, 0, 0);
 	}
 }

@@ -1,13 +1,15 @@
 package databank;
 
 public class SentenceWord {
-	public SentenceWord(int sourceID, int sentenceID, int subsentenceID, int wordPos, String word,
-			int part, int dep_word_pos, int preposition_id, boolean isPunctuation, boolean isName,
+	public SentenceWord(int sourceID, int sentenceID, int subsentenceID, int elevation, int wordPos, String word,
+			int part, int dep_word_pos, int preposition_id, int elevation_dif, boolean isPunctuation, boolean isName,
 			boolean internal, String word_type_filter, String wcase_filter, String gender_filter,
 			String sing_pl_filter, String animate_filter) {
 		this.sourceID = sourceID;
 		this.sentenceID = sentenceID;
 		this.subsentenceID = subsentenceID;
+		this.elevation_dif = elevation_dif;
+		this.elevation = elevation;
 		this.wordPos = wordPos;
 		this.word = word;
 		this.part = part;
@@ -26,6 +28,8 @@ public class SentenceWord {
 	public int sourceID;
 	public int sentenceID;
 	public int subsentenceID;
+	public int elevation_dif;
+	public int elevation;
 	public int wordPos;
 	public String word;
 	public int part;
