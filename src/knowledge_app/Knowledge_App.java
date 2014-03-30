@@ -78,15 +78,12 @@ public class Knowledge_App {
 	private void parseText(int sourceID, String filePath, boolean save) {
 		int bufferSize = 65536;
 		char[] cbuf = new char[bufferSize];
-		String sentenceText;
 		ArrayList<SentenceWord> sentenceWordList;
 		ArrayList<CharacterSetup> characterList;
 		CharacterSetup characterSetup;
 		char newline = '\n';
-		char dash = '-';
 		char apostroph = '\'';
 		int newlinecount = 0;
-		char[] endSentenceMarks;
 		char newchar;
 		int result;
 		// isPunctuation is true: current block consist of punctuation characters
@@ -96,13 +93,14 @@ public class Knowledge_App {
 								// chameleon
 		boolean isName = false;
 		boolean isSentenceEnd = false;
+		int sentenceEndIndex = -1;
 		boolean isFirstWord = true;
+		boolean separateMode = false;
+		int curElevation = 0;
 		String curInput = new String();
-		sentenceText = new String();
 		sentenceWordList = new ArrayList<SentenceWord>();
 		try {
 			characterList = databank.getCharacterList();
-			endSentenceMarks = databank.getEndSentenceMarks().toCharArray();
 			InputStreamReader in = new InputStreamReader(new FileInputStream(filePath), "UTF-8");
 			while (in.ready()) {
 				result = in.read(cbuf, 0, bufferSize);
@@ -127,40 +125,59 @@ public class Knowledge_App {
 					// to words after a word
 					if (!isPunctuation)
 						chameleonCharacter *= -1;
+
+					separateMode |= characterSetup.getElevation() != 0;
 					// if new character is punctuation and current block is letter
 					// or character is letter and current block is punctuation then
-					if ((Character.isWhitespace(newchar) || (characterSetup.isPunctuation()) || (chameleonCharacter > 0)) != isPunctuation) {
+					if (Character.isWhitespace(newchar)
+							|| separateMode
+							|| (characterSetup.isPunctuation() || (chameleonCharacter > 0)) != isPunctuation) {
 						curInput = curInput.trim();
 						// add current block to sentence
 						if (!curInput.isEmpty()) {
-							sentenceText = sentenceText + " " + curInput;
 							sentenceWordList.add(new SentenceWord(sourceID, 0, 0, 0, 0,
 									new WordProcessor(curInput, isPunctuation, isName, databank,
-											vocabulary).getWord(), 0, 0, 0, 0, isPunctuation,
+											vocabulary).getWord(), 0, 0, 0, curElevation, isPunctuation,
 									isName, false, "", "", "", "", ""));
+							if (isSentenceEnd && (sentenceEndIndex < 0)) {
+								isSentenceEnd = true;
+								sentenceEndIndex = sentenceWordList.size();
+							}
+
 						}
+
 						isName = false;
 						if (!isPunctuation)
 							isFirstWord = false;
+
 						// if current block is punctuation and one of the following
 						// a. new character is a capital letter
-						// b. new character is '-' and current block contains newline character
-						// c. current block contains more than one newline character
-						// and current block contains a character that indicates end of sentence
+						// b. current block contains more than one newline character
+						// and isSentenceEnd flag is set
 						// then save current sentence and initialize new one
-						if (((isPunctuation) & (Character.isUpperCase(newchar) | ((newchar == dash) & (newlinecount > 0))))
-								| (newlinecount > 1)) {
-							for (int i = 0; i < endSentenceMarks.length; i++)
-								if (curInput.indexOf(endSentenceMarks[i]) >= 0)
-									isSentenceEnd = true;
+						if ((isPunctuation & Character.isUpperCase(newchar)) | (newlinecount > 1)) {
 							if ((isSentenceEnd) | (newlinecount > 1)) {
+
+								int wordCount = sentenceWordList.size();
+								if (sentenceEndIndex < 0)
+									sentenceEndIndex = wordCount;
+
+								ArrayList<SentenceWord> tempSentenceWordList = new ArrayList<SentenceWord>();
+								tempSentenceWordList.addAll(sentenceWordList.subList(0,
+										sentenceEndIndex));
 								if (save)
-									new Sentence(databank, vocabulary, sourceID, 0, sentenceText,
-											sentenceWordList).save();
-								sentenceWordList = new ArrayList<SentenceWord>();
-								sentenceText = new String();
+									new Sentence(databank, vocabulary, sourceID, 0,
+											tempSentenceWordList).save();
+
+								tempSentenceWordList = new ArrayList<SentenceWord>();
+								tempSentenceWordList.addAll(sentenceWordList.subList(
+										sentenceEndIndex, wordCount));
+								sentenceWordList = tempSentenceWordList;
+
 								isSentenceEnd = false;
+								sentenceEndIndex = -1;
 								isFirstWord = true;
+								newlinecount = 0;
 							}
 
 						}
@@ -168,9 +185,23 @@ public class Knowledge_App {
 							isName = true;
 						// clear current block
 						curInput = new String();
-						newlinecount = 0;
-						isPunctuation = !isPunctuation;
+						if (!characterSetup.isChameleon())
+							isPunctuation = characterSetup.isPunctuation()
+									|| Character.isWhitespace(newchar);
 					}
+					// set isSentenceEnd flag if any character in the block is "Sentence End"
+					// character
+					isSentenceEnd |= characterSetup.isSentenceEnd();
+
+					// letter block resets newlinecount and isSentenceEnd flag
+					if (!Character.isWhitespace(newchar) && !characterSetup.isPunctuation()
+							&& !characterSetup.isChameleon()) {
+						newlinecount = 0;
+						isSentenceEnd = false;
+						sentenceEndIndex = -1;
+					}
+					curElevation = characterSetup.getElevation();
+					separateMode = curElevation != 0;
 					// add current character to current block
 					curInput = curInput + Character.toString(newchar);
 				}
@@ -178,16 +209,15 @@ public class Knowledge_App {
 			curInput = curInput.trim();
 			// add current block to sentence
 			if (!curInput.isEmpty()) {
-				sentenceText = sentenceText + " " + curInput;
 				sentenceWordList.add(new SentenceWord(sourceID, 0, 0, 0, 0, new WordProcessor(
 						curInput, isPunctuation, isName, databank, vocabulary).getWord(), 0, 0, 0,
 						0, isPunctuation, isName, false, "", "", "", "", ""));
 			}
-			if (!sentenceText.isEmpty()) {
+			if (!sentenceWordList.isEmpty()) {
 				if (save)
-					new Sentence(databank, vocabulary, sourceID, 0, sentenceText, sentenceWordList)
-							.save();
+					new Sentence(databank, vocabulary, sourceID, 0, sentenceWordList).save();
 			}
+			in.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

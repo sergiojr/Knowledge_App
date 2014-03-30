@@ -10,7 +10,6 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Locale;
 import java.util.Set;
 
 import knowledge_app.WordProcessor;
@@ -120,8 +119,8 @@ public class DataBank {
 				+ "'," + type + "," + sourceID + ");");
 		stat.close();
 		PreparedStatement sent_word_insert = conn.prepareStatement("insert into "
-				+ "sentence_word (source_id,sentence_id,word_pos,word,punctuation,name) "
-				+ "values (?,?,?,?,?,?);");
+				+ "sentence_word (source_id,sentence_id,word_pos,word,punctuation,name,elevation_dif) "
+				+ "values (?,?,?,?,?,?,?);");
 		for (SentenceWord word : sentenceWordList) {
 			i++;
 			word.sentenceID = sentenceCount;
@@ -132,6 +131,7 @@ public class DataBank {
 			sent_word_insert.setString(4, word.word);
 			sent_word_insert.setBoolean(5, word.isPunctuation);
 			sent_word_insert.setBoolean(6, word.isName);
+			sent_word_insert.setInt(7, word.elevation_dif);
 			sent_word_insert.addBatch();
 		}
 		conn.setAutoCommit(false);
@@ -991,19 +991,7 @@ public class DataBank {
 		return result;
 	}
 
-	private String getCapitalLetters() {
-		return getCharacters(1, 1, -1, -1);
-	}
-
-	private String getChameleonMarks() {
-		return getCharacters(2, -1, -1, -1);
-	}
-
-	private String getPunctuationMarks() {
-		return getCharacters(0, -1, -1, -1);
-	}
-
-	public String getEndSentenceMarks() {
+	private String getEndSentenceMarks() {
 		return getCharacters(0, -1, 1, -1);
 	}
 
@@ -1056,9 +1044,9 @@ public class DataBank {
 			Statement stat = conn.createStatement();
 			ResultSet rs = stat.executeQuery("select * from characters");
 			while (rs.next()) {
-				result.add(new CharacterSetup(rs.getString("character").charAt(0), rs.getInt("type"), rs
-						.getInt("capital"), rs.getInt("sentence_end"), rs.getInt("ready"), rs
-						.getInt("elevation")));
+				result.add(new CharacterSetup(rs.getString("character").charAt(0), rs
+						.getInt("type"), rs.getInt("capital"), rs.getInt("sentence_end"), rs
+						.getInt("ready"), rs.getInt("elevation")));
 			}
 			rs.close();
 			stat.close();
@@ -1278,8 +1266,8 @@ public class DataBank {
 			while (rs.next()) {
 				source_id = rs.getInt("source_id");
 				sentence_id = rs.getInt("id");
-				sentences.add(new Sentence(this, vocabulary, source_id, sentence_id, rs
-						.getString("sentence"), getSentenceWordList(source_id, sentence_id)));
+				sentences.add(new Sentence(this, vocabulary, source_id, sentence_id,
+						getSentenceWordList(source_id, sentence_id)));
 			}
 			rs.close();
 			stat.close();

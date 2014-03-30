@@ -29,13 +29,21 @@ public class Sentence {
 	private Vocabulary vocabulary;
 
 	public Sentence(DataBank databank, Vocabulary vocabulary, int sourceID, int id,
-			String sentence, ArrayList<SentenceWord> sentenceWordList) {
+			ArrayList<SentenceWord> sentenceWordList) {
 		this.databank = databank;
 		this.vocabulary = vocabulary;
 		this.sourceID = sourceID;
 		this.id = id;
-		this.sentence = sentence;
+		// this.sentence = sentence;
 		this.sentenceWordList = sentenceWordList;
+
+		this.sentence = new String();
+		for (SentenceWord sentenceWord : sentenceWordList) {
+			if (!this.sentence.isEmpty())
+				this.sentence += ' ' + sentenceWord.word;
+			else
+				this.sentence = sentenceWord.word;
+		}
 	}
 
 	public void save() {
@@ -70,6 +78,7 @@ public class Sentence {
 		parseComplexPredicate();
 		parseVerbQualifier();
 		parseSubjectPredicate();
+		parseConjunctions();
 		parseVerbControlledSubstantives();
 		parseConjunctions();
 		// parseGenetiveSubstantives();
@@ -1205,11 +1214,12 @@ public class Sentence {
 		char[] canNotParseMarks;
 		canNotParseMarks = databank.getPunctuationMarksNotReady().toCharArray();
 		for (SentenceWord sentenceWord : sentenceWordList) {
-			elevation += sentenceWord.elevation_dif;
 			if (sentenceWord.isPunctuation) {
 				for (int i = 0; i < canNotParseMarks.length; i++)
 					if (sentenceWord.word.indexOf(canNotParseMarks[i]) >= 0)
 						return null;
+				if (sentenceWord.elevation_dif != 0)
+					sentenceWord.internal = true;
 				curSubsentence.add(new Integer(subsentence_id));
 				if (!sentenceWord.internal) {
 					division.add(curSubsentence);
@@ -1218,8 +1228,12 @@ public class Sentence {
 				subsentence_id++;
 			} else {
 				sentenceWord.subsentenceID = subsentence_id;
-				sentenceWord.elevation = elevation;
 			}
+			elevation += sentenceWord.elevation_dif;
+			if (sentenceWord.elevation_dif < 0)
+				sentenceWord.elevation = elevation - sentenceWord.elevation_dif;
+			else
+				sentenceWord.elevation = elevation;
 		}
 
 		for (SentenceWordform sentenceWordform : sentenceWordformList) {

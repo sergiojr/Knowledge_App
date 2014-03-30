@@ -29,4 +29,12 @@ public class CharacterSetup {
 	public boolean isChameleon(){
 		return type==2;
 	}
+	
+	public boolean isSentenceEnd(){
+		return sentence_end>0;
+	}
+	
+	public int getElevation(){
+		return elevation;
+	}
 }
