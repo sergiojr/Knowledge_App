@@ -1,5 +1,6 @@
 package databank;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -71,6 +72,14 @@ public class SentenceWordRelationGraph {
 		return sentenceWordRelationSet;
 	}
 
+	public HashSet<SentenceWordRelation> getSet(int relationType) {
+		HashSet<SentenceWordRelation> result = new HashSet<SentenceWordRelation>();
+		for (SentenceWordRelation sentenceWordRelation : sentenceWordRelationSet)
+			if (sentenceWordRelation.relationType == relationType)
+				result.add(sentenceWordRelation);
+		return result;
+	}
+
 	public SentenceWordFilter[] generateSentenceWordFilter() {
 		SentenceWordFilter[] sentenceWordFilter = new SentenceWordFilter[maxWordPos + 1];
 		for (SentenceWordRelation wordRelation : sentenceWordRelationSet) {
@@ -94,27 +103,27 @@ public class SentenceWordRelationGraph {
 			if (sentenceWordRelation.status == 2) {
 				if (sentenceWordRelation.word1Pos == wordform.wordPos)
 					if (relationIndex[sentenceWordRelation.word2Pos] < 2) {
-						relationIndex[sentenceWordRelation.word2Pos] = 1;//relation present
+						relationIndex[sentenceWordRelation.word2Pos] = 1;// relation present
 						if (ZeroOrEqual(sentenceWordRelation.word1Case, wordform.wcase)
 								&& ZeroOrEqual(sentenceWordRelation.word1Gender, wordform.gender)
 								&& ZeroOrEqual(sentenceWordRelation.word1Sing_Pl, wordform.sing_pl)
 								&& ZeroOrEqual(sentenceWordRelation.word1Animate, wordform.animate)
 								&& ZeroOrEqual(sentenceWordRelation.word1Type, wordform.type))
-							relationIndex[sentenceWordRelation.word2Pos] = 2;//relation passed
+							relationIndex[sentenceWordRelation.word2Pos] = 2;// relation passed
 					}
 				if (sentenceWordRelation.word2Pos == wordform.wordPos)
 					if (relationIndex[sentenceWordRelation.word1Pos] < 2) {
-						relationIndex[sentenceWordRelation.word1Pos] = 1;//relation present
+						relationIndex[sentenceWordRelation.word1Pos] = 1;// relation present
 						if (ZeroOrEqual(sentenceWordRelation.word2Case, wordform.wcase)
 								&& ZeroOrEqual(sentenceWordRelation.word2Gender, wordform.gender)
 								&& ZeroOrEqual(sentenceWordRelation.word2Sing_Pl, wordform.sing_pl)
 								&& ZeroOrEqual(sentenceWordRelation.word2Animate, wordform.animate)
 								&& ZeroOrEqual(sentenceWordRelation.word2Type, wordform.type))
-							relationIndex[sentenceWordRelation.word1Pos] = 2;//relation passed
+							relationIndex[sentenceWordRelation.word1Pos] = 2;// relation passed
 					}
 			}
-		for(int i=0;i<=maxWordPos;i++)
-			if (relationIndex[i]==1)
+		for (int i = 0; i <= maxWordPos; i++)
+			if (relationIndex[i] == 1)
 				return false;
 		return true;
 	}
@@ -517,5 +526,15 @@ public class SentenceWordRelationGraph {
 				}
 		}
 		return false;
+	}
+
+	public ArrayList<SentenceWordRelation> getRelationTree(int wordPos) {
+		ArrayList<SentenceWordRelation> result = new ArrayList<SentenceWordRelation>();
+		for (SentenceWordRelation sentenceWordRelation : sentenceWordRelationSet)
+			if ((sentenceWordRelation.word1Pos == wordPos) && (sentenceWordRelation.word2Pos > 0)) {
+				result.add(sentenceWordRelation);
+				result.addAll(getRelationTree(sentenceWordRelation.word2Pos));
+			}
+		return result;
 	}
 }

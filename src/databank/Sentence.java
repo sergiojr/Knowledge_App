@@ -25,6 +25,7 @@ public class Sentence {
 	private int id;
 	private int type;
 	private ArrayList<ArrayList<Integer>> division;
+	private int[] clustering;
 	private DataBank databank;
 	private Vocabulary vocabulary;
 
@@ -65,6 +66,7 @@ public class Sentence {
 				sourceID, id, "", 0, "", "", 0, 0, "", "");
 		tempSentenceWordformList = sortByUniqueWordPos(tempSentenceWordformList);
 		sentenceWordformList = tempSentenceWordformList;
+		clustering = new int[sentenceWordList.size()+1];
 
 		parsePrepositions();
 		parseNumerals();
@@ -78,6 +80,7 @@ public class Sentence {
 		parseComplexPredicate();
 		parseVerbQualifier();
 		parseSubjectPredicate();
+		fillClustering();
 		parseConjunctions();
 		parseVerbControlledSubstantives();
 		parseConjunctions();
@@ -96,6 +99,30 @@ public class Sentence {
 		databank.saveSentenceWordLinkList(wordLinkList);
 		databank.saveSentenceWordRelationList(wordRelationGraph.getSet());
 		databank.setSentenceProcessed(sourceID, id);
+	}
+
+	private void fillClustering() {
+		int clusterID = 0;
+		for (SentenceWordRelation subjectPredicateRelation : wordRelationGraph
+				.getSet(SentenceWordRelation.subjectPredicate)) {
+			clusterID++;
+			ArrayList<SentenceWordRelation> relationTree = new ArrayList<SentenceWordRelation>();
+
+			relationTree.addAll(wordRelationGraph
+					.getRelationTree(subjectPredicateRelation.word1Pos));
+
+			for (SentenceWord sentenceWord : sentenceWordList)
+				if (sentenceWord.subsentenceID == getSentenceWord(sentenceWordList,
+						subjectPredicateRelation.word1Pos).subsentenceID)
+					clustering[sentenceWord.wordPos] = clusterID;
+
+			for (SentenceWordRelation sentenceWordRelation : relationTree) {
+				for (SentenceWord sentenceWord : sentenceWordList)
+					if (sentenceWord.subsentenceID == getSentenceWord(sentenceWordList,
+							sentenceWordRelation.word2Pos).subsentenceID)
+						clustering[sentenceWord.wordPos] = clusterID;
+			}
+		}
 	}
 
 	private ArrayList<SentenceWordform> sortByUniqueWordPos(
@@ -922,7 +949,10 @@ public class Sentence {
 							.getPrepositionWordPos(nextWordform.wordPos);
 					// существительные и местоимения существительные
 					if ((prevWordform.wcase > 0) & (prevWordform.person > 0))
-						if ((prevWordform.wcase == nextWordform.wcase) & (nextWordform.person > 0)) {
+						if ((prevWordform.wcase == nextWordform.wcase)
+								& (nextWordform.person > 0)
+								& ((clustering[prevWordform.wordPos] == clustering[nextWordform.wordPos])
+										| (clustering[prevWordform.wordPos] == 0) | (clustering[nextWordform.wordPos] == 0))) {
 							conjunction.internal = true;
 							wordLink = new SentenceWordLink(prevWordform, conjunction, nextWordform);
 							if (!wordLink.exists(wordLinkList))
@@ -937,6 +967,8 @@ public class Sentence {
 										| (prevWordform.gender == 0) | (nextWordform.gender == 0))
 								& ((prevWordform.sing_pl == nextWordform.sing_pl)
 										| (prevWordform.sing_pl == 0) | (nextWordform.sing_pl == 0))
+								& ((clustering[prevWordform.wordPos] == clustering[nextWordform.wordPos])
+										| (clustering[prevWordform.wordPos] == 0) | (clustering[nextWordform.wordPos] == 0))
 								& ((prepositionNextWordPos == prepositionPrevWordPos) | (prepositionNextWordPos == 0))) {
 							conjunction.internal = true;
 							wordLink = new SentenceWordLink(prevWordform, conjunction, nextWordform);
@@ -950,7 +982,9 @@ public class Sentence {
 								& (prevWordform.gender == nextWordform.gender)
 								& (prevWordform.sing_pl == nextWordform.sing_pl)
 								& (prevWordform.type == nextWordform.type)
-								& (prevWordform.subtype == nextWordform.subtype)) {
+								& (prevWordform.subtype == nextWordform.subtype)
+								& ((clustering[prevWordform.wordPos] == clustering[nextWordform.wordPos])
+										| (clustering[prevWordform.wordPos] == 0) | (clustering[nextWordform.wordPos] == 0))) {
 							conjunction.internal = true;
 							wordLink = new SentenceWordLink(prevWordform, conjunction, nextWordform);
 							if (!wordLink.exists(wordLinkList))
