@@ -13,7 +13,7 @@ public class PostgresDataBank extends DataBank {
 
 	@Override
 	void establishConnection() throws SQLException {
-		String url = "jdbc:postgresql://localhost:5433/" + DBName;
+		String url = "jdbc:postgresql://localhost:5432/" + DBName;
 		Properties props = new Properties();
 		props.setProperty("user", "knowledge");
 		props.setProperty("password", "Kn0ledge");
