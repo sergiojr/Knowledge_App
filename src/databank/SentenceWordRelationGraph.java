@@ -435,13 +435,27 @@ public class SentenceWordRelationGraph {
 	public int getPrevIndependentWordPos(int wordPos) {
 		SentenceWordRelation depWordRelation;
 		int curWordPos = wordPos - 1;
+		int indWordPos;
+		int expWordPos = 0;
+		int origIndWordPos  = getMasterWordPos(wordPos);
 		while (curWordPos > 0) {
 			depWordRelation = getDependentWordRelation(curWordPos);
 			if (depWordRelation == null)
-				return curWordPos;
-			else if ((depWordRelation.relationType == SentenceWordRelation.conjunction)
-					&& existIndirectDependence(depWordRelation.word1Pos, wordPos))
-				return -1;
+				if ((curWordPos == expWordPos) || (expWordPos == 0))
+					return curWordPos;
+				else
+					return -1;
+			else {
+				indWordPos = getMasterWordPos(curWordPos);
+				if (indWordPos != origIndWordPos) {
+					if ((expWordPos > 0) && (indWordPos != expWordPos))
+						return -1;
+					expWordPos = indWordPos;
+				}
+				if ((depWordRelation.relationType == SentenceWordRelation.conjunction)
+						&& existIndirectDependence(depWordRelation.word1Pos, wordPos))
+					return -1;
+			}
 			curWordPos--;
 		}
 		return -1;
@@ -450,16 +464,41 @@ public class SentenceWordRelationGraph {
 	public int getNextIndependentWordPos(int wordPos) {
 		SentenceWordRelation depWordRelation;
 		int curWordPos = wordPos + 1;
+		int indWordPos;
+		int expWordPos = 0;
+		int origIndWordPos  = getMasterWordPos(wordPos);
 		while (curWordPos <= maxWordPos) {
 			depWordRelation = getDependentWordRelation(curWordPos);
 			if (depWordRelation == null)
-				return curWordPos;
-			else if ((depWordRelation.relationType == SentenceWordRelation.conjunction)
-					&& existIndirectDependence(depWordRelation.word1Pos, wordPos))
-				return -1;
+				if ((curWordPos == expWordPos) || (expWordPos == 0))
+					return curWordPos;
+				else
+					return -1;
+			else {
+				indWordPos = getMasterWordPos(curWordPos);
+				if (indWordPos != origIndWordPos) {
+					if ((expWordPos > 0) && (indWordPos != expWordPos))
+						return -1;
+					expWordPos = indWordPos;
+				}
+				if ((depWordRelation.relationType == SentenceWordRelation.conjunction)
+						&& existIndirectDependence(depWordRelation.word1Pos, wordPos))
+					return -1;
+			}
 			curWordPos++;
 		}
 		return -1;
+	}
+
+	private int getMasterWordPos(int wordPos) {
+		int curWordPos = wordPos;
+		SentenceWordRelation depWordRelation;
+		do {
+			depWordRelation = getDependentWordRelation(curWordPos);
+			if (depWordRelation != null)
+				curWordPos = depWordRelation.word1Pos;
+		} while (depWordRelation != null);
+		return curWordPos;
 	}
 
 	/**
