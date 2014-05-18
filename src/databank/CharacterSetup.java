@@ -7,15 +7,17 @@ public class CharacterSetup {
 	int sentence_end;
 	int ready;
 	int elevation;
+	boolean separate;
 
 	public CharacterSetup(char character, int type, int capital, int sentence_end, int ready,
-			int elevation) {
+			int elevation,boolean separate) {
 		this.character = character;
 		this.type = type;
 		this.capital = capital;
 		this.sentence_end = sentence_end;
 		this.ready = ready;
 		this.elevation = elevation;
+		this.separate = separate;
 	}
 	
 	public boolean equals(char character){
@@ -36,5 +38,9 @@ public class CharacterSetup {
 	
 	public int getElevation(){
 		return elevation;
+	}
+	
+	public boolean isSeparate(){
+		return separate;
 	}
 }

@@ -94,6 +94,7 @@ public class Knowledge_App {
 		boolean isName = false;
 		boolean isSentenceEnd = false;
 		int sentenceEndIndex = -1;
+		boolean stickToEnd = false;
 		boolean isFirstWord = true;
 		boolean separateMode = false;
 		int curElevation = 0;
@@ -126,22 +127,24 @@ public class Knowledge_App {
 					if (!isPunctuation)
 						chameleonCharacter *= -1;
 
-					separateMode |= characterSetup.getElevation() != 0;
+					separateMode |= characterSetup.isSeparate();
 					// if new character is punctuation and current block is letter
 					// or character is letter and current block is punctuation then
 					if (Character.isWhitespace(newchar)
 							|| separateMode
 							|| (characterSetup.isPunctuation() || (chameleonCharacter > 0)) != isPunctuation) {
 						curInput = curInput.trim();
+
 						// add current block to sentence
 						if (!curInput.isEmpty()) {
 							sentenceWordList.add(new SentenceWord(sourceID, 0, 0, 0, 0,
 									new WordProcessor(curInput, isPunctuation, isName, databank,
-											vocabulary).getWord(), 0, 0, 0, curElevation, isPunctuation,
-									isName, false, "", "", "", "", ""));
-							if (isSentenceEnd && (sentenceEndIndex < 0)) {
+											vocabulary).getWord(), 0, 0, 0, curElevation,
+									isPunctuation, isName, false, "", "", "", "", ""));
+							if (isSentenceEnd && ((sentenceEndIndex < 0) | stickToEnd)) {
 								isSentenceEnd = true;
 								sentenceEndIndex = sentenceWordList.size();
+								stickToEnd = true;
 							}
 
 						}
@@ -175,6 +178,7 @@ public class Knowledge_App {
 								sentenceWordList = tempSentenceWordList;
 
 								isSentenceEnd = false;
+								stickToEnd = false;
 								sentenceEndIndex = -1;
 								isFirstWord = true;
 								newlinecount = 0;
@@ -198,10 +202,13 @@ public class Knowledge_App {
 							&& !characterSetup.isChameleon()) {
 						newlinecount = 0;
 						isSentenceEnd = false;
+						stickToEnd = false;
 						sentenceEndIndex = -1;
 					}
 					curElevation = characterSetup.getElevation();
-					separateMode = curElevation != 0;
+					separateMode = characterSetup.isSeparate();
+					if (Character.isWhitespace(newchar))
+						stickToEnd = false;
 					// add current character to current block
 					curInput = curInput + Character.toString(newchar);
 				}
@@ -239,6 +246,6 @@ public class Knowledge_App {
 		for (CharacterSetup characterSetup : characterList)
 			if (characterSetup.equals(character))
 				return characterSetup;
-		return new CharacterSetup(character, 1, 0, 0, 0, 0);
+		return new CharacterSetup(character, 1, 0, 0, 0, 0, false);
 	}
 }

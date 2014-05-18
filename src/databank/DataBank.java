@@ -118,9 +118,10 @@ public class DataBank {
 		stat.executeUpdate("insert into sentences " + "values (" + sentenceCount + ",'" + sentence
 				+ "'," + type + "," + sourceID + ");");
 		stat.close();
-		PreparedStatement sent_word_insert = conn.prepareStatement("insert into "
-				+ "sentence_word (source_id,sentence_id,word_pos,word,punctuation,name,elevation_dif) "
-				+ "values (?,?,?,?,?,?,?);");
+		PreparedStatement sent_word_insert = conn
+				.prepareStatement("insert into "
+						+ "sentence_word (source_id,sentence_id,word_pos,word,punctuation,name,elevation_dif) "
+						+ "values (?,?,?,?,?,?,?);");
 		for (SentenceWord word : sentenceWordList) {
 			i++;
 			word.sentenceID = sentenceCount;
@@ -495,6 +496,13 @@ public class DataBank {
 					+ "where ref_history.version_id=0 and ref_history.source_id=history.source_id and "
 					+ "ref_history.sentence_id=history.sentence_id and ref_history.relation_type=history.relation_type and "
 					+ "ref_history.word_pos=history.word_pos and ref_history.dep_word_pos=history.dep_word_pos)");
+
+			// copy error entries to error version (id=-1)
+			stat.execute("insert into sentence_word_relation_history "
+					+ "(select distinct -1 as version_id,source_id,sentence_id,relation_type,word_pos,preposition,"
+					+ "word,type,dep_word_pos,dep_preposition,dep_word,dep_type,error "
+					+ "from sentence_word_relation_history where error=true "
+					+ "except select * from sentence_word_relation_history where version_id=-1)");
 
 			// get last version id
 			ResultSet rs = stat
@@ -1046,7 +1054,7 @@ public class DataBank {
 			while (rs.next()) {
 				result.add(new CharacterSetup(rs.getString("character").charAt(0), rs
 						.getInt("type"), rs.getInt("capital"), rs.getInt("sentence_end"), rs
-						.getInt("ready"), rs.getInt("elevation")));
+						.getInt("ready"), rs.getInt("elevation"), rs.getBoolean("separate")));
 			}
 			rs.close();
 			stat.close();
