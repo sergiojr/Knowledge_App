@@ -23,8 +23,9 @@ public class SentenceWordRelation {
 	static int adverbAttribute = 2;
 	static int verbInfinitive = 11;
 	static int verbSubstantive = 12;
-	static int verbAdverb = 13;
+	static int verbAdverb = 13;	
 	static int verbRelativeAdjective = 14;
+	static int verbShortAdjective = 15;
 	static int numeral = 21;
 	static int genetivesubstantive = 31;
 	static int conjunction = 100;

@@ -66,7 +66,7 @@ public class Sentence {
 				sourceID, id, "", 0, "", "", 0, 0, "", "");
 		tempSentenceWordformList = sortByUniqueWordPos(tempSentenceWordformList);
 		sentenceWordformList = tempSentenceWordformList;
-		clustering = new int[sentenceWordList.size()+1];
+		clustering = new int[sentenceWordList.size() + 1];
 
 		parsePrepositions();
 		parseNumerals();
@@ -77,8 +77,8 @@ public class Sentence {
 		parseAttributes(backward);
 		parseAttributes(forward);
 		parseConjunctions();
-		parseComplexPredicate();
 		parseVerbQualifier();
+		parseComplexPredicate();		
 		parseSubjectPredicate();
 		fillClustering();
 		parseConjunctions();
@@ -637,34 +637,33 @@ public class Sentence {
 	}
 
 	private void parseComplexPredicate() {
-		ArrayList<SentenceWordform> verbList;
-		Iterator<SentenceWordform> verbIterator;
-		SentenceWordform verbWordform;
-		ArrayList<SentenceWordform> infinitiveList;
-		Iterator<SentenceWordform> infinitiveIterator;
-		SentenceWordform infinitiveWordform;
-
 		int relationType = SentenceWordRelation.verbInfinitive;
-		SentenceWordRelation wordRelation;
+		int relationType2 = SentenceWordRelation.verbShortAdjective;
 
 		// получить глаголы в действительной форме
-		verbList = getVerbList(id, "", "", 0, "");
-		verbIterator = verbList.iterator();
+		ArrayList<SentenceWordform> verbList = getVerbList(id, "", "", 0, "");
+		// verbList.addAll(getShortAdjectiveList(id, 0, 0, 0));
 
-		// для каждого глагола в действительной форме получить глаголы в инфинитиве
-		while (verbIterator.hasNext()) {
-			verbWordform = verbIterator.next();
-			infinitiveList = getVerbList(id, "", "",
-					wordRelationGraph.getNextIndependentWordPos(verbWordform.wordPos),
-					String.valueOf(WordProcessor.verb_infinitive));
-			infinitiveIterator = infinitiveList.iterator();
-			while (infinitiveIterator.hasNext()) {
-				infinitiveWordform = infinitiveIterator.next();
-				wordRelation = new SentenceWordRelation(0, 0, verbWordform, infinitiveWordform,
-						relationType);
+		for (SentenceWordform verbWordform : verbList) {
+			int nextIndependentWordPos = wordRelationGraph
+					.getNextIndependentWordPos(verbWordform.wordPos);
+			// для каждого глагола в действительной форме получить глаголы в инфинитиве
+			for (SentenceWordform infinitiveWordform : getVerbList(id, "", "",
+					nextIndependentWordPos, String.valueOf(WordProcessor.verb_infinitive))) {
+				SentenceWordRelation wordRelation = new SentenceWordRelation(0, 0, verbWordform,
+						infinitiveWordform, relationType);
 				if (wordRelationGraph.add(wordRelation))
 					markLinkedWords(wordRelationGraph, wordRelation, infinitiveWordform);
 			}
+			// для каждого глагола в действительной форме получить краткие прилагательные
+			for (SentenceWordform shortAdjectiveWordform : getShortAdjectiveList(id,
+					nextIndependentWordPos, verbWordform.gender, verbWordform.sing_pl)) {
+				SentenceWordRelation wordRelation = new SentenceWordRelation(0, 0, verbWordform,
+						shortAdjectiveWordform, relationType2);
+				if (wordRelationGraph.add(wordRelation))
+					markLinkedWords(wordRelationGraph, wordRelation, shortAdjectiveWordform);
+			}
+
 		}
 		wordRelationGraph.changeWordRelationStatus(relationType);
 	}
@@ -1082,6 +1081,15 @@ public class Sentence {
 				String.valueOf(WordProcessor.adjective_adverb), 1));
 		adverbList.addAll(getSentencePartList("", "", wordPos, "", "", 0, 0, 0,
 				String.valueOf(WordProcessor.adverb), subtypefilter, 1));
+		return adverbList;
+	}
+
+	private ArrayList<SentenceWordform> getShortAdjectiveList(int sentence_id, int wordPos,
+			int gender, int sing_pl) {
+		ArrayList<SentenceWordform> adverbList = new ArrayList<SentenceWordform>();
+		adverbList.addAll(getSentencePartList("", "", wordPos, "", "", gender, sing_pl, 0,
+				String.valueOf(WordProcessor.adjective),
+				String.valueOf(WordProcessor.adjective_short), 1));
 		return adverbList;
 	}
 
