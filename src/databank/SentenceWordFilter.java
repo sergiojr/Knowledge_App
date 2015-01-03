@@ -4,7 +4,9 @@ public class SentenceWordFilter {
 	int sentenceID;
 	int wordPos;
 	String typeFilter;
+	String subtypeFilter;
 	String wcaseFilter;
+	String personFilter;
 	String genderFilter;
 	String sing_plFilter;
 	String animateFilter;
@@ -12,6 +14,28 @@ public class SentenceWordFilter {
 	public SentenceWordFilter(int sentenceID, int wordPos) {
 		this.sentenceID = sentenceID;
 		this.wordPos = wordPos;
+	}
+
+	public SentenceWordFilter(int sentenceID, int wordPos, String wcaseFilter, String personFilter,
+			int gender, int sing_pl, int animate, String typeFilter, String subtypeFilter) {
+		this.sentenceID = sentenceID;
+		this.wordPos = wordPos;
+		this.wcaseFilter = wcaseFilter;
+		this.personFilter = personFilter;
+		if (gender == 0)
+			this.genderFilter = "";
+		else
+			this.genderFilter = "0|" + String.valueOf(gender);
+		if (sing_pl == 0)
+			this.sing_plFilter = "";
+		else
+			this.sing_plFilter = "0|" + String.valueOf(sing_pl);
+		if (animate == 0)
+			this.animateFilter = "";
+		else
+			this.animateFilter = "0|" + String.valueOf(animate);
+		this.typeFilter = typeFilter;
+		this.subtypeFilter = subtypeFilter;
 	}
 
 	public void addValuestoFilters(SentenceWordRelation wordRelation, int wordSelector) {
@@ -29,6 +53,16 @@ public class SentenceWordFilter {
 			sing_plFilter = addValueToFilter(wordRelation.word2Sing_Pl, sing_plFilter, false);
 			animateFilter = addValueToFilter(wordRelation.word2Animate, animateFilter, false);
 		}
+	}
+
+	public boolean checkFilter(SentenceWordform sentenceWordform) {
+		return SentenceWordFilter.checkFilter(sentenceWordform.wcase, wcaseFilter)
+				&& SentenceWordFilter.checkFilter(sentenceWordform.person, personFilter)
+				&& SentenceWordFilter.checkFilter(sentenceWordform.gender, genderFilter)
+				&& SentenceWordFilter.checkFilter(sentenceWordform.sing_pl, sing_plFilter)
+				&& SentenceWordFilter.checkFilter(sentenceWordform.animate, animateFilter)
+				&& SentenceWordFilter.checkFilter(sentenceWordform.type, typeFilter)
+				&& SentenceWordFilter.checkFilter(sentenceWordform.subtype, subtypeFilter);
 	}
 
 	private String addValueToFilter(int value, String filter, boolean strict) {

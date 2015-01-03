@@ -108,7 +108,8 @@ public class SentenceWordRelationGraph {
 								&& ZeroOrEqual(sentenceWordRelation.word1Gender, wordform.gender)
 								&& ZeroOrEqual(sentenceWordRelation.word1Sing_Pl, wordform.sing_pl)
 								&& ZeroOrEqual(sentenceWordRelation.word1Animate, wordform.animate)
-								&& ZeroOrEqual(sentenceWordRelation.word1Type, wordform.type))
+								&& ZeroOrEqual(sentenceWordRelation.word1Type, wordform.type)
+								&& ZeroOrEqual(sentenceWordRelation.word1SubType, wordform.subtype))
 							relationIndex[sentenceWordRelation.word2Pos] = 2;// relation passed
 					}
 				if (sentenceWordRelation.word2Pos == wordform.wordPos)
@@ -118,7 +119,8 @@ public class SentenceWordRelationGraph {
 								&& ZeroOrEqual(sentenceWordRelation.word2Gender, wordform.gender)
 								&& ZeroOrEqual(sentenceWordRelation.word2Sing_Pl, wordform.sing_pl)
 								&& ZeroOrEqual(sentenceWordRelation.word2Animate, wordform.animate)
-								&& ZeroOrEqual(sentenceWordRelation.word2Type, wordform.type))
+								&& ZeroOrEqual(sentenceWordRelation.word2Type, wordform.type)
+								&& ZeroOrEqual(sentenceWordRelation.word2SubType, wordform.subtype))
 							relationIndex[sentenceWordRelation.word1Pos] = 2;// relation passed
 					}
 			}
@@ -172,12 +174,13 @@ public class SentenceWordRelationGraph {
 				return true;
 
 			// if exist wordRelation where Word2 is related to different Word1
-			if ((curWordRelation.status == 2)
-					&& (curWordRelation.sourceID == wordRelation.sourceID)
+			if (/*
+				 * (curWordRelation.status == 2) &&
+				 */(curWordRelation.sourceID == wordRelation.sourceID)
 					&& (curWordRelation.sentenceID == wordRelation.sentenceID)
 					&& (curWordRelation.word2Pos == wordRelation.word2Pos)
 					&& (curWordRelation.word1Pos != wordRelation.word1Pos)
-					&& ((curWordRelation.relationType != SentenceWordRelation.preposition) | (curWordRelation.relationType != wordRelation.relationType)))
+					&& (((curWordRelation.relationType != SentenceWordRelation.preposition) && (curWordRelation.relationType != SentenceWordRelation.attribute)) | (curWordRelation.relationType != wordRelation.relationType)))
 				return true;
 
 			// Break cycles:if exist wordRelation in WordRelation dependency chain with the same
@@ -195,12 +198,14 @@ public class SentenceWordRelationGraph {
 					&& (curWordRelation.relationType == wordRelation.relationType)
 					&& (curWordRelation.word1Pos == wordRelation.word1Pos)
 					&& (curWordRelation.word1Type == wordRelation.word1Type)
+					&& (curWordRelation.word1SubType == wordRelation.word1SubType)
 					&& (curWordRelation.word1Case == wordRelation.word1Case)
 					&& (curWordRelation.word1Gender == wordRelation.word1Gender)
 					&& (curWordRelation.word1Sing_Pl == wordRelation.word1Sing_Pl)
 					&& (curWordRelation.word1Animate == wordRelation.word1Animate)
 					&& (curWordRelation.word2Pos == wordRelation.word2Pos)
 					&& (curWordRelation.word2Type == wordRelation.word2Type)
+					&& (curWordRelation.word2SubType == wordRelation.word2SubType)
 					&& (curWordRelation.word2Case == wordRelation.word2Case)
 					&& (curWordRelation.word2Gender == wordRelation.word2Gender)
 					&& (curWordRelation.word2Sing_Pl == wordRelation.word2Sing_Pl)
@@ -314,6 +319,7 @@ public class SentenceWordRelationGraph {
 					foundPos = true;
 					if ((curWordRelation.word2Case == prepWordRelation.word1Case)
 							&& (curWordRelation.word2Type == prepWordRelation.word1Type)
+							&& (curWordRelation.word2SubType == prepWordRelation.word1SubType)
 							// && (attributeWordRelation.word2Gender ==
 							// prepWordRelation.word1Gender)
 							&& (curWordRelation.word2Sing_Pl == prepWordRelation.word1Sing_Pl)) {
@@ -330,14 +336,15 @@ public class SentenceWordRelationGraph {
 									mainAttributeWordRelation.sentenceID,
 									mainAttributeWordRelation.word1Pos,
 									mainAttributeWordRelation.word1Type,
+									mainAttributeWordRelation.word1SubType,
 									mainAttributeWordRelation.word1Case,
 									mainAttributeWordRelation.word1Gender,
 									mainAttributeWordRelation.word1Sing_Pl,
 									mainAttributeWordRelation.word1Animate,
 									prepWordRelation.word2Pos, prepWordRelation.word2Type,
-									prepWordRelation.word2Case, prepWordRelation.word2Gender,
-									prepWordRelation.word2Sing_Pl, prepWordRelation.word2Animate,
-									relationType);
+									prepWordRelation.word2SubType, prepWordRelation.word2Case,
+									prepWordRelation.word2Gender, prepWordRelation.word2Sing_Pl,
+									prepWordRelation.word2Animate, relationType);
 							add(dependentWordRelation);
 						}
 						// create preposition relation for each part of dependency chain
@@ -350,12 +357,14 @@ public class SentenceWordRelationGraph {
 										dependentAttributeWordRelation.sentenceID,
 										dependentAttributeWordRelation.word2Pos,
 										dependentAttributeWordRelation.word2Type,
+										dependentAttributeWordRelation.word2SubType,
 										dependentAttributeWordRelation.word2Case,
 										dependentAttributeWordRelation.word2Gender,
 										dependentAttributeWordRelation.word2Sing_Pl,
 										dependentAttributeWordRelation.word2Animate,
 										prepWordRelation.word2Pos, prepWordRelation.word2Type,
-										prepWordRelation.word2Case, prepWordRelation.word2Gender,
+										prepWordRelation.word2SubType, prepWordRelation.word2Case,
+										prepWordRelation.word2Gender,
 										prepWordRelation.word2Sing_Pl,
 										prepWordRelation.word2Animate, relationType);
 
@@ -427,7 +436,7 @@ public class SentenceWordRelationGraph {
 
 	private SentenceWordRelation getDependentWordRelation(int wordPos) {
 		for (SentenceWordRelation wordRelation : sentenceWordRelationSet)
-			if (wordRelation.word2Pos == wordPos)
+			if ((wordRelation.word2Pos == wordPos) && (wordRelation.status > 1))
 				return wordRelation;
 		return null;
 	}
@@ -437,7 +446,7 @@ public class SentenceWordRelationGraph {
 		int curWordPos = wordPos - 1;
 		int indWordPos;
 		int expWordPos = 0;
-		int origIndWordPos  = getMasterWordPos(wordPos);
+		int origIndWordPos = getMasterWordPos(wordPos);
 		while (curWordPos > 0) {
 			depWordRelation = getDependentWordRelation(curWordPos);
 			if (depWordRelation == null)
@@ -466,7 +475,7 @@ public class SentenceWordRelationGraph {
 		int curWordPos = wordPos + 1;
 		int indWordPos;
 		int expWordPos = 0;
-		int origIndWordPos  = getMasterWordPos(wordPos);
+		int origIndWordPos = getMasterWordPos(wordPos);
 		while (curWordPos <= maxWordPos) {
 			depWordRelation = getDependentWordRelation(curWordPos);
 			if (depWordRelation == null)

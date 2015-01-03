@@ -7,12 +7,14 @@ public class SentenceWordRelation {
 	int sentenceID;
 	int word1Pos;
 	int word1Type;
+	int word1SubType;
 	int word1Case;
 	int word1Gender;
 	int word1Sing_Pl;
 	int word1Animate;
 	int word2Pos;
 	int word2Type;
+	int word2SubType;
 	int word2Case;
 	int word2Gender;
 	int word2Sing_Pl;
@@ -23,7 +25,7 @@ public class SentenceWordRelation {
 	static int adverbAttribute = 2;
 	static int verbInfinitive = 11;
 	static int verbSubstantive = 12;
-	static int verbAdverb = 13;	
+	static int verbAdverb = 13;
 	static int verbRelativeAdjective = 14;
 	static int verbShortAdjective = 15;
 	static int numeral = 21;
@@ -34,17 +36,19 @@ public class SentenceWordRelation {
 	static int subjectPredicate = 1001;
 
 	public SentenceWordRelation(int id, int depID, int sourceID, int sentenceID, int word1Pos,
-			int word1Type, int word1Case, int word1Gender, int word1Sing_Pl, int word1Animate,
-			int word2Pos, int word2Type, int word2Case, int word2Gender, int word2Sing_Pl,
-			int word2Animate, int relationType) {
+			int word1Type, int word1SubType, int word1Case, int word1Gender, int word1Sing_Pl,
+			int word1Animate, int word2Pos, int word2Type, int word2SubType, int word2Case,
+			int word2Gender, int word2Sing_Pl, int word2Animate, int relationType) {
 		this.id = id;
 		this.depID = depID;
 		this.sourceID = sourceID;
 		this.sentenceID = sentenceID;
 		this.word1Pos = word1Pos;
 		this.word1Type = word1Type;
+		this.word1SubType = word1SubType;
 		this.word2Pos = word2Pos;
 		this.word2Type = word2Type;
+		this.word2SubType = word2SubType;
 
 		if (relationType == verbAdverb) {
 			this.word1Case = 0;
@@ -127,24 +131,26 @@ public class SentenceWordRelation {
 	public SentenceWordRelation(int id, SentenceWordRelation wordRelation,
 			SentenceWordform wordform2, int relationType) {
 		this(id, wordRelation.id, wordRelation.sourceID, wordRelation.sentenceID,
-				wordRelation.word1Pos, wordRelation.word1Type, wordRelation.word1Case,
-				wordRelation.word1Gender, wordRelation.word1Sing_Pl, wordRelation.word1Animate,
-				wordform2.wordPos, wordform2.type, wordform2.wcase, wordform2.gender,
-				wordform2.sing_pl, wordform2.animate, relationType);
+				wordRelation.word1Pos, wordRelation.word1Type, wordRelation.word1SubType,
+				wordRelation.word1Case, wordRelation.word1Gender, wordRelation.word1Sing_Pl,
+				wordRelation.word1Animate, wordform2.wordPos, wordform2.type, wordform2.subtype,
+				wordform2.wcase, wordform2.gender, wordform2.sing_pl, wordform2.animate,
+				relationType);
 	}
 
 	public SentenceWordRelation(int id, int depID, SentenceWordform wordform1,
 			SentenceWordform wordform2, int relationType) {
 		this(id, depID, wordform1.sourceID, wordform1.sentenceID, wordform1.wordPos,
-				wordform1.type, wordform1.wcase, wordform1.gender, wordform1.sing_pl,
-				wordform1.animate, wordform2.wordPos, wordform2.type, wordform2.wcase,
-				wordform2.gender, wordform2.sing_pl, wordform2.animate, relationType);
+				wordform1.type, wordform1.subtype, wordform1.wcase, wordform1.gender,
+				wordform1.sing_pl, wordform1.animate, wordform2.wordPos, wordform2.type,
+				wordform2.subtype, wordform2.wcase, wordform2.gender, wordform2.sing_pl,
+				wordform2.animate, relationType);
 	}
 
 	public SentenceWordRelation(int id, int depID, SentenceWordform wordform1, int relationType) {
 		this(id, depID, wordform1.sourceID, wordform1.sentenceID, wordform1.wordPos,
-				wordform1.type, wordform1.wcase, wordform1.gender, wordform1.sing_pl,
-				wordform1.animate, 0, 0, 0, 0, 0, 0, relationType);
+				wordform1.type, wordform1.subtype, wordform1.wcase, wordform1.gender,
+				wordform1.sing_pl, wordform1.animate, 0, 0, 0, 0, 0, 0, 0, relationType);
 	}
 
 }

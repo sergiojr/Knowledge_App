@@ -1231,7 +1231,7 @@ public class DataBank {
 			establishConnection();
 			PreparedStatement prep = conn
 					.prepareStatement("insert into sentence_word_relation values "
-							+ "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+							+ "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
 			for (SentenceWordRelation wordRelation : wordRelationList)
 				if (wordRelation.status == 2) {
 					prep.setInt(1, wordRelation.id);
@@ -1251,6 +1251,8 @@ public class DataBank {
 					prep.setInt(15, wordRelation.word1Animate);
 					prep.setInt(16, wordRelation.word2Animate);
 					prep.setInt(17, wordRelation.sourceID);
+					prep.setInt(18, wordRelation.word1SubType);
+					prep.setInt(19, wordRelation.word2SubType);
 					prep.addBatch();
 				}
 			conn.setAutoCommit(false);
