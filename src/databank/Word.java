@@ -71,8 +71,8 @@ public class Word {
 			wordRelations.add(wordRelation);
 	}
 
-	public HashSet<WordWordRelation> getWordRelations(int relationType) {
-		HashSet<WordWordRelation> result = new HashSet<WordWordRelation>();
+	public ArrayList<WordWordRelation> getWordRelations(int relationType) {
+		ArrayList<WordWordRelation> result = new ArrayList<WordWordRelation>();
 
 		if (wordRelations == null)
 			return result;

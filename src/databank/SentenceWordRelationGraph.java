@@ -6,7 +6,7 @@ import java.util.HashSet;
 
 public class SentenceWordRelationGraph {
 
-	private HashSet<SentenceWordRelation> sentenceWordRelationSet;
+	private ArrayList<SentenceWordRelation> sentenceWordRelationSet;
 	private int sourceID;
 	private int sentenceID;
 	private int maxWordPos;
@@ -16,7 +16,7 @@ public class SentenceWordRelationGraph {
 		sourceID = newSourceID;
 		sentenceID = newSentenceID;
 		maxWordPos = newMaxWordPos;
-		sentenceWordRelationSet = new HashSet<SentenceWordRelation>();
+		sentenceWordRelationSet = new ArrayList<SentenceWordRelation>();
 		relationCount = 0;
 	}
 
@@ -68,12 +68,12 @@ public class SentenceWordRelationGraph {
 		sentenceWordRelationSet.remove(wordRelation);
 	}
 
-	public HashSet<SentenceWordRelation> getSet() {
+	public ArrayList<SentenceWordRelation> getSet() {
 		return sentenceWordRelationSet;
 	}
 
-	public HashSet<SentenceWordRelation> getSet(int relationType) {
-		HashSet<SentenceWordRelation> result = new HashSet<SentenceWordRelation>();
+	public ArrayList<SentenceWordRelation> getList(int relationType) {
+		ArrayList<SentenceWordRelation> result = new ArrayList<SentenceWordRelation>();
 		for (SentenceWordRelation sentenceWordRelation : sentenceWordRelationSet)
 			if (sentenceWordRelation.relationType == relationType)
 				result.add(sentenceWordRelation);
@@ -223,7 +223,7 @@ public class SentenceWordRelationGraph {
 	 * @param relationType
 	 */
 	public void cleanWordRelationList(int relationType) {
-		HashSet<SentenceWordRelation> removeWordRelationList = new HashSet<SentenceWordRelation>();
+		ArrayList<SentenceWordRelation> removeWordRelationList = new ArrayList<SentenceWordRelation>();
 		HashSet<SentenceWordRelation> chainRelationList;
 		int[] maxChainLengths = new int[maxWordPos + 1];
 		int curLength;
@@ -295,9 +295,9 @@ public class SentenceWordRelationGraph {
 		int relationType = SentenceWordRelation.preposition;
 		boolean foundPos;
 		boolean foundMatch;
-		HashSet<SentenceWordRelation> prepositionRelations = new HashSet<SentenceWordRelation>();
-		HashSet<SentenceWordRelation> newWordRelations = new HashSet<SentenceWordRelation>();
-		HashSet<SentenceWordRelation> removeWordRelations = new HashSet<SentenceWordRelation>();
+		ArrayList<SentenceWordRelation> prepositionRelations = new ArrayList<SentenceWordRelation>();
+		ArrayList<SentenceWordRelation> newWordRelations = new ArrayList<SentenceWordRelation>();
+		ArrayList<SentenceWordRelation> removeWordRelations = new ArrayList<SentenceWordRelation>();
 		SentenceWordRelation mainAttributeWordRelation;
 		SentenceWordRelation dependentWordRelation;
 
@@ -542,7 +542,7 @@ public class SentenceWordRelationGraph {
 		return result;
 	}
 
-	private int calcDependencyLength(HashSet<SentenceWordRelation> wordRelationList,
+	private int calcDependencyLength(ArrayList<SentenceWordRelation> wordRelationList,
 			SentenceWordRelation wordRelation) {
 		return getDependencyChain(wordRelation).size();
 	}

@@ -18,7 +18,7 @@ public class Vocabulary {
 	private int lastWordID;
 	private HashMap<String, ArrayList<EndingRule>> endingRulesByEnding;
 	private HashMap<String, ArrayList<WordForm>> fixedWordformsByWordformstring;
-	private HashSet<String> fixedOnlyForms;
+	private ArrayList<String> fixedOnlyForms;
 	private ArrayList<Transformation> transformations;
 	private ArrayList<ArrayList<Transformation>> transformationsById;
 
@@ -30,11 +30,10 @@ public class Vocabulary {
 		for (Word word : this.databank.getWords("", 0))
 			updateWordCache(word);
 
-		HashSet<WordForm> wordforms = this.databank.getWordforms(null);
-		for (WordForm wordform : wordforms)
+		for (WordForm wordform : this.databank.getWordforms(null))
 			getWord(wordform.wordID).addWordform(wordform);
-		HashSet<WordWordRelation> wordWordRelations = this.databank.getWordWordRelation(0, -1);
-		for (WordWordRelation wordRelation : wordWordRelations) {
+		
+		for (WordWordRelation wordRelation : this.databank.getWordWordRelation(0, -1)) {
 			getWord(wordRelation.wordID).addWordWordRelation(wordRelation);
 			getWord(wordRelation.parentWordID).addWordWordRelation(wordRelation);
 		}
@@ -195,7 +194,7 @@ public class Vocabulary {
 		if (tempWordform == null) {
 			tempWordform = new WordForm(wordform.intern(), word.id, endingrule, postfix);
 			word.addWordform(tempWordform);
-			HashSet<WordWordRelation> transformRelations = word.getWordRelations(1);
+			ArrayList<WordWordRelation> transformRelations = word.getWordRelations(1);
 			for (WordWordRelation transformRelation : transformRelations)
 				copyWordForm(word, transformRelation, endingrule, postfix);
 			delayedSaveWordforms.add(tempWordform);
@@ -678,7 +677,7 @@ public class Vocabulary {
 
 	public boolean isOnlyFixedForm(String lcWord) {
 		if (fixedOnlyForms == null)
-			fixedOnlyForms = databank.getFixesOnlyForms();
+			fixedOnlyForms = databank.getFixedOnlyForms();
 
 		return fixedOnlyForms.contains(lcWord.intern());
 	}

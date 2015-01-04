@@ -2,9 +2,8 @@ package knowledge_app;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Set;
+import java.util.List;
 
 import databank.ComplexWordTemplate;
 import databank.DataBank;
@@ -31,14 +30,14 @@ public class WordProcessor {
 	public static int adjective_positive = 0; // позитивная форма прилагательного
 	public static int adjective_adverb = 1; // наречие, образованное от прилагательного
 	public static int adjective_short = 2; // прилагательное в сокращенной форме
-	public static int adjective_comparative = 3; //прилагательное в сравнительной форме
+	public static int adjective_comparative = 3; // прилагательное в сравнительной форме
 	public static int numeral = 4; // числительное
 	public static int pronoun = 50; // местоимение
 	public static int particle = 97; // частица
 	public static int adverb = 98; // наречие
-	public static int adverb_adverbial = 0; //обстоятельственные наречия
-	public static int adverb_measure = 1; //наречия меры и степени
-	public static int adverb_attribute = 2; //определительные наречия	
+	public static int adverb_adverbial = 0; // обстоятельственные наречия
+	public static int adverb_measure = 1; // наречия меры и степени
+	public static int adverb_attribute = 2; // определительные наречия
 	public static int conjunction = 99; // союз
 	public static int preposition = 100; // предлог
 	public static int punctuation = 200; // знак препинания
@@ -55,7 +54,7 @@ public class WordProcessor {
 	}
 
 	private void parseBaseForm(String word) throws SQLException {
-		Set<Postfix> postfixes;
+		List<Postfix> postfixes;
 		Postfix postfix;
 		Word emptyWord;
 		String lcWord = word.toLowerCase().intern();
@@ -87,9 +86,9 @@ public class WordProcessor {
 		}
 	}
 
-	private Set<WordForm> parseEnding(String lcWord, Postfix postfix, int complexWordIndex,
+	private List<WordForm> parseEnding(String lcWord, Postfix postfix, int complexWordIndex,
 			ComplexWordTemplate complexWordTemplate) throws SQLException {
-		Set<WordForm> wordforms = new HashSet<WordForm>();
+		List<WordForm> wordforms = new ArrayList<WordForm>();
 		// parse simple words
 		for (int i = 0; i <= 5; i++)
 			if (lcWord.length() > i)
@@ -98,35 +97,24 @@ public class WordProcessor {
 						complexWordTemplate));
 
 		// parse complex words
-		HashSet<ComplexWordTemplate> complexWordTemplates = databank.getComplexWordTemplates();
-		ComplexWordTemplate curComplexWordTemplate;
-		Iterator<ComplexWordTemplate> iterator = complexWordTemplates.iterator();
 		String[] subWords;
-		Set<WordForm> word1Wordforms = null;
-		Set<WordForm> word2Wordforms = null;
-		Iterator<WordForm> word1WordformsIterator;
-		Iterator<WordForm> word2WordformsIterator;
-		WordForm word1Wordform;
-		WordForm word2Wordform;
+		List<WordForm> word1Wordforms = null;
+		List<WordForm> word2Wordforms = null;
 		Word word1;
 		Word word2;
 		Word word;
-		while (iterator.hasNext()) {
-			curComplexWordTemplate = iterator.next();
+		for (ComplexWordTemplate curComplexWordTemplate : databank.getComplexWordTemplates()) {
 			if (lcWord.contains(curComplexWordTemplate.getDelimiter())) {
 				subWords = lcWord.split(curComplexWordTemplate.getDelimiter(), 2);
 				word1Wordforms = parseEnding(subWords[0], postfix, 1, curComplexWordTemplate);
+				word2Wordforms = null;
 				if (word1Wordforms != null)
 					if (!word1Wordforms.isEmpty())
 						word2Wordforms = parseEnding(subWords[1], postfix, 2,
 								curComplexWordTemplate);
 				if (word2Wordforms != null) {
-					word2WordformsIterator = word2Wordforms.iterator();
-					while (word2WordformsIterator.hasNext()) {
-						word2Wordform = word2WordformsIterator.next();
-						word1WordformsIterator = word1Wordforms.iterator();
-						while (word1WordformsIterator.hasNext()) {
-							word1Wordform = word1WordformsIterator.next();
+					for (WordForm word2Wordform : word2Wordforms) {
+						for (WordForm word1Wordform : word1Wordforms) {
 							word1 = vocabulary.getWord(word1Wordform.wordID);
 							word2 = vocabulary.getWord(word2Wordform.wordID);
 							word = vocabulary.getWord(
@@ -144,9 +132,9 @@ public class WordProcessor {
 		return wordforms;
 	}
 
-	private Set<WordForm> getEndingWordForms(String ending, String base, Postfix postfix,
+	private List<WordForm> getEndingWordForms(String ending, String base, Postfix postfix,
 			int complexWordIndex, ComplexWordTemplate complexWordTemplate) throws SQLException {
-		Set<WordForm> wordforms = new HashSet<WordForm>();
+		List<WordForm> wordforms = new ArrayList<WordForm>();
 		// look through list of ending rules with selected ending
 		for (EndingRule endingrule : vocabulary.getEndingRules(ending, postfix, complexWordIndex,
 				complexWordTemplate))

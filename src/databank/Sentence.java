@@ -104,7 +104,7 @@ public class Sentence {
 	private void fillClustering() {
 		int clusterID = 0;
 		for (SentenceWordRelation subjectPredicateRelation : wordRelationGraph
-				.getSet(SentenceWordRelation.subjectPredicate)) {
+				.getList(SentenceWordRelation.subjectPredicate)) {
 			clusterID++;
 			ArrayList<SentenceWordRelation> relationTree = new ArrayList<SentenceWordRelation>();
 
@@ -744,7 +744,7 @@ public class Sentence {
 
 		// получить глаголы в действительной форме или инфинитиве
 		verbList = getVerbList(id, "", "", 0, "");
-		//verbList = getVerbList2(id, "", "", 0, "", 0, 0);		
+		// verbList = getVerbList2(id, "", "", 0, "", 0, 0);
 		verbIterator = verbList.iterator();
 
 		while (verbIterator.hasNext()) {

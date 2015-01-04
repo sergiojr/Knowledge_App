@@ -10,7 +10,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
 
 import knowledge_app.WordProcessor;
 
@@ -24,8 +24,8 @@ import com.healthmarketscience.sqlbuilder.SelectQuery;
 
 public class DataBank {
 	private Setup setup;
-	private HashSet<Prefix> prefixes;
-	private HashSet<Postfix> postfixes;
+	private ArrayList<Prefix> prefixes;
+	private ArrayList<Postfix> postfixes;
 	private HashMap<Integer, Prefix> prefixesById;
 	private HashMap<String, Prefix> prefixesByPrefix;
 	private HashMap<Integer, Integer> ruleDiversity;
@@ -33,7 +33,7 @@ public class DataBank {
 	private HashMap<Integer, EndingRule> zeroEndingruleByRuleNo;
 	private HashMap<Integer, EndingRule> endingRulesByRuleNo;
 
-	private HashSet<ComplexWordTemplate> complexWordTemplates;
+	private ArrayList<ComplexWordTemplate> complexWordTemplates;
 	private HashSet<Numeral> numerals;
 	private HashMap<String, Numeral> numeralsByNumeral;
 	private static int insertBatchLimit = 10000;
@@ -284,9 +284,9 @@ public class DataBank {
 		}
 	}
 
-	public HashSet<WordForm> getWordforms(Word word) {
+	public ArrayList<WordForm> getWordforms(Word word) {
 		EndingRule endingrule;
-		HashSet<WordForm> wordforms = new HashSet<WordForm>();
+		ArrayList<WordForm> wordforms = new ArrayList<WordForm>();
 		SelectQuery query = new SelectQuery();
 		query.addAllColumns();
 		query.addCustomFromTable(new CustomSql("wordforms"));
@@ -390,8 +390,8 @@ public class DataBank {
 		}
 	}
 
-	public HashSet<WordWordRelation> getWordWordRelation(int wordID, int relationType) {
-		HashSet<WordWordRelation> result = new HashSet<WordWordRelation>();
+	public ArrayList<WordWordRelation> getWordWordRelation(int wordID, int relationType) {
+		ArrayList<WordWordRelation> result = new ArrayList<WordWordRelation>();
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
@@ -415,6 +415,7 @@ public class DataBank {
 						rs.getInt("relation_type"), rs.getInt("relation_ref_id"), rs
 								.getInt("relation_ref_line")));
 			rs.close();
+			stat.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -555,8 +556,8 @@ public class DataBank {
 		return result;
 	}
 
-	public HashSet<String> getFixesOnlyForms() {
-		HashSet<String> result = new HashSet<String>();
+	public ArrayList<String> getFixedOnlyForms() {
+		ArrayList<String> result = new ArrayList<String>();
 		try {
 			establishConnection();
 			Statement stat = conn.createStatement();
@@ -768,9 +769,9 @@ public class DataBank {
 		return endingRule;
 	}
 
-	public Set<Postfix> getPostfixes() {
+	public List<Postfix> getPostfixes() {
 		if (postfixes == null) {
-			postfixes = new HashSet<Postfix>();
+			postfixes = new ArrayList<Postfix>();
 			ResultSet rs;
 			try {
 				establishConnection();
@@ -798,9 +799,9 @@ public class DataBank {
 		return new Postfix(id, "", 0, 0, 0, 0);
 	}
 
-	public HashSet<Prefix> getPrefixes() {
+	public List<Prefix> getPrefixes() {
 		if (prefixes == null) {
-			prefixes = new HashSet<Prefix>();
+			prefixes = new ArrayList<Prefix>();
 			prefixesById = new HashMap<Integer, Prefix>();
 			prefixesByPrefix = new HashMap<String, Prefix>();
 			ResultSet rs;
@@ -858,9 +859,9 @@ public class DataBank {
 		return transformations;
 	}
 
-	public HashSet<ComplexWordTemplate> getComplexWordTemplates() {
+	public ArrayList<ComplexWordTemplate> getComplexWordTemplates() {
 		if (complexWordTemplates == null) {
-			complexWordTemplates = new HashSet<ComplexWordTemplate>();
+			complexWordTemplates = new ArrayList<ComplexWordTemplate>();
 
 			String query = "select * from complex_word_template";
 			try {
@@ -1226,7 +1227,7 @@ public class DataBank {
 		}
 	}
 
-	public void saveSentenceWordRelationList(HashSet<SentenceWordRelation> wordRelationList) {
+	public void saveSentenceWordRelationList(ArrayList<SentenceWordRelation> wordRelationList) {
 		try {
 			establishConnection();
 			PreparedStatement prep = conn
