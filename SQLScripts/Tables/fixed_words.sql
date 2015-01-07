@@ -1,4 +1,4 @@
-﻿-- Table: fixed_words
+-- Table: fixed_words
 
 -- DROP TABLE fixed_words;
 
@@ -15,7 +15,8 @@ CREATE TABLE fixed_words
   rule_id integer NOT NULL DEFAULT nextval('fixed_words_id'::regclass),
   subtype integer NOT NULL DEFAULT 0,
   animate integer DEFAULT 0,
-  CONSTRAINT fixed_words_pkey PRIMARY KEY (rule_id )
+  separator integer NOT NULL DEFAULT 0,
+  CONSTRAINT fixed_words_pkey PRIMARY KEY (rule_id)
 )
 WITH (
   OIDS=FALSE
@@ -30,5 +31,6 @@ ALTER TABLE fixed_words
 CREATE INDEX fixed_index_02
   ON fixed_words
   USING btree
-  (word COLLATE pg_catalog."default" );
+  (word COLLATE pg_catalog."default");
+
 

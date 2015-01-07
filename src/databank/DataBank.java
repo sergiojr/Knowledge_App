@@ -575,6 +575,23 @@ public class DataBank {
 		}
 		return result;
 	}
+	
+	public ArrayList<String> getFixedSentenceSeparators() {
+		ArrayList<String> result = new ArrayList<String>();
+		try {
+			establishConnection();
+			Statement stat = conn.createStatement();
+			String query = "select word from fixed_words where only_form=1 and separator=1";
+			ResultSet rs = stat.executeQuery(query);
+			while (rs.next())
+				result.add(rs.getString("word").intern());
+			rs.close();
+			stat.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return result;
+	}
 
 	public ArrayList<WordForm> getFixedWordForms(Vocabulary vocabulary, String wordform,
 			Postfix postfix) throws SQLException {

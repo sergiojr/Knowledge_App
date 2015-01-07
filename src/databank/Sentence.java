@@ -467,7 +467,11 @@ public class Sentence {
 				division = divideSentence();
 
 		if (division != null) {
-			conjunctions = getConjunctions("и");
+			ArrayList<String> separatorList = new ArrayList<String>(1);
+			separatorList.add(new String("и"));
+			conjunctions = getConjunctions(separatorList);
+			// conjunctions = getConjunctions("и");
+
 			for (ArrayList<Integer> curSubsentence : division) {
 				int depID = 0;
 				ArrayList<SentenceWordRelation> subjectPredicateRelations = gather(parseSubsentence(
@@ -915,8 +919,6 @@ public class Sentence {
 
 	private void parseConjunctions() {
 		ArrayList<SentenceWord> conjunctions;
-		Iterator<SentenceWord> conjunctionIterator;
-		SentenceWord conjunction;
 		ArrayList<SentenceWordform> prevWordforms;
 		Iterator<SentenceWordform> prevWordformIterator;
 		SentenceWordform prevWordform;
@@ -930,12 +932,11 @@ public class Sentence {
 		int prepositionNextWordPos;
 
 		// find wordPos with conjunction
-		conjunctions = getConjunctions("и");
-		conjunctions.addAll(getConjunctions("или"));
-		conjunctions.addAll(getConjunctions(","));
-		conjunctionIterator = conjunctions.iterator();
-		while (conjunctionIterator.hasNext()) {
-			conjunction = conjunctionIterator.next();
+		// conjunctions = getConjunctions("и");
+		// conjunctions.addAll(getConjunctions("или"));
+		// conjunctions.addAll(getConjunctions(","));
+		conjunctions = getConjunctions(vocabulary.getSentenceSeparators());
+		for (SentenceWord conjunction : conjunctions) {
 			// get wordforms with maxrating at previous and next position
 			prevWordforms = getPrevWordforms(id, conjunction.wordPos, 1.00);
 			nextWordforms = getNextWordforms(id, conjunction.wordPos, 1.00);
@@ -1176,10 +1177,10 @@ public class Sentence {
 		return null;
 	}
 
-	private ArrayList<SentenceWord> getConjunctions(String conjunction) {
+	private ArrayList<SentenceWord> getConjunctions(ArrayList<String> separatorList) {
 		ArrayList<SentenceWord> conjunctions = new ArrayList<SentenceWord>();
 		for (SentenceWord sentenceWord : sentenceWordList)
-			if (sentenceWord.word.equals(conjunction))
+			if (separatorList.contains(sentenceWord.word))
 				conjunctions.add(sentenceWord);
 		return conjunctions;
 	}

@@ -19,6 +19,7 @@ public class Vocabulary {
 	private HashMap<String, ArrayList<EndingRule>> endingRulesByEnding;
 	private HashMap<String, ArrayList<WordForm>> fixedWordformsByWordformstring;
 	private ArrayList<String> fixedOnlyForms;
+	private ArrayList<String> sentenceSeparatorList;
 	private ArrayList<Transformation> transformations;
 	private ArrayList<ArrayList<Transformation>> transformationsById;
 
@@ -682,6 +683,13 @@ public class Vocabulary {
 			fixedOnlyForms = databank.getFixedOnlyForms();
 
 		return fixedOnlyForms.contains(lcWord.intern());
+	}
+	
+	public ArrayList<String> getSentenceSeparators() {
+		if (sentenceSeparatorList == null)
+			sentenceSeparatorList = databank.getFixedSentenceSeparators();
+
+		return sentenceSeparatorList;
 	}
 
 	private ArrayList<Transformation> getTransformations() {
