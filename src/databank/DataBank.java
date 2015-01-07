@@ -511,6 +511,7 @@ public class DataBank {
 			if (rs.next()) {
 				max_version_id = rs.getInt("max_version_id");
 			}
+			rs.close();
 
 			// copy current version to history
 			query = MessageFormat
@@ -550,6 +551,8 @@ public class DataBank {
 				curRelationStats.add(new EndingRuleStat(rs.getInt("type"), rs.getInt("wcase"), rs
 						.getInt("gender"), rs.getInt("sing_pl"), rs.getInt("wordform_count")));
 			}
+			rs.close();
+			stat.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -971,7 +974,7 @@ public class DataBank {
 				establishConnection();
 				Statement stat = conn.createStatement();
 				ResultSet rs = stat.executeQuery(query);
-				ruleVariance = new ArrayList<Integer>();
+				ruleVariance = new ArrayList<Integer>(0);
 				while (rs.next())
 					ruleVariance.add(new Integer(rs.getInt(1)));
 				ruleVarianceByRuleNo.put(new Integer(rule_no), ruleVariance);
@@ -1325,6 +1328,7 @@ public class DataBank {
 					.format("update sentences set type={2} where source_id = {0,number,#} and id={1,number,#}",
 							source_id, id, type);
 			stat.executeUpdate(query);
+			stat.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -1335,13 +1339,12 @@ public class DataBank {
 		if (numerals == null) {
 			numerals = new HashSet<Numeral>();
 			numeralsByNumeral = new HashMap<String, Numeral>();
-			ResultSet rs;
 			try {
 				Numeral numeral;
 				String numeralString;
 				establishConnection();
 				Statement stat = conn.createStatement();
-				rs = stat.executeQuery("select * from numberals");
+				ResultSet rs = stat.executeQuery("select * from numberals");
 				while (rs.next()) {
 					numeralString = rs.getString("numeral").intern();
 					numeral = new Numeral(numeralString, rs.getInt("sing_pl"),
@@ -1417,6 +1420,7 @@ public class DataBank {
 			establishConnection();
 			Statement stat = conn.createStatement();
 			stat.execute(query);
+			stat.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}

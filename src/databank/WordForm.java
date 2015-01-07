@@ -8,7 +8,7 @@ public class WordForm {
 	float relationIndex;
 
 	public WordForm(String wordForm, int wordID, EndingRule rule, int postfix_id) {
-		this.wordForm = wordForm;
+		this.wordForm = wordForm.intern();
 		this.wordID = wordID;
 		this.endingRule = rule;
 		this.postfix_id = postfix_id;

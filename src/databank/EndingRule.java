@@ -25,7 +25,7 @@ public class EndingRule {
 	public EndingRule(String ending, int rule_no, int rule_variance, int type, int subtype,
 			int rule_id, int wcase, int gender, int sing_pl, int tense, int animate, int person,
 			String allow_after, String deny_after, String e_before, String o_before, int min_length) {
-		this.ending = ending;
+		this.ending = ending.intern();
 		this.rule_no = rule_no;
 		this.rule_variance = rule_variance;
 		this.type = type;
@@ -37,16 +37,23 @@ public class EndingRule {
 		this.tense = tense;
 		this.animate = animate;
 		this.person = person;
-		this.allow_after = allow_after;
-		this.deny_after = deny_after;
-		this.e_before = e_before;
-		this.o_before = o_before;
+		this.allow_after = getInternOrNull(allow_after);
+		this.deny_after = getInternOrNull(deny_after);
+		this.e_before = getInternOrNull(e_before);
+		this.o_before = getInternOrNull(o_before);
 		this.min_length = min_length;
+	}
+
+	private static String getInternOrNull(String source) {
+		if (source != null)
+			return source.intern();
+
+		return null;
 	}
 
 	public EndingRule(String ending, int rule_id, int wcase, int gender, int sing_pl, int animate,
 			int person, int type, int rule_no, int rule_variance) {
-		this.ending = ending;
+		this.ending = ending.intern();
 		this.rule_id = rule_id;
 		this.type = type;
 		this.rule_no = rule_no;

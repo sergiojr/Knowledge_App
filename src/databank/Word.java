@@ -22,7 +22,7 @@ public class Word {
 	public Word(DataBank databank, int id, String word, int type, int rule_no, int rule_variance,
 			boolean complex, int word1ID, int word2ID, int rating) {
 		this.id = id;
-		this.word = word;
+		this.word = word.intern();
 		this.type = type;
 		this.rule_no = rule_no;
 		this.rule_variance = rule_variance;
@@ -33,7 +33,7 @@ public class Word {
 		this.fixed = (this.rule_no < 0);
 		if (databank != null)
 			this.ruleVariance = databank.getRuleVariance(rule_no);
-		this.wordforms = new ArrayList<WordForm>();
+		this.wordforms = new ArrayList<WordForm>(1);
 		this.wordRelations = null;
 		this.dependentComplexWords = null;
 	}
@@ -64,7 +64,7 @@ public class Word {
 
 	public void addWordWordRelation(WordWordRelation wordRelation) {
 		if (wordRelations == null)
-			wordRelations = new ArrayList<WordWordRelation>();
+			wordRelations = new ArrayList<WordWordRelation>(1);
 
 		if ((id == wordRelation.parentWordID | id == wordRelation.wordID)
 				&& (!wordRelations.contains(wordRelation)))
@@ -72,7 +72,7 @@ public class Word {
 	}
 
 	public ArrayList<WordWordRelation> getWordRelations(int relationType) {
-		ArrayList<WordWordRelation> result = new ArrayList<WordWordRelation>();
+		ArrayList<WordWordRelation> result = new ArrayList<WordWordRelation>(0);
 
 		if (wordRelations == null)
 			return result;
@@ -85,16 +85,13 @@ public class Word {
 
 	public void addDependentComplexWord(Word word) {
 		if (dependentComplexWords == null)
-			dependentComplexWords = new ArrayList<Word>();
+			dependentComplexWords = new ArrayList<Word>(1);
 
 		if (!dependentComplexWords.contains(word))
 			dependentComplexWords.add(word);
 	}
 
 	public ArrayList<Word> getDependentComplexWords() {
-		if (dependentComplexWords == null)
-			return new ArrayList<Word>();
-
 		return dependentComplexWords;
 	}
 

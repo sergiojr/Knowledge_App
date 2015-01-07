@@ -537,7 +537,9 @@ public class Vocabulary {
 			if (isChanged) {
 				if (word.rating != 0)
 					updatedWordSet.add(word);
-				dependentWordSet.addAll(word.getDependentComplexWords());
+				
+				if (word.getDependentComplexWords()!=null)
+					dependentWordSet.addAll(word.getDependentComplexWords());
 			}
 		}
 
