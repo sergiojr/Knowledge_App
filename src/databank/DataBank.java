@@ -1075,7 +1075,7 @@ public class DataBank {
 			while (rs.next()) {
 				result.add(new CharacterSetup(rs.getString("character").charAt(0), rs
 						.getInt("type"), rs.getInt("capital"), rs.getInt("sentence_end"), rs
-						.getInt("ready"), rs.getInt("elevation"), rs.getBoolean("separate")));
+						.getInt("ready"), rs.getInt("elevation"), rs.getBoolean("separate"),rs.getBoolean("expect_capital_letter")));
 			}
 			rs.close();
 			stat.close();

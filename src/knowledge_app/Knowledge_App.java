@@ -95,7 +95,7 @@ public class Knowledge_App {
 		boolean isSentenceEnd = false;
 		int sentenceEndIndex = -1;
 		boolean stickToEnd = false;
-		boolean isFirstWord = true;
+		boolean isExpectCapitalLetter = true;
 		boolean separateMode = false;
 		int curElevation = 0;
 		String curInput = new String();
@@ -151,7 +151,7 @@ public class Knowledge_App {
 
 						isName = false;
 						if (!isPunctuation)
-							isFirstWord = false;
+							isExpectCapitalLetter = false;
 
 						// if current block is punctuation and one of the following
 						// a. new character is a capital letter
@@ -180,12 +180,12 @@ public class Knowledge_App {
 								isSentenceEnd = false;
 								stickToEnd = false;
 								sentenceEndIndex = -1;
-								isFirstWord = true;
+								isExpectCapitalLetter = true;
 								newlinecount = 0;
 							}
 
 						}
-						if (isPunctuation & Character.isUpperCase(newchar) & !isFirstWord)
+						if (isPunctuation & Character.isUpperCase(newchar) & !isExpectCapitalLetter)
 							isName = true;
 						// clear current block
 						curInput = new String();
@@ -207,8 +207,9 @@ public class Knowledge_App {
 					}
 					curElevation = characterSetup.getElevation();
 					separateMode = characterSetup.isSeparate();
+					isExpectCapitalLetter |= characterSetup.isExpectCapitalLetter();
 					if (Character.isWhitespace(newchar))
-						stickToEnd = false;
+						stickToEnd = false;							
 					// add current character to current block
 					curInput = curInput + Character.toString(newchar);
 				}
@@ -246,6 +247,6 @@ public class Knowledge_App {
 		for (CharacterSetup characterSetup : characterList)
 			if (characterSetup.equals(character))
 				return characterSetup;
-		return new CharacterSetup(character, 1, 0, 0, 0, 0, false);
+		return new CharacterSetup(character, 1, 0, 0, 0, 0, false, false);
 	}
 }

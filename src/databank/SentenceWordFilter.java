@@ -55,7 +55,7 @@ public class SentenceWordFilter {
 		}
 	}
 
-	public boolean checkFilter(SentenceWordform sentenceWordform) {
+	public boolean check(SentenceWordform sentenceWordform) {
 		return SentenceWordFilter.checkFilter(sentenceWordform.wcase, wcaseFilter)
 				&& SentenceWordFilter.checkFilter(sentenceWordform.person, personFilter)
 				&& SentenceWordFilter.checkFilter(sentenceWordform.gender, genderFilter)

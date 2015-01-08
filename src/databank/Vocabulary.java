@@ -691,6 +691,10 @@ public class Vocabulary {
 
 		return sentenceSeparatorList;
 	}
+	
+	public boolean isSeparator(String word) {
+		return getSentenceSeparators().contains(word.intern());
+	}
 
 	private ArrayList<Transformation> getTransformations() {
 		ArrayList<Transformation> tempTransformations;
