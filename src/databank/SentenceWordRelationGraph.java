@@ -41,7 +41,7 @@ public class SentenceWordRelationGraph {
 
 	public void addAll(SentenceWordRelationGraph curWordRelationGraph) {
 		HashMap<Integer, Integer> idMapping = new HashMap<Integer, Integer>();
-		for (SentenceWordRelation wordRelation : curWordRelationGraph.getSet()) {
+		for (SentenceWordRelation wordRelation : curWordRelationGraph.getList()) {
 			if (wordRelation.id != 0) {
 				if (idMapping.containsKey(wordRelation.id))
 					wordRelation.id = idMapping.get(wordRelation.id);
@@ -68,7 +68,7 @@ public class SentenceWordRelationGraph {
 		sentenceWordRelationSet.remove(wordRelation);
 	}
 
-	public ArrayList<SentenceWordRelation> getSet() {
+	public ArrayList<SentenceWordRelation> getList() {
 		return sentenceWordRelationSet;
 	}
 
@@ -305,7 +305,7 @@ public class SentenceWordRelationGraph {
 			if (prepWordRelation.relationType == relationType)
 				prepositionRelations.add(prepWordRelation);
 
-		for (SentenceWordRelation curWordRelation : curWordRelations.getSet())
+		for (SentenceWordRelation curWordRelation : curWordRelations.getList())
 			if (curWordRelation.status == 1)
 				newWordRelations.add(curWordRelation);
 
