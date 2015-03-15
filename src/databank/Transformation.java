@@ -140,10 +140,14 @@ public class Transformation {
 		}
 
 		newWord = dropSuffix(newWord, targetSuffix);
+		if (newWord == null)
+			return null;
+
 		newWord = addSuffix(newWord, sourceSuffix);
 
 		if (newWord != oldWord)
 			return new Word(null, 0, newWord, newType, newRule, newRuleVariance, false, 0, 0, 0);
+
 		return null;
 	}
 
