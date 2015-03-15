@@ -519,12 +519,12 @@ public class DataBank {
 							+ "SELECT {0,number,#}, source_id, sentence_id, relation_type, word_pos, preposition,"
 							+ "word, type, dep_word_pos, dep_preposition, dep_word, dep_type, "
 							+ "exists (select 1 from sentence_word_relation_history l_history "
-							+ "where dep_words_pair2.source_id=l_history.source_id and "
-							+ "dep_words_pair2.relation_type=l_history.relation_type and "
-							+ "dep_words_pair2.sentence_id = l_history.sentence_id and "
-							+ "dep_words_pair2.word_pos = l_history.word_pos and "
-							+ "dep_words_pair2.dep_word_pos=l_history.dep_word_pos and l_history.error=true) error "
-							+ "FROM dep_words_pair2;", max_version_id + 1);
+							+ "where dep_words_pair.source_id=l_history.source_id and "
+							+ "dep_words_pair.relation_type=l_history.relation_type and "
+							+ "dep_words_pair.sentence_id = l_history.sentence_id and "
+							+ "dep_words_pair.word_pos = l_history.word_pos and "
+							+ "dep_words_pair.dep_word_pos=l_history.dep_word_pos and l_history.error=true) error "
+							+ "FROM dep_words_pair;", max_version_id + 1);
 			stat.execute(query);
 			stat.close();
 		} catch (SQLException e) {
